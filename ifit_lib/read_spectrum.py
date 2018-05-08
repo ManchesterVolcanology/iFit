@@ -16,7 +16,7 @@ import numpy as np
 
 def read_spectrum(fname, spec_type):
 
-    if spec_type == 'ifrit':
+    if spec_type == 'IFRiT':
         
         # Load data into a numpy array
         x, y = np.loadtxt(fname, unpack = True, skiprows = 8)

@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import griddata
 from scipy.optimize import curve_fit
 
-from ifit_lib.make_ils import make_ils, make_gauss_ils
+from ifit_lib.make_ils import make_ils
 from ifit_lib.smooth import smooth
 
 #========================================================================================
@@ -232,8 +232,7 @@ def ifit_ils_fwd(grid,a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ils_
     raw_F = np.add(raw_F, light_d)
   
     # Convolve high res raw_F with ILS
-    ils = make_gauss_ils(model_grid, ils_width)
-    ils = make_ils(model_grid, ils_width, 1.0)
+    ils = make_ils(ils_width, model_grid[1] - model_grid[0], ils_gauss_weight)
     F_conv = np.convolve(raw_F, ils, 'same')
     F_no_so2_conv = np.convolve(raw_F_no_so2, ils, 'same')
     

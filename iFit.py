@@ -189,6 +189,7 @@ class mygui(tk.Tk):
                    'USB2+H04173',
                    'USB2+H15972',
                    'USB2+F02057']
+        
         self.spec_name = tk.StringVar(setup_frame, value = options[0])
         spectro_l = tk.Label(setup_frame, text = 'Spectrometer:', font = NORM_FONT)
         spectro_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
@@ -219,17 +220,25 @@ class mygui(tk.Tk):
         self.ils_width_c = ttk.Checkbutton(setup_frame, variable = self.ils_width_b)
         self.ils_width_c.grid(row = 3, column = 3, padx = 5, pady = 5)
         
+        # ILS Gaussian weighting
+        self.gauss_weight = tk.DoubleVar(self, value = settings['Gauss Weight'])
+        gauss_weight_l = tk.Label(setup_frame, text = 'ILS Gauss Weight:', 
+                                  font = NORM_FONT)
+        gauss_weight_l.grid(row = 4, column = 0, padx = 5, pady = 5, sticky = 'W')
+        gauss_weight_e = ttk.Entry(setup_frame, textvariable = self.gauss_weight)
+        gauss_weight_e.grid(row = 4, column = 1, padx = 5, pady = 5)
+        
         # Light dilution factor
         self.ldf = tk.IntVar(setup_frame, value = settings['LDF'])
         self.ldf_b = tk.IntVar(setup_frame, value = settings['Fit LDF'])
         self.ldf_l = tk.Label(setup_frame, text = 'LDF:', font = NORM_FONT)
-        self.ldf_l.grid(row = 4, column = 0, padx = 5, pady = 5, sticky = 'W')
+        self.ldf_l.grid(row = 5, column = 0, padx = 5, pady = 5, sticky = 'W')
         self.ldf_e = ttk.Entry(setup_frame, textvariable = self.ldf)
-        self.ldf_e.grid(row = 4, column = 1, padx = 5, pady = 5)
+        self.ldf_e.grid(row = 5, column = 1, padx = 5, pady = 5)
         self.ldf_l2 = tk.Label(setup_frame, text = 'Fit LDF?', font = NORM_FONT)
-        self.ldf_l2.grid(row = 4, column = 2, padx = 5, pady = 5, sticky = 'W')
+        self.ldf_l2.grid(row = 5, column = 2, padx = 5, pady = 5, sticky = 'W')
         self.ldf_c = ttk.Checkbutton(setup_frame, variable = self.ldf_b)
-        self.ldf_c.grid(row = 4, column = 3, padx = 5, pady = 5)
+        self.ldf_c.grid(row = 5, column = 3, padx = 5, pady = 5)
         
 #========================================================================================
 #==================================Create file dialouges=================================
@@ -247,19 +256,19 @@ class mygui(tk.Tk):
         self.spec_ent=tk.StringVar(value=str(len(self.spec_fpaths))+' spectra selected')
         self.specfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 40, 
                                  text = self.spec_ent)
-        self.specfp_l.grid(row = 5, column = 1, padx = 5, pady = 5, sticky = 'W', 
+        self.specfp_l.grid(row = 6, column = 1, padx = 5, pady = 5, sticky = 'W', 
                       columnspan = 3)
         specfp_b = ttk.Button(setup_frame, text="Select Spectra", command = self.spec_fp)
-        specfp_b.grid(row = 5, column = 0, padx = 5, pady = 5, sticky = 'W')
+        specfp_b.grid(row = 6, column = 0, padx = 5, pady = 5, sticky = 'W')
         
         # File dialouge for darks
         self.dark_ent=tk.StringVar(value=str(len(self.dark_fpaths))+' spectra selected')
         self.darkfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 40, 
                                  text = self.dark_ent)
-        self.darkfp_l.grid(row = 6, column = 1, padx = 5, pady = 5, sticky = 'W', 
+        self.darkfp_l.grid(row = 7, column = 1, padx = 5, pady = 5, sticky = 'W', 
                       columnspan = 3)
         darkfp_b = ttk.Button(setup_frame, text = "Select Darks", command = self.dark_fp)
-        darkfp_b.grid(row = 6, column = 0, padx = 5, pady = 5, sticky = 'W')
+        darkfp_b.grid(row = 7, column = 0, padx = 5, pady = 5, sticky = 'W')
                
 #========================================================================================
 #================================Set initial fit parameters==============================
@@ -468,6 +477,7 @@ class mygui(tk.Tk):
             w.write('Spectrometer;'     + str(self.spec_name.get())         + '\n')
             w.write('Spectra Type;'     + str(self.spec_type.get())         + '\n')
             w.write('ILS Width;'        + str(self.ils_width_e.get())       + '\n')
+            w.write('Gauss Weight;'     + str(self.gauss_weight.get())      + '\n')
             w.write('Fit ILS;'          + str(self.ils_width_b.get())       + '\n')
             w.write('LDF;'              + str(self.ldf_e.get())             + '\n')
             w.write('Fit LDF;'          + str(self.ldf_b.get())             + '\n')
@@ -554,7 +564,7 @@ class mygui(tk.Tk):
         common['wave_start']       = float(self.wave_start_e.get())
         common['wave_stop']        = float(self.wave_stop_e.get())
         common['ils_width']        = float(self.ils_width_e.get())
-        common['ils_gauss_weight'] = 1.0
+        common['ils_gauss_weight'] = float(self.gauss_weight.get())
         common['ldf']              = float(self.ldf_e.get())
         common['solar_resid_flag'] = 'Ignore'
         common['ils_flag']         = self.ils_width_b.get()
@@ -596,7 +606,8 @@ class mygui(tk.Tk):
             common['params'].append(['ldf', common['ldf']])
             
             # Generate spectrometer ILS, a smoothing function applied to the fwdmodel
-            common['ils'] = make_ils(common['model_grid'], common['ils_width'], 
+            common['ils'] = make_ils(common['ils_width'],
+                                     common['model_grid'][1] - common['model_grid'][0],
                                      common['ils_gauss_weight'])
             
         else:
@@ -604,7 +615,8 @@ class mygui(tk.Tk):
             gen_fit = gen_fit_norm
             
             # Generate spectrometer ILS, a smoothing function applied to the fwdmodel
-            common['ils'] = make_ils(common['model_grid'], common['ils_width'], 
+            common['ils'] = make_ils(common['ils_width'],
+                                     common['model_grid'][1] - common['model_grid'][0],
                                      common['ils_gauss_weight'])
 
         # Save initial guess parameters
