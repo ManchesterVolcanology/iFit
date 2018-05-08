@@ -9,7 +9,7 @@ from scipy.interpolate import griddata
 from pandas import read_csv
 
 from ifit_lib.click_zoom import click_zoom
-from ifit_lib.read_gps import read_txt_gps, gps_vector, haversine
+from ifit_lib.read_gps import read_txt_gps, gps_vector, haversine, read_nmea
 from ifit_lib.center_of_grav import cog
 
 #========================================================================================
@@ -102,7 +102,9 @@ with open('Flux Inputs/volcano_data.txt', 'r') as r:
     
 # Read GPS data from file
 print('Reading GPS data...')
-gps_date, gps_time, lat, lon, alt = read_txt_gps('Flux inputs/gps.txt', time_diff)
+#gps_time, lat, lon = read_nmea('Flux inputs/180430d.TXT', time_diff)
+gps_time, lat, lon = read_txt_gps('Flux inputs/gps.txt', time_diff)
+
 print('Done!')
 
 #========================================================================================
@@ -148,21 +150,21 @@ print('Done!')
 #========================================================================================
 
 # Request wind speed from the user
-input_flag = False
-while input_flag == False:
+while True:
     try:
         wind_speed = float(input('Input wind speed (ms-1): '))
         input_flag = True
+        break
     
     except ValueError:
         print('Input not a float, please re-enter')
         
- # Request wind speed uncertainty from the user   
-input_flag = False
-while input_flag == False:
+# Request wind speed uncertainty from the user
+while True:
     try:
         wind_err = float(input('Input wind speed uncertainty (%): ')) / 100
         input_flag = True
+        break
     
     except ValueError:
         print('Input not a float, please re-enter')
@@ -170,7 +172,7 @@ while input_flag == False:
 #========================================================================================
 #==================================Subtract background===================================
 #========================================================================================
-  
+'''  
 bg_flag = input('Subtract background? y/n: ')
 
 if bg_flag == 'y':
@@ -190,7 +192,7 @@ if bg_flag == 'y':
     
     # Apply correction
     so2_amt = np.subtract(so2_amt, background)
-
+'''
 #========================================================================================
 #==================================Begin analysis loop===================================
 #========================================================================================
@@ -220,6 +222,7 @@ while loop_flag == 'y':
     # Apply two sets of windowing, one rough to get the right region, then one 
     #  accurate to select the plume
     for i in range(2):
+        
         # Plot the SO2 time series data
         fig = plt.figure(1, figsize = (12,8))
         ax = fig.add_subplot(111)
@@ -234,7 +237,7 @@ while loop_flag == 'y':
         ind1, ind2 = click_zoom(fig, time)
         
         # Cut the so2 amount timeseries to selected window
-        time = time[ind1:ind2]
+        time    = time[ind1:ind2]
         so2_amt = so2_amt[ind1:ind2]
         so2_err = so2_err[ind1:ind2]
 
@@ -248,7 +251,7 @@ while loop_flag == 'y':
 #========================Interpolate GPS data onto SO2 time grid=========================
 #========================================================================================
 
-    # Interpolate the GPS data onto the spectra time grid
+    # Interpolate the GPS data onto the so2 time grid
     modlon_old = griddata(gps_time,lon,time_old)
     modlat_old = griddata(gps_time,lat,time_old)
     modlat = griddata(gps_time,lat,time)
