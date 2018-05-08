@@ -53,38 +53,18 @@ class mygui(tk.Tk):
         menubar.add_cascade(label = 'Options', menu = filemenu)
         tk.Tk.config(self, menu = menubar)
        
-        # Create frames for diferent sections
-        break_frame0 = tk.Frame(self, width = 10, pady=3)
-        break_frame0.grid(row=0, column=0, rowspan=10, sticky="ew")
+        # Create frames for diferent sections       
+        setup_frame = tk.LabelFrame(self, text = 'Program Setup', font = LARG_FONT)
+        setup_frame.grid(row=1, column=1, padx = 10, pady = 10, sticky="ew")
         
-        break_frame1 = tk.Frame(self, height = 10, pady=3)
-        break_frame1.grid(row=0, column=1, columnspan = 2, sticky="ew")        
-        
-        setup_frame = ttk.Frame(self, padding=3, borderwidth=5, relief = tk.GROOVE)
-        setup_frame.grid(row=1, column=1, sticky="ew")
-        
-        break_frame2 = tk.Frame(self, height = 10, pady=3)
-        break_frame2.grid(row=2, column=1, sticky="ew")
-        
-        param_frame = ttk.Frame(self, padding=3, borderwidth=5, relief = tk.GROOVE)
-        param_frame.grid(row=3, column=1, sticky="ew")
-        
-        break_frame3 = tk.Frame(self, height = 10, pady=3)
-        break_frame3.grid(row=4, column=1, sticky="ew")
+        param_frame = tk.LabelFrame(self, text = 'Fit Parameters', font = LARG_FONT)
+        param_frame.grid(row=3, column=1, padx = 10, pady = 10, sticky="ew")
         
         button_frame = ttk.Frame(self, padding=3, borderwidth=5, relief = tk.GROOVE)
-        button_frame.grid(row=5, column=1, sticky="ew")
-        
-        break_frame4 = tk.Frame(self, height = 10, pady=3)
-        break_frame4.grid(row=6, column=1, sticky="ew")
-        break_frame6 = tk.Frame(self, width = 10, pady=3)
-        break_frame6.grid(row=0, column=2,rowspan = 10, sticky="ew")
+        button_frame.grid(row=5, column=1, padx = 10, pady = 10, sticky="ew")
         
         graph_frame = ttk.Frame(self, padding=3, borderwidth=5, relief = tk.GROOVE)
-        graph_frame.grid(row=1, column=3, rowspan = 10, sticky="NW")
-        
-        break_frame7 = tk.Frame(self, width = 10, pady=3)
-        break_frame7.grid(row=0, column=4,rowspan = 10, columnspan = 10, sticky="ew")
+        graph_frame.grid(row=1, column=3, padx = 10, pady = 10, rowspan = 10, sticky="NW")
         
         mygui.columnconfigure(index=3, weight=1, self = self)
         mygui.rowconfigure(index = 5, weight = 1, self = self)
@@ -166,10 +146,6 @@ class mygui(tk.Tk):
             settings['BrO']               = 1e+15
             settings['Spectra Filepaths'] = ''
             settings['Dark Filepaths']    = ''
-                
-        setup_title_l = tk.Label(setup_frame, text = 'Program Setup:', font = LARG_FONT)
-        setup_title_l.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 2, 
-                           stick = "W")
         
         # Create entry for start and stop wavelengths
         self.wave_start = tk.IntVar(setup_frame, value = settings['Wave Start'])
@@ -275,11 +251,6 @@ class mygui(tk.Tk):
 #========================================================================================
 #================================Set initial fit parameters==============================
 #========================================================================================
-        
-        # Heading    
-        params_l = tk.Label(param_frame, text = 'Fit parameters:', font = LARG_FONT)
-        params_l.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 2, 
-                           stick = "W")
         
         # Polynomial coefficents
         self.a = tk.DoubleVar(self, value = settings['a'])
@@ -483,6 +454,8 @@ class mygui(tk.Tk):
             w.write('Fit ILS;'          + str(self.ils_width_b.get())       + '\n')
             w.write('LDF;'              + str(self.ldf_e.get())             + '\n')
             w.write('Fit LDF;'          + str(self.ldf_b.get())             + '\n')
+            w.write('dark_flag;'        + str(settings['dark_flag'])        + '\n')
+            w.write('flat_flag;'        + str(settings['flat_flag'])        + '\n')
             w.write('Show Graphs;'      + str(settings['Show Graphs'])      + '\n')
             w.write('Show Error Bars;'  + str(settings['Show Error Bars'])  + '\n')
             w.write('scroll_flag;'      + str(settings['scroll_flag'])      + '\n')
@@ -886,13 +859,17 @@ def model_settings():
         
         # Close the window
         popup.destroy()
-        
+    
+    # Create row number counter
+    
     # Set resolution of model grid
     popup.model_res = tk.IntVar(popup, value = settings['model_resolution'])
     model_res_l = tk.Label(popup, text = 'Model Grid spacing:', font = NORM_FONT)
     model_res_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
     model_res_e = ttk.Entry(popup, textvariable = popup.model_res)
     model_res_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+    
+    
     
     # Button to apply changes and close
     b1 = ttk.Button(popup, text='Apply', command=lambda: update_model_settings(settings))
