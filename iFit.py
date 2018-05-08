@@ -147,6 +147,8 @@ class mygui(tk.Tk):
             settings['Fit ILS']           = 0
             settings['LDF']               = 0.0
             settings['Fit LDF']           = 0
+            settings['dark_flag']         = 1
+            settings['flat_flag']         = 1
             settings['Show Graphs']       = 1
             settings['Show Error Bars']   = 1
             settings['scroll_flag']       = 1
@@ -441,7 +443,7 @@ class mygui(tk.Tk):
         # Open dialouge to get files
         fpaths = fd.askopenfilenames()
 
-        if fpaths != None:
+        if fpaths != '':
             self.spec_fpaths = []
             for i in fpaths:
                 self.spec_fpaths.append(str(i))
@@ -454,7 +456,7 @@ class mygui(tk.Tk):
         # Open dialouge to get files
         fpaths = fd.askopenfilenames()
         
-        if fpaths != None:
+        if fpaths != '':
             self.dark_fpaths = []
             for i in fpaths:
                 self.dark_fpaths.append(str(i))
@@ -566,7 +568,6 @@ class mygui(tk.Tk):
         common['ils_width']        = float(self.ils_width_e.get())
         common['ils_gauss_weight'] = float(self.gauss_weight.get())
         common['ldf']              = float(self.ldf_e.get())
-        common['solar_resid_flag'] = 'Ignore'
         common['ils_flag']         = self.ils_width_b.get()
         common['ldf_flag']         = self.ldf_b.get()
         common['spectra_files']    = self.spec_fpaths
@@ -647,8 +648,8 @@ class mygui(tk.Tk):
 #====================================Open output files===================================
 #========================================================================================
     
-        # Read first dark spectrum to get date of data
-        x, y, data_date, data_time, spec_no = read_spectrum(common['dark_files'][0],
+        # Read first spectrum to get date of data
+        x, y, data_date, data_time, spec_no = read_spectrum(common['spectra_files'][0],
                                                             spec_type)
         
         # Create directory to hold program outputs
@@ -708,8 +709,7 @@ class mygui(tk.Tk):
                 
                 # Read in spectrum file
                 try:
-                    x, y, data_date, data_time, spec_no = read_spectrum(fname,
-                                                                        spec_type)
+                    x, y, data_date, data_time, spec_no = read_spectrum(fname, spec_type)
                     
                 except FileNotFoundError:
                     self.print_output('File number ' + str(count) + ' not found')
@@ -724,9 +724,8 @@ class mygui(tk.Tk):
 #========================================================================================
                     
                     # Fit
-                    results = fit_spec(common, y, grid, fwd_model)
-                    
-                    fit_params, err_dict, y_data, fit_flag = results
+                    fit_params, err_dict, y_data, fit_flag = fit_spec(common, y, grid, 
+                                                                      fwd_model)
                                                                              
                     # Unpack fit results
                     fit_dict  = {}
@@ -739,7 +738,7 @@ class mygui(tk.Tk):
                                  str(data_date) + ',' + \
                                  str(data_time))
                     
-                    # Print so2 amount and error in ppm.m for ease of access
+                    # Print so2 amount and error in ppm.m for ease
                     writer.write(',' + str(fit_dict['so2_amt']/2.463e15) + ',' + \
                                  str(err_dict['so2_amt']/2.463e15))            
         
@@ -750,12 +749,12 @@ class mygui(tk.Tk):
                     # Start new line
                     writer.write('\n')
                 
-                    # Add values to array for last 200 spectra counts and so2_amt for plotting
+                    # Add values to array for plotting
                     spec_nos.append(spec_no)
                     so2_amts.append(fit_dict['so2_amt']/2.463e15)
                     amt_errs.append(err_dict['so2_amt']/2.463e15)
                        
-                    # Cut if too long
+                    # Cut if too long to avoid slowing program
                     if settings['scroll_flag'] == True:
                         if len(spec_nos) > settings['scroll_spec_no']:
                             spec_nos = spec_nos[1:]
@@ -898,6 +897,8 @@ def model_settings():
     # Button to apply changes and close
     b1 = ttk.Button(popup, text='Apply', command=lambda: update_model_settings(settings))
     b1.grid(row = 1, column = 0, padx = 5, pady = 5)
+    b2 = ttk.Button(popup, text='Cancel', command=lambda: popup.destroy())
+    b2.grid(row = 1, column = 1, padx = 5, pady = 5) 
     
     
 #========================================================================================
@@ -952,6 +953,8 @@ def graph_settings():
     # Button to apply changes and close
     b1 = ttk.Button(popup, text='Apply', command=lambda: update_graph_settings(settings))
     b1.grid(row = 4, column = 0, padx = 5, pady = 5)
+    b2 = ttk.Button(popup, text='Cancel', command=lambda: popup.destroy())
+    b2.grid(row = 4, column = 1, padx = 5, pady = 5) 
 
 
 #========================================================================================
@@ -975,7 +978,6 @@ def data_bases():
         
         # Update graph settings in common
         settings['sol_path']   = sol_path_e.get()
-        settings['resid_path'] = resid_path_e.get()
         settings['ring_path']  = ring_path_e.get()
         settings['so2_path']   = so2_path_e.get()
         settings['no2_path']   = no2_path_e.get()
@@ -995,17 +997,7 @@ def data_bases():
     sol_path_e.grid(row = 0, column = 1, padx = 5, pady = 5)
     sol_path_b = ttk.Button(popup, text = "Select", command = lambda: update_fp(popup.sol_path))
     sol_path_b.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
-    
-    # Solar residual
-    popup.resid_path = tk.StringVar(popup, value = settings['resid_path'])
-    resid_path_l = tk.Label(popup, text = 'Solar residual:', font = NORM_FONT)
-    resid_path_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-    resid_path_e = ttk.Entry(popup, textvariable = popup.resid_path, font = NORM_FONT,
-                             width = 40)
-    resid_path_e.grid(row = 1, column = 1, padx = 5, pady = 5)
-    resid_path_b = ttk.Button(popup, text = "Select", command = lambda: update_fp(popup.resid_path))
-    resid_path_b.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
-    
+
     # Ring spectrum
     popup.ring_path = tk.StringVar(popup, value = settings['ring_path'])
     ring_path_l = tk.Label(popup, text = 'Ring Spectrum:', font = NORM_FONT)
@@ -1058,7 +1050,9 @@ def data_bases():
     
     # Button to apply changes and close
     b1 = ttk.Button(popup, text='Apply', command=lambda: update_data_bases(settings))
-    b1.grid(row = 7, column = 0, padx = 5, pady = 5)
+    b1.grid(row = 7, column = 0, padx = 5, pady = 5, columnspan=2)
+    b2 = ttk.Button(popup, text='Cancel', command=lambda: popup.destroy())
+    b2.grid(row = 7, column = 1, padx = 5, pady = 5, columnspan=2) 
             
 # Tkinter stuff       
 app = mygui()

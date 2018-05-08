@@ -51,9 +51,9 @@ def build_fwd_data(self, common, settings):
     sol = griddata(sol_x, sol_y, model_grid)
     
     # Import solar residual spectrum
-    self.print_output('Importing solar residual spectrum...', add_line = False)
-    grid, solar_resid = np.loadtxt(settings['resid_path'], unpack = True)
-    self.print_output('Residual imported', add_line = False)
+    #self.print_output('Importing solar residual spectrum...', add_line = False)
+    #grid, solar_resid = np.loadtxt(settings['resid_path'], unpack = True)
+    #self.print_output('Residual imported', add_line = False)
     
     # Import ring spectrum and interpolate onto the model_grid
     self.print_output('Importing ring spectrum...', add_line = False)
@@ -94,7 +94,7 @@ def build_fwd_data(self, common, settings):
     # Add the data to the common dictionary
     common['model_grid']  = model_grid
     common['flat_grid']   = flat_grid
-    common['solar_resid'] = solar_resid
+    #common['solar_resid'] = solar_resid
     common['o_flat']      = o_flat
     common['flat']        = flat
     common['sol']         = sol

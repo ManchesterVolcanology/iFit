@@ -23,7 +23,7 @@ from ifit_lib.smooth import smooth
 #              correction for dark, flat and stray light)
 #          fitted_flag; boolian variable to tell the main program if the fit was achieved
 
-def fit_spec(common, y, grid, fwd_model):
+def fit_spec(common, y, grid, fwd_model, settings):
     
     # Unpack the inital fit parameters
     params = common['params']
@@ -47,31 +47,33 @@ def fit_spec(common, y, grid, fwd_model):
     ils = common['ils']
     global ils_gauss_weight
     ils_gauss_weight = common['ils_gauss_weight']
-    global solar_resid
-    solar_resid = common['solar_resid']
+    #global solar_resid
+    #solar_resid = common['solar_resid']
     global ldf
     ldf = float(common['ldf'])
 
     # If solar flag is false, set resid spectrum to ones
-    if common['solar_resid_flag'] != 'Remove':
-        solar_resid = 1
+    #if settings['solar_resid_flag'] != 'Remove':
+    #    solar_resid = 1
     
     # Remove the dark spectrum from the measured spectrum
-    #y = np.subtract(y, common['dark'])
+    if settings['dark_flag'] == True:
+        y = np.subtract(y, common['dark'])
     
     # Remove stray light
     if common['stray_flag'] == True:
         y = np.subtract(y, np.average(y[common['stray_i1']:common['stray_i2']]))
     
     # Find weighting from noise in spectrum
-    sigma = np.divide(y, smooth(y,3))
+    sigma = np.divide(y, smooth(y, 3))
     
     # Cut desired wavelength window
     y = y[common['ind1']:common['ind2']]
     sigma = sigma[common['ind1']:common['ind2']]
 
     # Divide by flat spectrum
-    #y = np.divide(y, common['flat'])
+    if settings['flat_flag'] == True:
+        y = np.divide(y, common['flat'])
 
     # Unpack initial parameter names and values
     names = []
