@@ -328,15 +328,15 @@ class mygui(tk.Tk):
         
         # Create button to start
         start_b = ttk.Button(button_frame, text = 'Begin!', command = self.begin)
-        start_b.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+        start_b.grid(row = 0, column = 0, padx = 5, pady = 5)
         
         # Create button to save settings
         save_b = ttk.Button(button_frame, text = 'Save Settings', command = self.save)
-        save_b.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
+        save_b.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         # Create a button to exit
         exit_b = ttk.Button(button_frame, text = 'Exit', command = self.quit)
-        exit_b.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
+        exit_b.grid(row = 0, column = 2, padx = 5, pady = 5)
         
 #========================================================================================
 #====================================Create plot canvas==================================
@@ -546,11 +546,13 @@ class mygui(tk.Tk):
         common['spectra_files']    = self.spec_fpaths
         common['dark_files']       = self.dark_fpaths
         common['spec_name']        = self.spec_name.get()
+        common['dark_flag']        = int(settings['dark_flag'])
+        common['flat_flag']        = int(settings['flat_flag'])
         
         # Read format of spectra
         spec_type = self.spec_type.get()
 
-        # Filepaths to solar, ring, flat and gas xsec spectra
+        # Build filepath to flat spectrum from spectrometer serial number
         settings['flat_path']  = 'data_bases/flat_' + str(self.spec_name.get()) + '.txt'
         
         # Load fitting data files
@@ -600,8 +602,18 @@ class mygui(tk.Tk):
 #===================================Build dark spectrum==================================
 #========================================================================================
 
-        # Read dark spectrum
-        x, common['dark'] = average_spectra(common['dark_files'], spec_type)
+        # Check if darks are available
+        if common['dark_flag'] == True:
+            x, common['dark'] = average_spectra(common['dark_files'], spec_type)
+            
+
+#========================================================================================
+#====================================Open output files===================================
+#========================================================================================
+        
+        # Read first spectrum to get date of data and define stray light indices
+        x, y, data_date, data_time, spec_no = read_spectrum(common['spectra_files'][0],
+                                                            spec_type)
         
         # Find indices of desired wavelength window and add to common
         grid, common['ind1'], common['ind2'] = extract_window(x, common['wave_start'], 
@@ -616,15 +628,7 @@ class mygui(tk.Tk):
         # If no stray light pixels available, turn off the flag
         if common['stray_i1'] == common['stray_i2']:
             common['stray_flag'] = False 
-
-#========================================================================================
-#====================================Open output files===================================
-#========================================================================================
-    
-        # Read first spectrum to get date of data
-        x, y, data_date, data_time, spec_no = read_spectrum(common['spectra_files'][0],
-                                                            spec_type)
-        
+            
         # Create directory to hold program outputs
         results_folder = 'Results/iFit/' + data_date + '/'
         
@@ -676,7 +680,6 @@ class mygui(tk.Tk):
             spec_nos    = []
             so2_amts    = []
             amt_errs    = []
-            solar_resid = np.zeros(len(grid))
 
             for fname in common['spectra_files']:
                 
@@ -743,10 +746,6 @@ class mygui(tk.Tk):
                     
                     # Calculate the residual of the fit
                     resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 100)
-                    
-                    # Add to solar residual
-                    if common['solar_resid_flag'] == 'Save':
-                        solar_resid = np.add(solar_resid, resid)
 
                     # Replot data
                     if int(settings['Show Graphs']) == 1:            
@@ -856,26 +855,45 @@ def model_settings():
         
         # Update graph settings in common
         settings['model_resolution'] = float(model_res_e.get())
+        settings['dark_flag'] = dark_b.get()
+        settings['flat_flag'] = flat_b.get()
         
         # Close the window
         popup.destroy()
     
     # Create row number counter
+    row_n = 0
     
     # Set resolution of model grid
     popup.model_res = tk.IntVar(popup, value = settings['model_resolution'])
     model_res_l = tk.Label(popup, text = 'Model Grid spacing:', font = NORM_FONT)
-    model_res_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+    model_res_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     model_res_e = ttk.Entry(popup, textvariable = popup.model_res)
-    model_res_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+    model_res_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
     
+    # Control whether or not to remove dark spectra
+    dark_b = tk.IntVar(popup, value = settings['dark_flag'])
+    dark_l = tk.Label(popup, text = 'Remove Dark Spectra?', font = NORM_FONT)
+    dark_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    dark_c = ttk.Checkbutton(popup, variable = dark_b)
+    dark_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
     
+    # Control whether or not to remove flat spectra
+    flat_b = tk.IntVar(popup, value = settings['flat_flag'])
+    flat_l = tk.Label(popup, text = 'Remove Flat Spectra?', font = NORM_FONT)
+    flat_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    flat_c = ttk.Checkbutton(popup, variable = flat_b)
+    flat_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
     
     # Button to apply changes and close
     b1 = ttk.Button(popup, text='Apply', command=lambda: update_model_settings(settings))
-    b1.grid(row = 1, column = 0, padx = 5, pady = 5)
+    b1.grid(row = row_n, column = 0, padx = 5, pady = 5)
     b2 = ttk.Button(popup, text='Cancel', command=lambda: popup.destroy())
-    b2.grid(row = 1, column = 1, padx = 5, pady = 5) 
+    b2.grid(row = row_n, column = 1, padx = 5, pady = 5) 
+    row_n += 1
     
     
 #========================================================================================
@@ -898,41 +916,49 @@ def graph_settings():
         
         # Close the window
         popup.destroy()
-        
+    
+    # Create row number counter
+    row_n = 0
+    
     # Control graph display settings
     graph_b = tk.IntVar(popup, value = settings['Show Graphs'])
     graph_l = tk.Label(popup, text = 'Show Graphs?', font = NORM_FONT)
-    graph_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+    graph_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     graph_c = ttk.Checkbutton(popup, variable = graph_b)
-    graph_c.grid(row = 0, column = 1, padx = 5, pady = 5)
+    graph_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
     
     # Turn on/off error bars
     err_b = tk.IntVar(popup, value = settings['Show Error Bars'])
     err_l = tk.Label(popup, text = 'Show Error Bars?', font = NORM_FONT)
-    err_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+    err_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     err_c = ttk.Checkbutton(popup, variable = err_b)
-    err_c.grid(row = 1, column = 1, padx = 5, pady = 5)
+    err_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
     
     # Turn on/off graph scrolling
     scroll_b = tk.IntVar(popup, value = settings['scroll_flag'])
     scroll_l = tk.Label(popup, text = 'Scroll Graph?', font = NORM_FONT)
-    scroll_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
+    scroll_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     scroll_c = ttk.Checkbutton(popup, variable = scroll_b)
-    scroll_c.grid(row = 2, column = 1, padx = 5, pady = 5)
+    scroll_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
     
     # Set number of spectra to display on graph
     popup.spec_no = tk.IntVar(popup, value = settings['scroll_spec_no'])
     spec_no_l = tk.Label(popup, text = 'No. Spectra to display', font = NORM_FONT)
-    spec_no_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
+    spec_no_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     spec_no_e = ttk.Entry(popup, textvariable = popup.spec_no, font = NORM_FONT)
-    spec_no_e.grid(row = 3, column = 1, padx = 5, pady = 5)
+    spec_no_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
     
     # Button to apply changes and close
     b1 = ttk.Button(popup, text='Apply', command=lambda: update_graph_settings(settings))
-    b1.grid(row = 4, column = 0, padx = 5, pady = 5)
+    b1.grid(row = row_n, column = 0, padx = 5, pady = 5)
     b2 = ttk.Button(popup, text='Cancel', command=lambda: popup.destroy())
-    b2.grid(row = 4, column = 1, padx = 5, pady = 5) 
-
+    b2.grid(row = row_n, column = 1, padx = 5, pady = 5) 
+    row_n += 1
+    
 
 #========================================================================================
 #==================================Data base file paths==================================
@@ -964,73 +990,89 @@ def data_bases():
         # Close the window
         popup.destroy()
     
+    # Create row number counter
+    row_n = 0
+    
     # Create inputs for data base filepaths
 
     # Solar spectrum
     popup.sol_path = tk.StringVar(popup, value = settings['sol_path'])
     sol_path_l = tk.Label(popup, text = 'Solar spectrum:', font = NORM_FONT)
-    sol_path_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+    sol_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     sol_path_e = ttk.Entry(popup, text = popup.sol_path, font = NORM_FONT, width = 40)
-    sol_path_e.grid(row = 0, column = 1, padx = 5, pady = 5)
-    sol_path_b = ttk.Button(popup, text = "Select", command = lambda: update_fp(popup.sol_path))
-    sol_path_b.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
-
+    sol_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    sol_path_b = ttk.Button(popup, text = "Select", 
+                            command = lambda: update_fp(popup.sol_path))
+    sol_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
+    
     # Ring spectrum
     popup.ring_path = tk.StringVar(popup, value = settings['ring_path'])
     ring_path_l = tk.Label(popup, text = 'Ring Spectrum:', font = NORM_FONT)
-    ring_path_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
+    ring_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     ring_path_e = ttk.Entry(popup, textvariable = popup.ring_path, font = NORM_FONT, 
                             width = 40)
-    ring_path_e.grid(row = 2, column = 1, padx = 5, pady = 5)
-    ring_path_b = ttk.Button(popup, text = "Select", command = lambda: update_fp(popup.ring_path))
-    ring_path_b.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'W')
+    ring_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    ring_path_b = ttk.Button(popup, text = "Select", 
+                             command = lambda: update_fp(popup.ring_path))
+    ring_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
     
     # SO2 xsec
     popup.so2_path = tk.StringVar(popup, value = settings['so2_path'])
     so2_path_l = tk.Label(popup, text = 'SO2 xsec:', font = NORM_FONT)
-    so2_path_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
+    so2_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     so2_path_e = ttk.Entry(popup, textvariable = popup.so2_path, font = NORM_FONT,
                            width = 40)
-    so2_path_e.grid(row = 3, column = 1, padx = 5, pady = 5)
-    so2_path_b = ttk.Button(popup, text = "Select", command = lambda: update_fp(popup.so2_path))
-    so2_path_b.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'W')
+    so2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    so2_path_b = ttk.Button(popup, text = "Select", 
+                            command = lambda: update_fp(popup.so2_path))
+    so2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
     
     # NO2 xsec
     popup.no2_path = tk.StringVar(popup, value = settings['no2_path'])
     no2_path_l = tk.Label(popup, text = 'NO2 xsec:', font = NORM_FONT)
-    no2_path_l.grid(row = 4, column = 0, padx = 5, pady = 5, sticky = 'W')
+    no2_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     no2_path_e = ttk.Entry(popup, textvariable = popup.no2_path, font = NORM_FONT,
                            width = 40)
-    no2_path_e.grid(row = 4, column = 1, padx = 5, pady = 5)
-    no2_path_b = ttk.Button(popup, text = "Select", command = lambda: update_fp(popup.no2_path))
-    no2_path_b.grid(row = 4, column = 2, padx = 5, pady = 5, sticky = 'W')
+    no2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    no2_path_b = ttk.Button(popup, text = "Select", 
+                            command = lambda: update_fp(popup.no2_path))
+    no2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
     
     # O3 xsec
     popup.o3_path = tk.StringVar(popup, value = settings['o3_path'])
     o3_path_l = tk.Label(popup, text = 'O3 xsec:', font = NORM_FONT)
-    o3_path_l.grid(row = 5, column = 0, padx = 5, pady = 5, sticky = 'W')
+    o3_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     o3_path_e = ttk.Entry(popup, textvariable = popup.o3_path, font = NORM_FONT,
                           width = 40)
-    o3_path_e.grid(row = 5, column = 1, padx = 5, pady = 5)
-    o3_path_b = ttk.Button(popup, text = "Select", command = lambda: update_fp(popup.o3_path))
-    o3_path_b.grid(row = 5, column = 2, padx = 5, pady = 5, sticky = 'W')
+    o3_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    o3_path_b = ttk.Button(popup, text = "Select", 
+                           command = lambda: update_fp(popup.o3_path))
+    o3_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
     
     # Bro xsec
     popup.bro_path = tk.StringVar(popup, value = settings['bro_path'])
     bro_path_l = tk.Label(popup, text = 'BrO xsec:', font = NORM_FONT)
-    bro_path_l.grid(row = 6, column = 0, padx = 5, pady = 5, sticky = 'W')
+    bro_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     bro_path_e = ttk.Entry(popup, textvariable = popup.bro_path, font = NORM_FONT,
                            width = 40)
-    bro_path_e.grid(row = 6, column = 1, padx = 5, pady = 5) 
-    bro_path_b = ttk.Button(popup, text = "Select", command = lambda: update_fp(popup.bro_path))
-    bro_path_b.grid(row = 6, column = 2, padx = 5, pady = 5, sticky = 'W')
+    bro_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
+    bro_path_b = ttk.Button(popup, text = "Select", 
+                            command = lambda: update_fp(popup.bro_path))
+    bro_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
     
     # Button to apply changes and close
     b1 = ttk.Button(popup, text='Apply', command=lambda: update_data_bases(settings))
-    b1.grid(row = 7, column = 0, padx = 5, pady = 5, columnspan=2)
+    b1.grid(row = row_n, column = 0, padx = 5, pady = 5, columnspan=2)
     b2 = ttk.Button(popup, text='Cancel', command=lambda: popup.destroy())
-    b2.grid(row = 7, column = 1, padx = 5, pady = 5, columnspan=2) 
-            
+    b2.grid(row = row_n, column = 1, padx = 5, pady = 5, columnspan=2) 
+    row_n += 1
+          
 # Tkinter stuff       
 app = mygui()
 app.mainloop()

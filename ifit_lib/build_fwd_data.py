@@ -31,16 +31,15 @@ def build_fwd_data(self, common, settings):
     self.print_output('Importing flat spectrum', add_line = False)
     try:
         # Import flat spectrum and extract window of interest
-        flat_grid, o_flat = np.loadtxt(settings['flat_path'] , unpack = True)
+        flat_grid, flat = np.loadtxt(settings['flat_path'] , unpack = True)
         x, i1, i2 = extract_window(flat_grid, common['wave_start'], common['wave_stop'])
-        flat = o_flat[i1:i2]
+        flat = flat[i1:i2]
         self.print_output('Flat spectrum imported', add_line = False)
         
     except FileNotFoundError:
         self.print_output('No flat spectrum found', add_line = False)
-        flat_grid = []
-        o_flat = 1.0
-        flat = 1.0    
+        common['flat_flag'] = False    
+    
     
     # Import solar reference spectrum
     self.print_output('Importing solar reference spectrum...', add_line = False)
@@ -50,10 +49,12 @@ def build_fwd_data(self, common, settings):
     # Interpolate onto model_grid
     sol = griddata(sol_x, sol_y, model_grid)
     
+    
     # Import solar residual spectrum
     #self.print_output('Importing solar residual spectrum...', add_line = False)
     #grid, solar_resid = np.loadtxt(settings['resid_path'], unpack = True)
     #self.print_output('Residual imported', add_line = False)
+    
     
     # Import ring spectrum and interpolate onto the model_grid
     self.print_output('Importing ring spectrum...', add_line = False)
@@ -63,20 +64,24 @@ def build_fwd_data(self, common, settings):
     
     self.print_output('Importing gas cross-sections...', add_line = False)
     
+    
     # Import SO2 data
     so2_xsec = np.loadtxt(settings['so2_path'], skiprows=1)
     so2_xsec = griddata(so2_xsec[:,0], so2_xsec[:,1], model_grid)
     self.print_output('SO2 cross-section imported', add_line = False)
+    
     
     # Import NO2 data
     no2_xsec = np.loadtxt(settings['no2_path'], skiprows=43)
     no2_xsec = griddata(no2_xsec[:,0], no2_xsec[:,2], model_grid)
     self.print_output('NO2 cross-section imported', add_line = False)
     
+    
     # Import O3 data
     o3_xsec = np.loadtxt(settings['o3_path'], skiprows=44)
     o3_xsec = griddata(o3_xsec[:,0], o3_xsec[:,2], model_grid)
     self.print_output('O3 cross-section imported', add_line = False)
+    
     
     # Import BrO data
     bro = np.loadtxt(settings['bro_path'], skiprows=12)
@@ -91,11 +96,10 @@ def build_fwd_data(self, common, settings):
     bro_xsec = griddata(bro[:,0], bro[:,1], model_grid)
     self.print_output('BrO cross-section imported')
     
+    
     # Add the data to the common dictionary
     common['model_grid']  = model_grid
-    common['flat_grid']   = flat_grid
     #common['solar_resid'] = solar_resid
-    common['o_flat']      = o_flat
     common['flat']        = flat
     common['sol']         = sol
     common['ring']        = ring

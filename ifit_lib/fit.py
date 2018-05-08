@@ -23,7 +23,7 @@ from ifit_lib.smooth import smooth
 #              correction for dark, flat and stray light)
 #          fitted_flag; boolian variable to tell the main program if the fit was achieved
 
-def fit_spec(common, y, grid, fwd_model, settings):
+def fit_spec(common, y, grid, fwd_model):
     
     # Unpack the inital fit parameters
     params = common['params']
@@ -57,7 +57,7 @@ def fit_spec(common, y, grid, fwd_model, settings):
     #    solar_resid = 1
     
     # Remove the dark spectrum from the measured spectrum
-    if settings['dark_flag'] == True:
+    if common['dark_flag'] == True:
         y = np.subtract(y, common['dark'])
     
     # Remove stray light
@@ -72,7 +72,7 @@ def fit_spec(common, y, grid, fwd_model, settings):
     sigma = sigma[common['ind1']:common['ind2']]
 
     # Divide by flat spectrum
-    if settings['flat_flag'] == True:
+    if common['flat_flag'] == True:
         y = np.divide(y, common['flat'])
 
     # Unpack initial parameter names and values
