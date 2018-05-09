@@ -22,9 +22,9 @@ from ifit_lib.find_nearest import extract_window
 def build_fwd_data(self, common, settings):
     
     # Build model grid, a high res grid on which the forward model is build. It extends
-    #  2 nm beyond the measurement grid and has a spacing of 0.01 nm
-    npts = ((common['wave_stop'] + 4) - (common['wave_start'] - 4)) * (1/float(settings['model_resolution']))
-    model_grid = np.linspace(common['wave_start'] - 4, common['wave_stop'] + 4, 
+    #  2 nm beyond the measurement grid and has a spacing controlled by the user
+    npts = ((common['wave_stop'] + 2) - (common['wave_start'] - 2)) * (1/float(settings['model_resolution']))
+    model_grid = np.linspace(common['wave_start'] - 2, common['wave_stop'] + 2, 
                              num = npts + 1)
     
     # Try importing flat spectrum. If not found set to 1
@@ -34,10 +34,10 @@ def build_fwd_data(self, common, settings):
         flat_grid, flat = np.loadtxt(settings['flat_path'] , unpack = True)
         x, i1, i2 = extract_window(flat_grid, common['wave_start'], common['wave_stop'])
         flat = flat[i1:i2]
-        self.print_output('Flat spectrum imported', add_line = False)
+        #self.print_output('Flat spectrum imported', add_line = False)
         
     except FileNotFoundError:
-        self.print_output('No flat spectrum found', add_line = False)
+        #self.print_output('No flat spectrum found', add_line = False)
         common['flat_flag'] = False    
     
     
@@ -57,7 +57,7 @@ def build_fwd_data(self, common, settings):
     
     
     # Import ring spectrum and interpolate onto the model_grid
-    self.print_output('Importing ring spectrum...', add_line = False)
+    #self.print_output('Importing ring spectrum...', add_line = False)
     ring_x, ring_y = np.loadtxt(settings['ring_path'], unpack = True)
     ring = griddata(ring_x, ring_y, model_grid)
     self.print_output('Ring spectrum imported', add_line = False)

@@ -124,6 +124,7 @@ class mygui(tk.Tk):
             settings['Spectrometer']      = '-select-'
             settings['Spectra Type']      = '-select-'
             settings['ILS Width']         = 0.25
+            settings['Gauss Weight']      = 1.0
             settings['Fit ILS']           = 0
             settings['LDF']               = 0.0
             settings['Fit LDF']           = 0
@@ -231,7 +232,11 @@ class mygui(tk.Tk):
             self.dark_fpaths.append(str(i[1:-1]))
         
         # File dialouge for spectra
-        self.spec_ent=tk.StringVar(value=str(len(self.spec_fpaths))+' spectra selected')
+        if self.spec_fpaths == ['']:
+            message = 'No spectra selected'
+        else:
+            message = str(len(self.spec_fpaths))+' spectra selected'
+        self.spec_ent = tk.StringVar(value = message)
         self.specfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 40, 
                                  text = self.spec_ent)
         self.specfp_l.grid(row = 6, column = 1, padx = 5, pady = 5, sticky = 'W', 
@@ -240,7 +245,11 @@ class mygui(tk.Tk):
         specfp_b.grid(row = 6, column = 0, padx = 5, pady = 5, sticky = 'W')
         
         # File dialouge for darks
-        self.dark_ent=tk.StringVar(value=str(len(self.dark_fpaths))+' spectra selected')
+        if self.dark_fpaths == ['']:
+            message = 'No spectra selected'
+        else:
+            message = str(len(self.spec_fpaths))+' spectra selected'
+        self.dark_ent = tk.StringVar(value = message)
         self.darkfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 40, 
                                  text = self.dark_ent)
         self.darkfp_l.grid(row = 7, column = 1, padx = 5, pady = 5, sticky = 'W', 
@@ -378,12 +387,8 @@ class mygui(tk.Tk):
         # Fit residual
         self.line3, = self.ax1.plot(0, 0, 'r')
         
-        # Full spectrum
+        # SO2 Time series and error bars
         self.line4, = self.ax2.plot(0, 0, 'g')
-        
-        # Pack into arrays to pass to plotting function
-        self.lines = [self.line1, self.line2, self.line3, self.line4]
-        self.axes  = [self.ax0,   self.ax0,   self.ax1,   self.ax2  ]
         
         # Make it look nice
         plt.tight_layout()
@@ -473,7 +478,6 @@ class mygui(tk.Tk):
             w.write('BrO;'              + str(self.bro_amt.get())           + '\n')
             w.write('model_resolution;' + str(settings['model_resolution']) + '\n')
             w.write('sol_path;'         + str(settings['sol_path'])         + '\n')
-            w.write('resid_path;'       + str(settings['resid_path'])       + '\n')
             w.write('ring_path;'        + str(settings['ring_path'])        + '\n')
             w.write('so2_path;'         + str(settings['so2_path'])         + '\n')
             w.write('no2_path;'         + str(settings['no2_path'])         + '\n')
@@ -688,10 +692,10 @@ class mygui(tk.Tk):
                     x, y, data_date, data_time, spec_no = read_spectrum(fname, spec_type)
                     
                 except FileNotFoundError:
-                    self.print_output('File number ' + str(count) + ' not found')
+                    self.print_output('File number ' + str(spec_no) + ' not found')
                     
                 except OSError:
-                    self.print_output('File number ' + str(count) + ' not found')
+                    self.print_output('File number ' + str(spec_no) + ' not found')
                     
                 else:
 
@@ -784,8 +788,9 @@ class mygui(tk.Tk):
 
                         # Add error bars to SO2 output
                         if int(settings['Show Error Bars']) == True:
-                            error = [np.subtract(so2_amts, amt_errs), 
+                            error = [np.subtract(so2_amts, amt_errs),
                                      np.add(so2_amts, amt_errs)]
+                            
                             self.ax2.fill_between(spec_nos, error[0], error[1], 
                                                   color = 'lightgreen')
                         
@@ -798,12 +803,12 @@ class mygui(tk.Tk):
                     # If fitting fails or max resid > 10% revert to initial fit parameters
                     if fit_flag == False:
                         common['params'] = common['initial_params']
-                        self.print_output('Fitting for spectrum ' + str(count) + \
+                        self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                           ' failed, resetting parameters')
                         
                     elif max((resid)**2)**0.5 > 10:
                         common['params'] = common['initial_params']
-                        self.print_output('Fitting for spectrum ' + str(count) + \
+                        self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                           ' bad, resetting parameters')
                     
                     else:
