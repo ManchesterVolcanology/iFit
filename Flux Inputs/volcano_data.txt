@@ -1,3 +1,3 @@
-volcano longitude;55.703736
-volcano latitude;-21.272972
+volcano longitude;55.709837
+volcano latitude;-21.260328
 Time Difference (hours);0

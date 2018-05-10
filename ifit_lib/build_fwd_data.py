@@ -20,6 +20,23 @@ from ifit_lib.find_nearest import extract_window
 #                   to subroutines. Also contains the filepaths to the required data
 
 def build_fwd_data(self, common, settings):
+
+    '''
+    Read in required spectra and cross-sections etc and place them on the model grid as 
+    required
+
+    INPUTS
+    ------
+    self: requirement from tkinter
+    common: common dictionary including file paths to spectra and constants used in the
+            program
+    settings: dictionary of settings determined by the user
+    
+    OUTPUTS
+    -------
+    common: inputted common array updated with required spectra etc
+        
+    '''
     
     # Build model grid, a high res grid on which the forward model is build. It extends
     #  2 nm beyond the measurement grid and has a spacing controlled by the user

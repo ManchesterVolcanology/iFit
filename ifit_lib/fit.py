@@ -4,6 +4,7 @@ from scipy.optimize import curve_fit
 
 from ifit_lib.make_ils import make_ils
 from ifit_lib.smooth import smooth
+from ifit_lib.make_poly import make_poly
 
 #========================================================================================
 #=========================================fit_spec=======================================
@@ -26,7 +27,10 @@ from ifit_lib.smooth import smooth
 def fit_spec(common, y, grid, fwd_model):
     
     # Unpack the inital fit parameters
-    params = common['params']
+    params = []
+    
+    for key, val in common['params'].items():
+        params.append(val)
     
     # Unpack the solar, ring spectra and gas cross sections and make global for forward
     global sol
@@ -43,19 +47,19 @@ def fit_spec(common, y, grid, fwd_model):
     bro_xsec = common['bro_xsec']
     global model_grid
     model_grid = common['model_grid']
-    global ils
-    ils = common['ils']
+    global poly_n
+    poly_n = common['poly_n']
+    global ils_flag
+    ils_flag = common['ils_flag']
+    global ils_width
+    ils_width = common['ils_width']
     global ils_gauss_weight
     ils_gauss_weight = common['ils_gauss_weight']
-    #global solar_resid
-    #solar_resid = common['solar_resid']
+    global ldf_flag
+    ldf_flag = common['ldf_flag']
     global ldf
     ldf = float(common['ldf'])
 
-    # If solar flag is false, set resid spectrum to ones
-    #if settings['solar_resid_flag'] != 'Remove':
-    #    solar_resid = 1
-    
     # Remove the dark spectrum from the measured spectrum
     if common['dark_flag'] == True:
         y = np.subtract(y, common['dark'])
@@ -74,18 +78,10 @@ def fit_spec(common, y, grid, fwd_model):
     # Divide by flat spectrum
     if common['flat_flag'] == True:
         y = np.divide(y, common['flat'])
-
-    # Unpack initial parameter names and values
-    names = []
-    init_vals = []
-
-    for i in params:
-        names.append(i[0])
-        init_vals.append(i[1])
      
     # Appempt to fit!
     try:
-        results, cov = curve_fit(fwd_model, grid, y, p0 = init_vals, sigma = sigma)
+        results, cov = curve_fit(fwd_model, grid, y, p0 = params, sigma = sigma)
                                  
         # Fit successful
         fitted_flag = True
@@ -100,10 +96,9 @@ def fit_spec(common, y, grid, fwd_model):
     # NOTE this is just variation in the fitting params, this does not include 
     #  systematic errors!
     err_dict = {}
-    m = 0
-    for l in common['params']:
-        err_dict[l[0]] = np.sqrt(np.diag(cov))[m]
-        m += 1
+
+    for m, l in enumerate(common['params'].keys()):
+        err_dict[l] = np.sqrt(np.diag(cov))[m]
                         
     return results, err_dict, y, fitted_flag
                     
@@ -132,10 +127,42 @@ def gen_fit_norm(grid, fit_params):
 
 # OUTPUTS: F; constructed forward model
 
-def ifit_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt):
+def ifit_fwd(grid,*args):
 
+    # Unpack parameters
+    p = np.zeros(poly_n)
+    for i in range(poly_n):
+        p[i] = (args[i])
+
+    i += 1
+    shift = args[i]
+    i += 1
+    stretch = args[i]
+    i += 1
+    ring_amt = args[i]
+    i += 1
+    so2_amt = args[i]
+    i += 1
+    no2_amt = args[i]
+    i += 1
+    o3_amt = args[i]
+    '''
+    if ils_flag == True:
+        i += 1
+        ils_width = args[i]
+        
+    else:
+        ils_width = ils_width
+    
+    if ldf_flag == True:
+        i += 1
+        ldf = args[i]
+        
+    else:
+        ldf = ldf
+    '''
     # Construct background polynomial
-    bg_poly = np.polyval((a,b,c,d), model_grid)
+    bg_poly = make_poly(model_grid, p)
     
     # Build gas transmittance spectra
     so2_T = np.exp(-(np.multiply(so2_xsec, so2_amt)))
@@ -158,6 +185,7 @@ def ifit_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt):
     raw_F = np.add(raw_F, light_d)
 
     # Convolve high res raw_F with ILS
+    ils = make_ils(ils_width, (model_grid[1] - model_grid[0]), ils_gauss_weight)
     F_conv = np.convolve(raw_F, ils, 'same')
     
     # Apply shift and stretch to the model_grid
@@ -168,9 +196,6 @@ def ifit_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt):
     
     # Interpolate onto measurement wavelength grid
     F = griddata(shift_model_grid, F_conv, grid)
-    
-    # Remove solar residual
-    #F = np.multiply(F, solar_resid)
     
     return F
 

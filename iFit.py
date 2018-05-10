@@ -9,12 +9,14 @@ Created on Fri Mar  2 09:24:05 2018
 import matplotlib
 matplotlib.use('TkAgg')
 import os
+import glob
 import numpy as np
 from tkinter import ttk
 import tkinter as tk
 from tkinter import filedialog as fd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from collections import OrderedDict
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 
 from ifit_lib.build_fwd_data import build_fwd_data
@@ -134,11 +136,7 @@ class mygui(tk.Tk):
             settings['Show Error Bars']   = 0
             settings['scroll_flag']       = 1
             settings['scroll_spec_no']    = 200
-            settings['a']                 = 1.0
-            settings['b']                 = 1.0
-            settings['c']                 = 1.0
-            settings['d']                 = 1.0
-            settings['e']                 = 1.0
+            settings['poly_n']            = 4
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
             settings['ring']              = 1.0
@@ -169,19 +167,19 @@ class mygui(tk.Tk):
         self.wave_stop_e = ttk.Entry(setup_frame, textvariable = self.wave_stop)
         self.wave_stop_e.grid(row = 1, column = 3, padx = 5, pady = 5)
         
-        # Create entry to select spectrometer
-        options = [settings['Spectrometer'],
-                   'FLMS02101',
-                   'FLMS02929',
-                   'USB2+H04173',
-                   'USB2+H15972',
-                   'USB2+F02057']
+        # Find available flat spectra and form into list
+        options = [settings['Spectrometer']]       
+        for i, name in enumerate(glob.glob('data_bases/flat_*')):
+            options.append(name[16:-4])
         
+        # Create entry to select spectrometer
         self.spec_name = tk.StringVar(setup_frame, value = options[0])
         spectro_l = tk.Label(setup_frame, text = 'Spectrometer:', font = NORM_FONT)
         spectro_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
         spectro_c = ttk.OptionMenu(setup_frame, self.spec_name, *options)
         spectro_c.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
+        
+        
         
         # Create entry to select spectra type
         spec_options = [settings['Spectra Type'],
@@ -270,80 +268,56 @@ class mygui(tk.Tk):
 #========================================================================================
         
         # Polynomial coefficents
-        self.a = tk.DoubleVar(self, value = settings['a'])
-        a_l = tk.Label(param_frame, text = 'a:', font = NORM_FONT)
-        a_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        a_e = ttk.Entry(param_frame, textvariable = self.a)
-        a_e.grid(row = 1, column = 1, padx = 5, pady = 5)
-
-        self.b = tk.DoubleVar(param_frame, value = settings['b'])
-        b_l = tk.Label(param_frame, text = 'b:', font = NORM_FONT)
-        b_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        b_e = ttk.Entry(param_frame, textvariable = self.b)
-        b_e.grid(row = 2, column = 1, padx = 5, pady = 5)
-        
-        self.c = tk.DoubleVar(param_frame, value = settings['c'])
-        c_l = tk.Label(param_frame, text = 'c:', font = NORM_FONT)
-        c_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        c_e = ttk.Entry(param_frame, textvariable = self.c)
-        c_e.grid(row = 3, column = 1, padx = 5, pady = 5)
-        
-        self.d = tk.DoubleVar(param_frame, value = settings['d'])
-        d_l = tk.Label(param_frame, text = 'd:', font = NORM_FONT)
-        d_l.grid(row = 4, column = 0, padx = 5, pady = 5, sticky = 'W')
-        d_e = ttk.Entry(param_frame, textvariable = self.d)
-        d_e.grid(row = 4, column = 1, padx = 5, pady = 5)
-        
-        self.e = tk.DoubleVar(param_frame, value = settings['e'])
-        e_l = tk.Label(param_frame, text = 'e:', font = NORM_FONT)
-        e_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
-        e_e = ttk.Entry(param_frame, textvariable = self.e)
-        e_e.grid(row = 1, column = 3, padx = 5, pady = 5)
+        self.poly_n = tk.DoubleVar(self, value = settings['poly_n'])
+        poly_n_l = tk.Label(param_frame, text = 'Polynomial Order:', font = NORM_FONT)
+        poly_n_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+        poly_n_e = ttk.Entry(param_frame, textvariable = self.poly_n)
+        poly_n_e.grid(row = 1, column = 1, padx = 5, pady = 5)
         
         # Spectrometer wavelength shift parameters
         self.shift = tk.DoubleVar(param_frame, value = settings['shift'])
         shift_l = tk.Label(param_frame, text = 'shift:', font = NORM_FONT)
-        shift_l.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'W')
+        shift_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
         shift_e = ttk.Entry(param_frame, textvariable = self.shift)
-        shift_e.grid(row = 2, column = 3, padx = 5, pady = 5)
+        shift_e.grid(row = 2, column = 1, padx = 5, pady = 5)
         
         self.stretch = tk.DoubleVar(param_frame, value = settings['stretch'])
         stretch_l = tk.Label(param_frame, text = 'stretch:', font = NORM_FONT)
-        stretch_l.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'W')
+        stretch_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
         stretch_e = ttk.Entry(param_frame, textvariable = self.stretch)
-        stretch_e.grid(row = 3, column = 3, padx = 5, pady = 5)
+        stretch_e.grid(row = 3, column = 1, padx = 5, pady = 5)
         
         # Ring effect
         self.ring_amt = tk.DoubleVar(param_frame, value = settings['ring'])
         ring_amt_l = tk.Label(param_frame, text = 'Ring:', font = NORM_FONT)
-        ring_amt_l.grid(row = 4, column = 2, padx = 5, pady = 5, sticky = 'W')
+        ring_amt_l.grid(row = 4, column = 0, padx = 5, pady = 5, sticky = 'W')
         ring_amt_e = ttk.Entry(param_frame, textvariable = self.ring_amt)
-        ring_amt_e.grid(row = 4, column = 3, padx = 5, pady = 5)
+        ring_amt_e.grid(row = 4, column = 1, padx = 5, pady = 5)
         
         # Gas amounts
         self.so2_amt = tk.DoubleVar(param_frame, value = settings['SO2'])
         so2_amt_l = tk.Label(param_frame, text = 'SO2:', font = NORM_FONT)
-        so2_amt_l.grid(row = 1, column = 4, padx = 5, pady = 5, sticky = 'W')
+        so2_amt_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
         so2_amt_e = ttk.Entry(param_frame, textvariable = self.so2_amt)
-        so2_amt_e.grid(row = 1, column = 5, padx = 5, pady = 5)
+        so2_amt_e.grid(row = 1, column = 3, padx = 5, pady = 5)
         
         self.no2_amt = tk.DoubleVar(param_frame, value = settings['NO2'])
         no2_amt_l = tk.Label(param_frame, text = 'NO2:', font = NORM_FONT)
-        no2_amt_l.grid(row = 2, column = 4, padx = 5, pady = 5, sticky = 'W')
+        no2_amt_l.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'W')
         no2_amt_e = ttk.Entry(param_frame, textvariable = self.no2_amt)
-        no2_amt_e.grid(row = 2, column = 5, padx = 5, pady = 5)
+        no2_amt_e.grid(row = 2, column = 3, padx = 5, pady = 5)
         
         self.o3_amt = tk.DoubleVar(param_frame, value = settings['O3'])
         o3_amt_l = tk.Label(param_frame, text = 'O3:', font = NORM_FONT)
-        o3_amt_l.grid(row = 3, column = 4, padx = 5, pady = 5, sticky = 'W')
+        o3_amt_l.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'W')
         o3_amt_e = ttk.Entry(param_frame, textvariable = self.o3_amt)
-        o3_amt_e.grid(row = 3, column = 5, padx = 5, pady = 5)
+        o3_amt_e.grid(row = 3, column = 3, padx = 5, pady = 5)
        
         self.bro_amt = tk.DoubleVar(param_frame, value = settings['BrO'])
         bro_amt_l = tk.Label(param_frame, text = 'BrO:', font = NORM_FONT)
-        bro_amt_l.grid(row = 4, column = 4, padx = 5, pady = 5, sticky = 'W')
+        bro_amt_l.grid(row = 4, column = 2, padx = 5, pady = 5, sticky = 'W')
         bro_amt_e = ttk.Entry(param_frame, textvariable = self.bro_amt)
-        bro_amt_e.grid(row = 4, column = 5, padx = 5, pady = 5)
+        bro_amt_e.grid(row = 4, column = 3, padx = 5, pady = 5)
           
 #========================================================================================
 #==============================Create start and exit buttons=============================
@@ -482,11 +456,7 @@ class mygui(tk.Tk):
             w.write('Show Error Bars;'  + str(settings['Show Error Bars'])  + '\n')
             w.write('scroll_flag;'      + str(settings['scroll_flag'])      + '\n')
             w.write('scroll_spec_no;'   + str(settings['scroll_spec_no'])   + '\n')
-            w.write('a;'                + str(self.a.get())                 + '\n')
-            w.write('b;'                + str(self.b.get())                 + '\n')
-            w.write('c;'                + str(self.c.get())                 + '\n')
-            w.write('d;'                + str(self.d.get())                 + '\n')
-            w.write('e;'                + str(self.e.get())                 + '\n')
+            w.write('poly_n;'           + str(self.poly_n.get())            + '\n')
             w.write('shift;'            + str(self.shift.get())             + '\n')
             w.write('stretch;'          + str(self.stretch.get())           + '\n')
             w.write('ring;'             + str(self.ring_amt.get())          + '\n')
@@ -548,18 +518,22 @@ class mygui(tk.Tk):
         common = {}
         
         # Build parameter array
-        common['params'] = [['a',        float(self.a.get())       ], 
-                            ['b',        float(self.b.get())       ],
-                            ['c',        float(self.c.get())       ],
-                            ['d',        float(self.d.get())       ],
-                            ['e',        float(self.e.get())       ],
-                            ['shift',    float(self.shift.get())   ], 
-                            ['stretch',  float(self.stretch.get()) ], 
-                            ['ring_amt', float(self.ring_amt.get())],
-                            ['so2_amt',  float(self.so2_amt.get()) ],
-                            ['no2_amt',  float(self.no2_amt.get()) ],       
-                            ['o3_amt',   float(self.o3_amt.get())  ]] 
-
+        common['params'] = [('a',        1.0                       ), 
+                            ('b',        1.0                       ),
+                            ('c',        1.0                       ),
+                            ('d',        1.0                       ),
+                            ('e',        1.0                       ),
+                            ('shift',    float(self.shift.get())   ), 
+                            ('stretch',  float(self.stretch.get()) ), 
+                            ('ring_amt', float(self.ring_amt.get())),
+                            ('so2_amt',  float(self.so2_amt.get()) ),
+                            ('no2_amt',  float(self.no2_amt.get()) ),       
+                            ('o3_amt',   float(self.o3_amt.get())  )]
+        
+        common['params'] = OrderedDict(common['params'])
+        
+        common['poly_n'] = int(self.poly_n.get())
+        
         # Populate common with other data from the GUI
         common['wave_start']       = float(self.wave_start_e.get())
         common['wave_stop']        = float(self.wave_stop_e.get())
@@ -593,7 +567,7 @@ class mygui(tk.Tk):
             fwd_model = ifit_ils_fwd
             gen_fit   = gen_fit_ils
             
-            common['params'].append(['ils_width', common['ils_width']])
+            common['params']['ils_width'] = common['ils_width']
             
             # Create empty ils parameter
             common['ils'] = None
@@ -604,7 +578,7 @@ class mygui(tk.Tk):
             fwd_model = ifit_ldf_fwd
             gen_fit   = gen_fit_ldf
             
-            common['params'].append(['ldf', common['ldf']])
+            common['params']['ldf'] = common['ldf']
             
             # Generate spectrometer ILS, a smoothing function applied to the fwdmodel
             common['ils'] = make_ils(common['ils_width'],
@@ -670,15 +644,10 @@ class mygui(tk.Tk):
             with open(out_excel_fname, 'w') as writer:
                 
                 # Write header line
-                writer.write('File,Number,Date,Time,so2 (ppm.m),so2 error,a,a_e,b,b_e,'+\
-                             'c,c_e,d,d_e,e,e_e,shift,shift_e,stretch,stretch_e,ring,' +\
-                             'ring_e,so2,so2_e,no2,no2_e,o3,o3_e,')
+                writer.write('File,Number,Date,Time,so2 (ppm.m),so2 error,')
                 
-                if common['ils_flag'] == True:
-                    writer.write('ILS width,ILS width_e,')  
-                    
-                if common['ldf_flag'] == True:
-                    writer.write('LDF,LDF_e,')
+                for i in common['params'].keys():
+                    writer.write(i + ',' + i + '_e,')
                     
                 # Write other fit info
                 writer.write('Fit window: ' + str(common['wave_start']) + ' - ' + \
@@ -729,9 +698,9 @@ class mygui(tk.Tk):
                                                                              
                     # Unpack fit results
                     fit_dict  = {}
-                    for m, l in enumerate(common['params']):
-                        fit_dict[l[0]] = fit_params[m]
-                                
+                    for m, l in enumerate(common['params'].keys()):
+                        fit_dict[l] = fit_params[m]
+         
                     # Write results to excel file, starting with spectrum info
                     writer.write(str(fname)     + ',' + \
                                  str(spec_no)   + ',' + \
@@ -743,8 +712,8 @@ class mygui(tk.Tk):
                                  str(err_dict['so2_amt']/2.463e15))            
         
                     # Print fit results and error for each parameter          
-                    for l in common['params']:
-                        writer.write(','+str(fit_dict[l[0]])+','+str(err_dict[l[0]]))
+                    for l in common['params'].keys():
+                        writer.write(','+str(fit_dict[l])+','+str(err_dict[l]))
                         
                     # Start new line
                     writer.write('\n')
@@ -834,23 +803,25 @@ class mygui(tk.Tk):
                     else:
                         
                         # Update parameters with those from the last fit
-                        common['params'] = [['a',         fit_dict['a']         ],
-                                            ['b',         fit_dict['b']         ],
-                                            ['c',         fit_dict['c']         ],
-                                            ['d',         fit_dict['d']         ],
-                                            ['e',         fit_dict['e']         ],
-                                            ['shift',     fit_dict['shift']     ],
-                                            ['stretch',   fit_dict['stretch']   ],
-                                            ['ring_amt',  fit_dict['ring_amt']  ],
-                                            ['so2_amt',   fit_dict['so2_amt']   ],
-                                            ['no2_amt',   fit_dict['no2_amt']   ],
-                                            ['o3_amt',    fit_dict['o3_amt']    ]]
+                        common['params'] = [('a',        fit_dict['a']       ), 
+                                            ('b',        fit_dict['b']       ),
+                                            ('c',        fit_dict['c']       ),
+                                            ('d',        fit_dict['d']       ),
+                                            ('e',        fit_dict['e']       ),
+                                            ('shift',    fit_dict['shift']   ), 
+                                            ('stretch',  fit_dict['stretch'] ), 
+                                            ('ring_amt', fit_dict['ring_amt']),
+                                            ('so2_amt',  fit_dict['so2_amt'] ),
+                                            ('no2_amt',  fit_dict['no2_amt'] ),       
+                                            ('o3_amt',   fit_dict['o3_amt']  )]
                         
                         if common['ils_flag'] == True:
-                            common['params'].append(['ils_width', common['ils_width']])
+                            common['params'].append(('ils_width', common['ils_width']))
                             
                         if common['ldf_flag'] == True:
-                            common['params'].append(['ldf', common['ldf']])
+                            common['params'].append((['ldf'], common['ldf']))
+                             
+                        common['params'] = OrderedDict(common['params'])
                              
                     # Add to the count cycle
                     count += 1
