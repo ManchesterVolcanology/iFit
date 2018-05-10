@@ -41,7 +41,7 @@ class mygui(tk.Tk):
         
         # Add a title and icon
         tk.Tk.wm_title(self, 'iFit-2-1')
-        tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+        #tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         
         # Build a menubar to hold options for the user
         menubar = tk.Menu(self)
@@ -63,8 +63,8 @@ class mygui(tk.Tk):
         button_frame = ttk.Frame(self, padding=3, borderwidth=5, relief = tk.GROOVE)
         button_frame.grid(row=5, column=1, padx = 10, pady = 10, sticky="ew")
         
-        graph_frame = ttk.Frame(self, padding=3, borderwidth=5, relief = tk.GROOVE)
-        graph_frame.grid(row=1, column=3, padx = 10, pady = 10, rowspan = 10, sticky="NW")
+        graph_frame = tk.LabelFrame(self, text = 'Graphs', font = LARG_FONT)
+        graph_frame.grid(row=1, column=3, padx=10, pady=10, rowspan=10, sticky="NW")
         
         mygui.columnconfigure(index=3, weight=1, self = self)
         mygui.rowconfigure(index = 5, weight = 1, self = self)
@@ -119,11 +119,11 @@ class mygui(tk.Tk):
    
         except FileNotFoundError:
             self.print_output('No settings file found, reverting to origional')
-            settings['Wave Start']        = 310
-            settings['Wave Stop']         = 319.9
+            settings['Wave Start']        = 306
+            settings['Wave Stop']         = 318
             settings['Spectrometer']      = '-select-'
             settings['Spectra Type']      = '-select-'
-            settings['ILS Width']         = 0.25
+            settings['ILS Width']         = 0.52
             settings['Gauss Weight']      = 1.0
             settings['Fit ILS']           = 0
             settings['LDF']               = 0.0
@@ -131,13 +131,14 @@ class mygui(tk.Tk):
             settings['dark_flag']         = 1
             settings['flat_flag']         = 1
             settings['Show Graphs']       = 1
-            settings['Show Error Bars']   = 1
+            settings['Show Error Bars']   = 0
             settings['scroll_flag']       = 1
             settings['scroll_spec_no']    = 200
             settings['a']                 = 1.0
             settings['b']                 = 1.0
             settings['c']                 = 1.0
             settings['d']                 = 1.0
+            settings['e']                 = 1.0
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
             settings['ring']              = 1.0
@@ -145,6 +146,13 @@ class mygui(tk.Tk):
             settings['NO2']               = 1e+17
             settings['O3']                = 1e+19
             settings['BrO']               = 1e+15
+            settings['model_resolution']  = 0.52
+            settings['sol_path']          = 'data_bases/sao2010_full.txt'
+            settings['ring_path']         = 'data_bases/ring.txt'
+            settings['so2_path']          = 'data_bases/SO2_293K.dat'
+            settings['no2_path']          = 'data_bases/No2_223l.dat'
+            settings['o3_path']           = 'data_bases/o3_223l.dat'
+            settings['bro_path']          = 'data_bases/BrO_Cross_298K.txt'
             settings['Spectra Filepaths'] = ''
             settings['Dark Filepaths']    = ''
         
@@ -248,7 +256,7 @@ class mygui(tk.Tk):
         if self.dark_fpaths == ['']:
             message = 'No spectra selected'
         else:
-            message = str(len(self.spec_fpaths))+' spectra selected'
+            message = str(len(self.dark_fpaths))+' spectra selected'
         self.dark_ent = tk.StringVar(value = message)
         self.darkfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 40, 
                                  text = self.dark_ent)
@@ -286,25 +294,31 @@ class mygui(tk.Tk):
         d_e = ttk.Entry(param_frame, textvariable = self.d)
         d_e.grid(row = 4, column = 1, padx = 5, pady = 5)
         
+        self.e = tk.DoubleVar(param_frame, value = settings['e'])
+        e_l = tk.Label(param_frame, text = 'e:', font = NORM_FONT)
+        e_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
+        e_e = ttk.Entry(param_frame, textvariable = self.e)
+        e_e.grid(row = 1, column = 3, padx = 5, pady = 5)
+        
         # Spectrometer wavelength shift parameters
         self.shift = tk.DoubleVar(param_frame, value = settings['shift'])
         shift_l = tk.Label(param_frame, text = 'shift:', font = NORM_FONT)
-        shift_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
+        shift_l.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'W')
         shift_e = ttk.Entry(param_frame, textvariable = self.shift)
-        shift_e.grid(row = 1, column = 3, padx = 5, pady = 5)
+        shift_e.grid(row = 2, column = 3, padx = 5, pady = 5)
         
         self.stretch = tk.DoubleVar(param_frame, value = settings['stretch'])
         stretch_l = tk.Label(param_frame, text = 'stretch:', font = NORM_FONT)
-        stretch_l.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'W')
+        stretch_l.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'W')
         stretch_e = ttk.Entry(param_frame, textvariable = self.stretch)
-        stretch_e.grid(row = 2, column = 3, padx = 5, pady = 5)
+        stretch_e.grid(row = 3, column = 3, padx = 5, pady = 5)
         
         # Ring effect
         self.ring_amt = tk.DoubleVar(param_frame, value = settings['ring'])
         ring_amt_l = tk.Label(param_frame, text = 'Ring:', font = NORM_FONT)
-        ring_amt_l.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'W')
+        ring_amt_l.grid(row = 4, column = 2, padx = 5, pady = 5, sticky = 'W')
         ring_amt_e = ttk.Entry(param_frame, textvariable = self.ring_amt)
-        ring_amt_e.grid(row = 3, column = 3, padx = 5, pady = 5)
+        ring_amt_e.grid(row = 4, column = 3, padx = 5, pady = 5)
         
         # Gas amounts
         self.so2_amt = tk.DoubleVar(param_frame, value = settings['SO2'])
@@ -361,7 +375,7 @@ class mygui(tk.Tk):
         self.ax1 = self.fig.add_subplot(gs[1])
         self.ax2 = self.fig.add_subplot(gs[2])
         
-        # Five axes: 1) Spectrum and fit
+        # Three axes: 1) Spectrum and fit
         #            2) Residual
         #            3) SO2 amount time series
         
@@ -413,7 +427,8 @@ class mygui(tk.Tk):
 #========================================================================================
 #=====================================Filepath Buttons===================================
 #========================================================================================
-    
+   
+    # Function to select spectra to analyse
     def spec_fp(self):
             
         # Open dialouge to get files
@@ -427,6 +442,7 @@ class mygui(tk.Tk):
             # Save output to input 
             self.spec_ent.set(str(len(self.spec_fpaths)) + ' spectra selected')
     
+    # Function to select dark spectra
     def dark_fp(self):
             
         # Open dialouge to get files
@@ -443,7 +459,8 @@ class mygui(tk.Tk):
 #========================================================================================
 #=======================================Save Settings====================================
 #========================================================================================
-            
+    
+    # Function to save setting to the ifit_settings.txt file        
     def save(self):
         
         # Create or overright settings file
@@ -469,6 +486,7 @@ class mygui(tk.Tk):
             w.write('b;'                + str(self.b.get())                 + '\n')
             w.write('c;'                + str(self.c.get())                 + '\n')
             w.write('d;'                + str(self.d.get())                 + '\n')
+            w.write('e;'                + str(self.e.get())                 + '\n')
             w.write('shift;'            + str(self.shift.get())             + '\n')
             w.write('stretch;'          + str(self.stretch.get())           + '\n')
             w.write('ring;'             + str(self.ring_amt.get())          + '\n')
@@ -499,7 +517,8 @@ class mygui(tk.Tk):
 #========================================================================================
 #======================================Print Outputs=====================================
 #========================================================================================
-               
+     
+    # Function to print text to the output box          
     def print_output(self, text, add_line = True):
         
         if add_line == True:
@@ -521,7 +540,8 @@ class mygui(tk.Tk):
 #========================================================================================
 #========================================Begin iFit======================================
 #========================================================================================
-            
+     
+    # Function to begin analysis loop
     def begin(self):
         
         # Create common dictionary
@@ -532,6 +552,7 @@ class mygui(tk.Tk):
                             ['b',        float(self.b.get())       ],
                             ['c',        float(self.c.get())       ],
                             ['d',        float(self.d.get())       ],
+                            ['e',        float(self.e.get())       ],
                             ['shift',    float(self.shift.get())   ], 
                             ['stretch',  float(self.stretch.get()) ], 
                             ['ring_amt', float(self.ring_amt.get())],
@@ -606,7 +627,7 @@ class mygui(tk.Tk):
 #===================================Build dark spectrum==================================
 #========================================================================================
 
-        # Check if darks are available
+        # Read in dark spectra
         if common['dark_flag'] == True:
             x, common['dark'] = average_spectra(common['dark_files'], spec_type)
             
@@ -624,7 +645,7 @@ class mygui(tk.Tk):
                                                               common['wave_stop'])
         
         # Find stray light window
-        stray_grid, common['stray_i1'], common['stray_i2'] = extract_window(x, 282, 290)
+        stray_grid, common['stray_i1'], common['stray_i2'] = extract_window(x, 280, 290)
         
         # Create flag to control whether stray light is removed
         common['stray_flag'] = True
@@ -638,7 +659,6 @@ class mygui(tk.Tk):
         
         # Create folder if it doesn't exist
         if not os.path.exists(results_folder):
-                # Make the directory
                 os.makedirs(results_folder)
         
         # Create filename for output file
@@ -650,9 +670,9 @@ class mygui(tk.Tk):
             with open(out_excel_fname, 'w') as writer:
                 
                 # Write header line
-                writer.write('File,Number,Date,Time,so2 (ppm.m),so2 error,a,a_e,b,b_e,c,'+\
-                             'c_e,d,d_e,shift,shift_e,stretch,stretch_e,ring,ring_e,so2,'+\
-                             'so2_e,no2,no2_e,o3,o3_e,')
+                writer.write('File,Number,Date,Time,so2 (ppm.m),so2 error,a,a_e,b,b_e,'+\
+                             'c,c_e,d,d_e,e,e_e,shift,shift_e,stretch,stretch_e,ring,' +\
+                             'ring_e,so2,so2_e,no2,no2_e,o3,o3_e,')
                 
                 if common['ils_flag'] == True:
                     writer.write('ILS width,ILS width_e,')  
@@ -661,9 +681,10 @@ class mygui(tk.Tk):
                     writer.write('LDF,LDF_e,')
                     
                 # Write other fit info
-                writer.write('Fit window: '+str(common['wave_start'])+' - '+str(common['wave_stop'])+\
-                             ' nm,' + 'ILS width: ' + str(common['ils_width']) + \
-                             'ILS Gauss Weight: ' + str(common['ils_gauss_weight']) + '\n')
+                writer.write('Fit window: ' + str(common['wave_start']) + ' - ' + \
+                             str(common['wave_stop']) + ' nm,' + 'ILS width: '  + \
+                             str(common['ils_width']) + 'ILS Gauss Weight: '    + \
+                             str(common['ils_gauss_weight']) + '\n')
                 
         except PermissionError:
             self.print_output('Please close iFit output file to continue')
@@ -704,8 +725,7 @@ class mygui(tk.Tk):
 #========================================================================================
                     
                     # Fit
-                    fit_params, err_dict, y_data, fit_flag = fit_spec(common, y, grid, 
-                                                                      fwd_model)
+                    fit_params,err_dict,y_data,fit_flag=fit_spec(common,y,grid,fwd_model)
                                                                              
                     # Unpack fit results
                     fit_dict  = {}
@@ -724,7 +744,7 @@ class mygui(tk.Tk):
         
                     # Print fit results and error for each parameter          
                     for l in common['params']:
-                        writer.write(',' + str(fit_dict[l[0]]) + ',' + str(err_dict[l[0]]))
+                        writer.write(','+str(fit_dict[l[0]])+','+str(err_dict[l[0]]))
                         
                     # Start new line
                     writer.write('\n')
@@ -747,7 +767,7 @@ class mygui(tk.Tk):
         
                     # Feed fit params into forward
                     fit = gen_fit(grid, fit_params)
-                    
+
                     # Calculate the residual of the fit
                     resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 100)
 
@@ -800,7 +820,7 @@ class mygui(tk.Tk):
 #==================================Update fit parameters=================================
 #========================================================================================
                     
-                    # If fitting fails or max resid > 10% revert to initial fit parameters
+                    # If fit fails or max resid > 10% revert to initial fit parameters
                     if fit_flag == False:
                         common['params'] = common['initial_params']
                         self.print_output('Fitting for spectrum ' + str(spec_no) + \
@@ -818,6 +838,7 @@ class mygui(tk.Tk):
                                             ['b',         fit_dict['b']         ],
                                             ['c',         fit_dict['c']         ],
                                             ['d',         fit_dict['d']         ],
+                                            ['e',         fit_dict['e']         ],
                                             ['shift',     fit_dict['shift']     ],
                                             ['stretch',   fit_dict['stretch']   ],
                                             ['ring_amt',  fit_dict['ring_amt']  ],

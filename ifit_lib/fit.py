@@ -114,10 +114,10 @@ def fit_spec(common, y, grid, fwd_model):
 def gen_fit_norm(grid, fit_params):
     
     # Unpack fit results
-    a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt = fit_params
+    a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt = fit_params
     
     # Feed into forward model to recreate the fit
-    fit = ifit_fwd(grid, a, b, c, d, shift, stretch, ring_amt, so2_amt, no2_amt, o3_amt)
+    fit = ifit_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt)
     
     return fit
 
@@ -132,7 +132,7 @@ def gen_fit_norm(grid, fit_params):
 
 # OUTPUTS: F; constructed forward model
 
-def ifit_fwd(grid,a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt):
+def ifit_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt):
 
     # Construct background polynomial
     bg_poly = np.polyval((a,b,c,d), model_grid)
@@ -189,10 +189,10 @@ def ifit_fwd(grid,a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt):
 def gen_fit_ils(grid, fit_params):
     
     # Unpack fit results
-    a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ils_width = fit_params
+    a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ils_width = fit_params
     
     # Feed into forward model to recreate the fit
-    fit = ifit_ils_fwd(grid, a, b, c, d, shift, stretch, ring_amt, so2_amt, no2_amt, 
+    fit = ifit_ils_fwd(grid, a, b, c, d, e, shift, stretch, ring_amt, so2_amt, no2_amt, 
                        o3_amt, ils_width)
     
     return fit
@@ -208,10 +208,10 @@ def gen_fit_ils(grid, fit_params):
 
 # OUTPUTS: F; constructed forward model
 
-def ifit_ils_fwd(grid,a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ils_width):
+def ifit_ils_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ils_width):
     
     # Construct background polynomial
-    bg_poly = np.polyval((a,b,c,d), model_grid)
+    bg_poly = np.polyval((a,b,c,d,e), model_grid)
     
     # Build gas transmittance spectra
     so2_T = np.exp(-(np.multiply(so2_xsec, so2_amt)))
@@ -270,10 +270,10 @@ def ifit_ils_fwd(grid,a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ils_
 def gen_fit_ldf(grid, fit_params):
     
     # Unpack fit results
-    a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ldf = fit_params
+    a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ldf = fit_params
     
     # Feed into forward model to recreate the fit
-    fit = ifit_ldf_fwd(grid, a, b, c, d, shift, stretch, ring_amt, so2_amt, no2_amt, 
+    fit = ifit_ldf_fwd(grid, a, b, c, d, e, shift, stretch, ring_amt, so2_amt, no2_amt, 
                        o3_amt, ldf)
     
     return fit
@@ -290,10 +290,10 @@ def gen_fit_ldf(grid, fit_params):
 
 # OUTPUTS: F; constructed forward model
 
-def ifit_ldf_fwd(grid,a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ldf):
+def ifit_ldf_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ldf):
 
     # Construct background polynomial
-    bg_poly = np.polyval((a,b,c,d), model_grid)
+    bg_poly = np.polyval((a,b,c,d,e), model_grid)
     
     # Build gas transmittance spectra
     so2_T = np.exp(-(np.multiply(so2_xsec, so2_amt)))
@@ -312,8 +312,8 @@ def ifit_ldf_fwd(grid,a,b,c,d,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ldf)
     raw_F = np.multiply(raw_F, so2_T)
     
     # Add light dilution effect
-    if ldf < 0.0 or ldf > 1.0:
-        ldf = 0.0
+    #if ldf < 0.0 or ldf > 1.0:
+    #    ldf = 0.0
     light_d = np.multiply(raw_F_no_so2, ldf)
     raw_F = np.add(raw_F, light_d)
   

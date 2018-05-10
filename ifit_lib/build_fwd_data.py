@@ -34,10 +34,10 @@ def build_fwd_data(self, common, settings):
         flat_grid, flat = np.loadtxt(settings['flat_path'] , unpack = True)
         x, i1, i2 = extract_window(flat_grid, common['wave_start'], common['wave_stop'])
         flat = flat[i1:i2]
-        #self.print_output('Flat spectrum imported', add_line = False)
+        self.print_output('Flat spectrum imported', add_line = False)
         
     except FileNotFoundError:
-        #self.print_output('No flat spectrum found', add_line = False)
+        self.print_output('No flat spectrum found', add_line = False)
         common['flat_flag'] = False    
     
     
@@ -49,15 +49,15 @@ def build_fwd_data(self, common, settings):
     # Interpolate onto model_grid
     sol = griddata(sol_x, sol_y, model_grid)
     
-    
+    '''
     # Import solar residual spectrum
-    #self.print_output('Importing solar residual spectrum...', add_line = False)
-    #grid, solar_resid = np.loadtxt(settings['resid_path'], unpack = True)
-    #self.print_output('Residual imported', add_line = False)
-    
+    self.print_output('Importing solar residual spectrum...', add_line = False)
+    grid, solar_resid = np.loadtxt(settings['resid_path'], unpack = True)
+    self.print_output('Residual imported', add_line = False)
+    '''
     
     # Import ring spectrum and interpolate onto the model_grid
-    #self.print_output('Importing ring spectrum...', add_line = False)
+    self.print_output('Importing ring spectrum...', add_line = False)
     ring_x, ring_y = np.loadtxt(settings['ring_path'], unpack = True)
     ring = griddata(ring_x, ring_y, model_grid)
     self.print_output('Ring spectrum imported', add_line = False)
