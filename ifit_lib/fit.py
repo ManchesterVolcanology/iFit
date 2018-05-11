@@ -51,14 +51,14 @@ def fit_spec(common, y, grid, fwd_model):
     poly_n = common['poly_n']
     global ils_flag
     ils_flag = common['ils_flag']
-    global ils_width
-    ils_width = common['ils_width']
+    global set_ils_width
+    set_ils_width = common['ils_width']
     global ils_gauss_weight
     ils_gauss_weight = common['ils_gauss_weight']
     global ldf_flag
     ldf_flag = common['ldf_flag']
-    global ldf
-    ldf = float(common['ldf'])
+    global set_ldf
+    set_ldf = float(common['ldf'])
 
     # Remove the dark spectrum from the measured spectrum
     if common['dark_flag'] == True:
@@ -78,7 +78,7 @@ def fit_spec(common, y, grid, fwd_model):
     # Divide by flat spectrum
     if common['flat_flag'] == True:
         y = np.divide(y, common['flat'])
-     
+
     # Appempt to fit!
     try:
         results, cov = curve_fit(fwd_model, grid, y, p0 = params, sigma = sigma)
@@ -88,8 +88,8 @@ def fit_spec(common, y, grid, fwd_model):
     
     # If fit fails, report and carry on
     except RuntimeError:
-        results = np.zeros(len(init_vals))
-        cov = np.zeros((len(init_vals),len(init_vals)))
+        results = np.zeros(len(params))
+        cov = np.zeros((len(params),len(params)))
         fitted_flag = False
 
     # Generate a dictionary of errors
@@ -146,21 +146,23 @@ def ifit_fwd(grid,*args):
     no2_amt = args[i]
     i += 1
     o3_amt = args[i]
-    '''
+    i += 1
+    bro_amt = args[i]
+
     if ils_flag == True:
         i += 1
         ils_width = args[i]
         
     else:
-        ils_width = ils_width
+        ils_width = set_ils_width
     
     if ldf_flag == True:
         i += 1
         ldf = args[i]
         
     else:
-        ldf = ldf
-    '''
+        ldf = set_ldf
+
     # Construct background polynomial
     bg_poly = make_poly(model_grid, p)
     
@@ -168,6 +170,7 @@ def ifit_fwd(grid,*args):
     so2_T = np.exp(-(np.multiply(so2_xsec, so2_amt)))
     no2_T = np.exp(-(np.multiply(no2_xsec, no2_amt)))
     o3_T  = np.exp(-(np.multiply(o3_xsec, o3_amt)))
+    bro_T  = np.exp(-(np.multiply(bro_xsec, bro_amt)))
     
     # Calculate ring effect
     ring_T = np.multiply(sol, np.multiply(ring, ring_amt))
@@ -177,6 +180,7 @@ def ifit_fwd(grid,*args):
     raw_F = np.multiply(bg_poly, sol_T)
     raw_F = np.multiply(raw_F, no2_T)
     raw_F = np.multiply(raw_F, o3_T)
+    raw_F = np.multiply(raw_F, bro_T)
     raw_F_no_so2 = raw_F              # Create forward model without so2 contribution
     raw_F = np.multiply(raw_F, so2_T)
     
@@ -196,171 +200,5 @@ def ifit_fwd(grid,*args):
     
     # Interpolate onto measurement wavelength grid
     F = griddata(shift_model_grid, F_conv, grid)
-    
-    return F
-
-
-
-#========================================================================================
-#========================================================================================
-#=========================================with ils=======================================
-#========================================================================================
-#========================================================================================
-                    
-#========================================================================================
-#=======================================gen_fit_ils======================================
-#========================================================================================
-                    
-def gen_fit_ils(grid, fit_params):
-    
-    # Unpack fit results
-    a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ils_width = fit_params
-    
-    # Feed into forward model to recreate the fit
-    fit = ifit_ils_fwd(grid, a, b, c, d, e, shift, stretch, ring_amt, so2_amt, no2_amt, 
-                       o3_amt, ils_width)
-    
-    return fit
-
-#========================================================================================
-#=======================================ifit_ils_fwd=====================================
-#========================================================================================
-
-# Function describing the forward model used to fit the measured spectra
-
-# INPUTS: grid; measurement wavelength grid over which the fit occurs
-#         other params; fit paramters as decribed in the main program
-
-# OUTPUTS: F; constructed forward model
-
-def ifit_ils_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ils_width):
-    
-    # Construct background polynomial
-    bg_poly = np.polyval((a,b,c,d,e), model_grid)
-    
-    # Build gas transmittance spectra
-    so2_T = np.exp(-(np.multiply(so2_xsec, so2_amt)))
-    no2_T = np.exp(-(np.multiply(no2_xsec, no2_amt)))
-    o3_T  = np.exp(-(np.multiply(o3_xsec, o3_amt)))
-    
-    # Calculate ring effect
-    ring_T = np.multiply(sol, np.multiply(ring, ring_amt))
-    sol_T = np.add(sol, ring_T)
-    
-    # Generate raw, high res spectrum with and without SO2
-    raw_F = np.multiply(bg_poly, sol_T)
-    raw_F = np.multiply(raw_F, o3_T)
-    raw_F = np.multiply(raw_F, no2_T)
-    raw_F_no_so2 = raw_F              # Create forward model without so2 contribution
-    raw_F = np.multiply(raw_F, so2_T)
-    
-    # Add light dilution effect
-    light_d = np.multiply(raw_F_no_so2, ldf)
-    raw_F = np.add(raw_F, light_d)
-  
-    # Convolve high res raw_F with ILS
-    ils = make_ils(ils_width, model_grid[1] - model_grid[0], ils_gauss_weight)
-    F_conv = np.convolve(raw_F, ils, 'same')
-    F_no_so2_conv = np.convolve(raw_F_no_so2, ils, 'same')
-    
-    # Apply shift and stretch to the model_grid
-    shift_model_grid = np.add(model_grid, shift)
-    line = np.subtract(model_grid, min(model_grid))
-    line = np.divide(line, max(line))
-    shift_model_grid = np.add(shift_model_grid, np.multiply(line, stretch))
-    
-    # Interpolate 
-    F = griddata(shift_model_grid, F_conv, grid)
-    global F_no_so2
-    F_no_so2 = griddata(shift_model_grid, F_no_so2_conv, grid)
-    global so2_spec
-    so2_spec = griddata(shift_model_grid, so2_T, grid)
-    
-    # Remove solar residual
-    #F = np.multiply(F, solar_resid)
-    #F_no_so2 = np.multiply(F_no_so2, solar_resid)
-    
-    return F
-
-#========================================================================================
-#========================================================================================
-#=========================================with ldf=======================================
-#========================================================================================
-#========================================================================================
-
-#========================================================================================
-#=======================================gen_fit_ldf======================================
-#========================================================================================
-                    
-def gen_fit_ldf(grid, fit_params):
-    
-    # Unpack fit results
-    a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ldf = fit_params
-    
-    # Feed into forward model to recreate the fit
-    fit = ifit_ldf_fwd(grid, a, b, c, d, e, shift, stretch, ring_amt, so2_amt, no2_amt, 
-                       o3_amt, ldf)
-    
-    return fit
-
-
-#========================================================================================
-#=======================================ifit_ldf_fwd=====================================
-#========================================================================================
-
-# Function describing the forward model used to fit the measured spectra
-
-# INPUTS: grid; measurement wavelength grid over which the fit occurs
-#         other params; fit paramters as decribed in the main program
-
-# OUTPUTS: F; constructed forward model
-
-def ifit_ldf_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt,ldf):
-
-    # Construct background polynomial
-    bg_poly = np.polyval((a,b,c,d,e), model_grid)
-    
-    # Build gas transmittance spectra
-    so2_T = np.exp(-(np.multiply(so2_xsec, so2_amt)))
-    no2_T = np.exp(-(np.multiply(no2_xsec, no2_amt)))
-    o3_T  = np.exp(-(np.multiply(o3_xsec,  o3_amt)))
-    
-    # Calculate ring effect
-    ring_T = np.multiply(sol, np.multiply(ring, ring_amt))
-    sol_T = np.add(sol, ring_T)
-
-    # Generate raw, high res spectrum with and without SO2
-    raw_F = np.multiply(bg_poly, sol_T)
-    raw_F = np.multiply(raw_F, o3_T)
-    raw_F = np.multiply(raw_F, no2_T)
-    raw_F_no_so2 = raw_F              # Create forward model without so2 contribution
-    raw_F = np.multiply(raw_F, so2_T)
-    
-    # Add light dilution effect
-    #if ldf < 0.0 or ldf > 1.0:
-    #    ldf = 0.0
-    light_d = np.multiply(raw_F_no_so2, ldf)
-    raw_F = np.add(raw_F, light_d)
-  
-    # Convolve high res raw_F with ILS
-    F_conv = np.convolve(raw_F, ils, 'same')
-    F_no_so2_conv = np.convolve(raw_F_no_so2, ils, 'same')
-    
-    # Apply shift and stretch to the model_grid
-    shift_model_grid = np.add(model_grid, shift)
-    line = np.subtract(model_grid, min(model_grid))
-    line = np.divide(line, max(line))
-    shift_model_grid = np.add(shift_model_grid, np.multiply(line, stretch))
-    
-    # Interpolate onto measurement wavelength grid
-    F = griddata(shift_model_grid, F_conv, grid)
-    global F_no_so2
-    F_no_so2 = griddata(shift_model_grid, F_no_so2_conv, grid)
-    global so2_spec
-    so2_spec = griddata(shift_model_grid, so2_T, grid)
-    
-    # Remove solar residual
-    #F = np.multiply(F, solar_resid)
-    #F_no_so2 = np.multiply(F_no_so2, solar_resid)
     
     return F

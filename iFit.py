@@ -21,9 +21,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 
 from ifit_lib.build_fwd_data import build_fwd_data
 from ifit_lib.read_spectrum import read_spectrum, average_spectra
-from ifit_lib.fit import fit_spec, gen_fit_norm, ifit_fwd, gen_fit_ils, ifit_ils_fwd, ifit_ldf_fwd, gen_fit_ldf
+from ifit_lib.fit import fit_spec, ifit_fwd
 from ifit_lib.find_nearest import extract_window
-from ifit_lib.make_ils import make_ils
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -517,26 +516,10 @@ class mygui(tk.Tk):
         # Create common dictionary
         common = {}
         
-        # Build parameter array
-        common['params'] = [('a',        1.0                       ), 
-                            ('b',        1.0                       ),
-                            ('c',        1.0                       ),
-                            ('d',        1.0                       ),
-                            ('e',        1.0                       ),
-                            ('shift',    float(self.shift.get())   ), 
-                            ('stretch',  float(self.stretch.get()) ), 
-                            ('ring_amt', float(self.ring_amt.get())),
-                            ('so2_amt',  float(self.so2_amt.get()) ),
-                            ('no2_amt',  float(self.no2_amt.get()) ),       
-                            ('o3_amt',   float(self.o3_amt.get())  )]
-        
-        common['params'] = OrderedDict(common['params'])
-        
-        common['poly_n'] = int(self.poly_n.get())
-        
         # Populate common with other data from the GUI
         common['wave_start']       = float(self.wave_start_e.get())
         common['wave_stop']        = float(self.wave_stop_e.get())
+        common['poly_n'] = int(self.poly_n.get())
         common['ils_width']        = float(self.ils_width_e.get())
         common['ils_gauss_weight'] = float(self.gauss_weight.get())
         common['ldf']              = float(self.ldf_e.get())
@@ -547,7 +530,43 @@ class mygui(tk.Tk):
         common['spec_name']        = self.spec_name.get()
         common['dark_flag']        = int(settings['dark_flag'])
         common['flat_flag']        = int(settings['flat_flag'])
+
+#========================================================================================
+#================================Build parameter dictionary==============================
+#========================================================================================
         
+        # Create parameter array
+        common['params'] = []
+        
+        for i in range(common['poly_n']):
+            common['params'].append(('p'+str(i), 1.0))
+            
+        # Add other parameters
+        common['params'].append(('shift',    float(self.shift.get())   ))
+        common['params'].append(('stretch',  float(self.stretch.get()) ))
+        common['params'].append(('ring_amt', float(self.ring_amt.get())))
+        common['params'].append(('so2_amt',  float(self.so2_amt.get()) ))
+        common['params'].append(('no2_amt',  float(self.no2_amt.get()) ))       
+        common['params'].append(('o3_amt',   float(self.o3_amt.get())  ))
+        common['params'].append(('bro_amt',  float(self.bro_amt.get()) ))
+        
+        # Include optional paramters
+        if common['ils_flag'] == True:
+            common['params'].append(('ils_width', float(self.ils_width_e.get())))
+            
+        if common['ldf_flag'] == True:
+            common['params'].append(('ldf', float(self.ldf_e.get())))
+
+        # Change to ordered dictionary
+        common['params'] = OrderedDict(common['params'])
+        
+        # Save initial guess parameters
+        common['initial_params'] = common['params']
+
+#========================================================================================
+#=================================Read in xsecs and flat=================================
+#========================================================================================
+
         # Read format of spectra
         spec_type = self.spec_type.get()
 
@@ -556,46 +575,6 @@ class mygui(tk.Tk):
         
         # Load fitting data files
         common = build_fwd_data(self, common, settings)
-        
-#========================================================================================
-#====================Adjust initial parameters if fitting extra params===================
-#========================================================================================
-
-        # If fitting ILS, select correct forward model and add ils to params
-        if common['ils_flag'] == True:
-
-            fwd_model = ifit_ils_fwd
-            gen_fit   = gen_fit_ils
-            
-            common['params']['ils_width'] = common['ils_width']
-            
-            # Create empty ils parameter
-            common['ils'] = None
-            
-        # If fitting LDF, select correct forward model and add ils to params
-        elif common['ldf_flag'] == True:
-
-            fwd_model = ifit_ldf_fwd
-            gen_fit   = gen_fit_ldf
-            
-            common['params']['ldf'] = common['ldf']
-            
-            # Generate spectrometer ILS, a smoothing function applied to the fwdmodel
-            common['ils'] = make_ils(common['ils_width'],
-                                     common['model_grid'][1] - common['model_grid'][0],
-                                     common['ils_gauss_weight'])
-            
-        else:
-            fwd_model = ifit_fwd
-            gen_fit = gen_fit_norm
-            
-            # Generate spectrometer ILS, a smoothing function applied to the fwdmodel
-            common['ils'] = make_ils(common['ils_width'],
-                                     common['model_grid'][1] - common['model_grid'][0],
-                                     common['ils_gauss_weight'])
-
-        # Save initial guess parameters
-        common['initial_params'] = common['params']
 
 #========================================================================================
 #===================================Build dark spectrum==================================
@@ -605,7 +584,6 @@ class mygui(tk.Tk):
         if common['dark_flag'] == True:
             x, common['dark'] = average_spectra(common['dark_files'], spec_type)
             
-
 #========================================================================================
 #====================================Open output files===================================
 #========================================================================================
@@ -694,7 +672,7 @@ class mygui(tk.Tk):
 #========================================================================================
                     
                     # Fit
-                    fit_params,err_dict,y_data,fit_flag=fit_spec(common,y,grid,fwd_model)
+                    fit_params,err_dict,y_data,fit_flag=fit_spec(common,y,grid,ifit_fwd)
                                                                              
                     # Unpack fit results
                     fit_dict  = {}
@@ -735,7 +713,7 @@ class mygui(tk.Tk):
 #========================================================================================
         
                     # Feed fit params into forward
-                    fit = gen_fit(grid, fit_params)
+                    fit = ifit_fwd(grid, *fit_params)
 
                     # Calculate the residual of the fit
                     resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 100)
@@ -799,7 +777,7 @@ class mygui(tk.Tk):
                         common['params'] = common['initial_params']
                         self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                           ' bad, resetting parameters')
-                    
+                    '''
                     else:
                         
                         # Update parameters with those from the last fit
@@ -822,7 +800,7 @@ class mygui(tk.Tk):
                             common['params'].append((['ldf'], common['ldf']))
                              
                         common['params'] = OrderedDict(common['params'])
-                             
+                    '''         
                     # Add to the count cycle
                     count += 1
                     
