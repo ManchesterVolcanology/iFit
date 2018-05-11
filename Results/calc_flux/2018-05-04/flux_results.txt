@@ -1,5 +1,0 @@
-# Results from calc_flux.py
-# NOTE errors are from SO2 fitting and wind speed only
-# Flux (tonnes/day),     Error (+/- t/d)
-2.080000000000000000e+02 3.500000000000000000e+01
-Average flux = 208 +/- 35 (t/day)
