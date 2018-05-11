@@ -127,12 +127,6 @@ def gen_fit_norm(grid, fit_params):
 
 # OUTPUTS: F; constructed forward model
 
-<<<<<<< HEAD
-def ifit_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt):
-
-    # Construct background polynomial
-    bg_poly = np.polyval((a,b,c,d,e), model_grid)
-=======
 def ifit_fwd(grid,*args):
 
     # Unpack parameters
@@ -169,7 +163,6 @@ def ifit_fwd(grid,*args):
     '''
     # Construct background polynomial
     bg_poly = make_poly(model_grid, p)
->>>>>>> 48b8998131ff17cf5c934df4c062ae1c752e4198
     
     # Build gas transmittance spectra
     so2_T = np.exp(-(np.multiply(so2_xsec, so2_amt)))
