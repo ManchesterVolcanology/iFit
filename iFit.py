@@ -42,7 +42,7 @@ class mygui(tk.Tk):
         
         # Add a title and icon
         tk.Tk.wm_title(self, 'iFit-2-1')
-        #tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+        tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         
         # Build a menubar to hold options for the user
         menubar = tk.Menu(self)
