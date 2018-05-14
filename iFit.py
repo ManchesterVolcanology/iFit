@@ -145,7 +145,7 @@ class mygui(tk.Tk):
             settings['BrO']               = 1e+15
             settings['model_resolution']  = 0.52
             settings['sol_path']          = 'data_bases/sao2010_full.txt'
-            settings['ring_path']         = 'data_bases/ring.txt'
+            settings['ring_path']         = 'data_bases/ring.dat'
             settings['so2_path']          = 'data_bases/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/No2_223l.dat'
             settings['o3_path']           = 'data_bases/o3_223l.dat'
