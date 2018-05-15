@@ -14,6 +14,7 @@ import numpy as np
 from tkinter import ttk
 import tkinter as tk
 from tkinter import filedialog as fd
+import seabreeze.spectrometers as sb
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from collections import OrderedDict
@@ -40,6 +41,9 @@ class mygui(tk.Tk):
         # Create GUI in the backend
         tk.Tk.__init__(self, *args, **kwargs)
         
+        # Close program on closure of window
+        #mygui.protocol("WM_DELETE_WINDOW", mygui.destroy(self))
+        
         # Add a title and icon
         tk.Tk.wm_title(self, 'iFit-2-1')
         tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
@@ -53,50 +57,26 @@ class mygui(tk.Tk):
         filemenu.add_separator()
         menubar.add_cascade(label = 'Options', menu = filemenu)
         tk.Tk.config(self, menu = menubar)
-       
-        # Create frames for diferent sections       
-        setup_frame = tk.LabelFrame(self, text = 'Program Setup', font = LARG_FONT)
-        setup_frame.grid(row=1, column=1, padx = 10, pady = 10, sticky="ew")
         
-        param_frame = tk.LabelFrame(self, text = 'Fit Parameters', font = LARG_FONT)
-        param_frame.grid(row=3, column=1, padx = 10, pady = 10, sticky="ew")
+        # Create notebook to hold different frames
+        nb = ttk.Notebook(self)
+        page1 = ttk.Frame(nb)
+        page2 = ttk.Frame(nb)
         
-        button_frame = ttk.Frame(self, padding=3, borderwidth=5, relief = tk.GROOVE)
-        button_frame.grid(row=5, column=1, padx = 10, pady = 10, sticky="ew")
+        # Create two frames, one for post analysis and one for real time acquisition
+        nb.add(page1, text='Post Analysis')
+        nb.add(page2, text='Real Time Acquisition')
         
-        graph_frame = tk.LabelFrame(self, text = 'Graphs', font = LARG_FONT)
-        graph_frame.grid(row=1, column=3, padx=10, pady=10, rowspan=10, sticky="NW")
+        nb.grid(column=0, padx=10, pady=10)
         
-        mygui.columnconfigure(index=3, weight=1, self = self)
-        mygui.rowconfigure(index = 5, weight = 1, self = self)
-        graph_frame.columnconfigure(index=0, weight=1)
-        graph_frame.rowconfigure(index = 0, weight = 1)
-        button_frame.rowconfigure(index=1, weight = 1)
+        
         
 #========================================================================================
 #===================================Define ttk styles====================================
 #========================================================================================
         
         # Button Style
-        ttk.Style().configure('TButton', width = 20, height = 20, relief="flat")     
-        
-#========================================================================================
-#====================================Create text output==================================
-#======================================================================================== 
-       
-        # Create a scroll bar
-        scrollbar = ttk.Scrollbar(button_frame)
-        scrollbar.grid(row=1, column=3, sticky='NSE')
-        
-        # Build text box
-        self.text_box = tk.Text(button_frame, width = 60, height = 10, 
-                                yscrollcommand = scrollbar.set)
-        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
-                           columnspan = 3)
-        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')
-        
-        # Connect the scrollbar to the textbox
-        scrollbar.config(command = self.text_box.yview)
+        ttk.Style().configure('TButton', width = 20, height = 20, relief="flat")  
         
 #========================================================================================
 #===================================Set program settings=================================
@@ -152,7 +132,45 @@ class mygui(tk.Tk):
             settings['bro_path']          = 'data_bases/BrO_Cross_298K.txt'
             settings['Spectra Filepaths'] = ''
             settings['Dark Filepaths']    = ''
+ 
+
+
+
+
+
+
+
+#========================================================================================         
+#========================================================================================
+#===================================Post Analysis Frame==================================
+#======================================================================================== 
+#======================================================================================== 
+
+
+
+
+
+#========================================================================================
+#====================================Create GUI frames===================================
+#========================================================================================
+
+        # Create frames for diferent sections for post analysis     
+        setup_frame = tk.LabelFrame(page1, text = 'Program Setup', font = LARG_FONT)
+        setup_frame.grid(row=1, column=1, padx = 10, pady = 10, sticky="ew")
         
+        param_frame = tk.LabelFrame(page1, text = 'Fit Parameters', font = LARG_FONT)
+        param_frame.grid(row=3, column=1, padx = 10, pady = 10, sticky="ew")
+        
+        button_frame = ttk.Frame(page1, padding=3, borderwidth=5, relief = tk.GROOVE)
+        button_frame.grid(row=5, column=1, padx = 10, pady = 10, sticky="ew")
+        
+        graph_frame = tk.LabelFrame(page1, text = 'Graphs', font = LARG_FONT)
+        graph_frame.grid(row=1, column=3, padx=10, pady=10, rowspan=10, sticky="NW")
+      
+#========================================================================================
+#==================================Create control inputs=================================
+#======================================================================================== 
+               
         # Create entry for start and stop wavelengths
         self.wave_start = tk.IntVar(setup_frame, value = settings['Wave Start'])
         self.wave_start_l = tk.Label(setup_frame, text = 'Wave Start:', font = NORM_FONT)
@@ -177,8 +195,6 @@ class mygui(tk.Tk):
         spectro_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
         spectro_c = ttk.OptionMenu(setup_frame, self.spec_name, *options)
         spectro_c.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
-        
-        
         
         # Create entry to select spectra type
         spec_options = [settings['Spectra Type'],
@@ -334,6 +350,20 @@ class mygui(tk.Tk):
         exit_b = ttk.Button(button_frame, text = 'Exit', command = self.quit)
         exit_b.grid(row = 0, column = 2, padx = 5, pady = 5)
         
+        # Create a scroll bar
+        scrollbar = ttk.Scrollbar(button_frame)
+        scrollbar.grid(row=1, column=3, sticky='NSE')
+        
+        # Build text box
+        self.text_box = tk.Text(button_frame, width = 60, height = 10, 
+                                yscrollcommand = scrollbar.set)
+        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
+                           columnspan = 3)
+        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')
+        
+        # Connect the scrollbar to the textbox
+        scrollbar.config(command = self.text_box.yview)
+        
 #========================================================================================
 #====================================Create plot canvas==================================
 #========================================================================================        
@@ -390,6 +420,21 @@ class mygui(tk.Tk):
         toolbar_frame.grid(row=1,column=0, sticky = 'W')                             
         toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
         toolbar.update()     
+
+
+
+
+
+
+#========================================================================================         
+#========================================================================================
+#================================Real Time Analysis Frame================================
+#======================================================================================== 
+#======================================================================================== 
+
+
+
+
         
 #========================================================================================         
 #========================================================================================
@@ -777,6 +822,14 @@ class mygui(tk.Tk):
                         common['params'] = common['initial_params']
                         self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                           ' bad, resetting parameters')
+                   
+                    else:
+                        
+                        # Update first guesses with last fitted params
+                        for i in fit_dict:
+                            common['params'][i] = fit_dict[i]
+                    
+                    
                     '''
                     else:
                         
@@ -1048,6 +1101,5 @@ def data_bases():
     b2.grid(row = row_n, column = 1, padx = 5, pady = 5, columnspan=2) 
     row_n += 1
           
-# Tkinter stuff       
-app = mygui()
-app.mainloop()
+# Tkinter stuff      
+mygui().mainloop()
