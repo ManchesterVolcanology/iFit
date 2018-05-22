@@ -24,7 +24,31 @@ from ifit_lib.make_poly import make_poly
 #              correction for dark, flat and stray light)
 #          fitted_flag; boolian variable to tell the main program if the fit was achieved
 
-def fit_spec(common, y, grid, fwd_model):
+def fit_spec(common, y, grid, q = None):
+    
+    '''
+    Function to fit measured spectrum using a full forward model including a solar 
+    spectrum background polynomial, ring effect, shift, stretch, and gas amts for so2, 
+    no2, o3, bro
+    
+    INPUTS:
+    -------
+    common: common dictionary of parameters and variables passed from the main program to 
+              subroutines
+    y:      intensity data from the measured spectrum 
+    grid:   measurement wavelength grid over which the fit occurs
+    q:      Queue to which to add the output if threaded (default = None)
+    
+    OUTPUTS:
+    --------
+    results:     resulting optimised fit parameters
+    cov:         covarience matrix
+    y:           processed spectral intensity data (after extracting the desired window 
+                   and correction for dark, flat and stray light)
+    fitted_flag: boolian variable to tell the main program if the fit was achieved
+
+    '''
+    
     
     # Unpack the inital fit parameters
     params = []
@@ -81,7 +105,7 @@ def fit_spec(common, y, grid, fwd_model):
 
     # Appempt to fit!
     try:
-        results, cov = curve_fit(fwd_model, grid, y, p0 = params, sigma = sigma)
+        results, cov = curve_fit(ifit_fwd, grid, y, p0 = params, sigma = sigma)
                                  
         # Fit successful
         fitted_flag = True
@@ -99,22 +123,14 @@ def fit_spec(common, y, grid, fwd_model):
 
     for m, l in enumerate(common['params'].keys()):
         err_dict[l] = np.sqrt(np.diag(cov))[m]
-                        
-    return results, err_dict, y, fitted_flag
-                    
-#========================================================================================
-#=======================================gen_fit_norm=====================================
-#========================================================================================
-                    
-def gen_fit_norm(grid, fit_params):
     
-    # Unpack fit results
-    a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt = fit_params
+    if q == None:                     
+        return results, err_dict, y, fitted_flag
     
-    # Feed into forward model to recreate the fit
-    fit = ifit_fwd(grid,a,b,c,d,e,shift,stretch,ring_amt,so2_amt,no2_amt,o3_amt)
-    
-    return fit
+    else:
+        output = results, err_dict, y, fitted_flag
+        q.put(('fit', output))
+
 
 #========================================================================================
 #=========================================ifit_fwd=======================================
