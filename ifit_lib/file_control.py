@@ -14,7 +14,7 @@ from glob import glob
 
 
 
-def make_directory(fpath):
+def make_directory(fpath, overwrite = False):
     
     '''
     Function used to build a new file directory, automatically changing the filepath to
@@ -23,6 +23,7 @@ def make_directory(fpath):
     INPUTS
     ------
     fpath: desired file path to the directory
+    overwrite: Boolian flag controlling if an existing directory is overwritten
     
     OUTPUTS
     -------
@@ -31,22 +32,32 @@ def make_directory(fpath):
     
     # To avoid overwriting data, create a new directory if one already exists
     new_fpath = fpath
-    
+
     if not os.path.exists(fpath):
         # Make the directory
         os.makedirs(fpath)
-
+        return fpath 
+    
     else:
-        i = 1
-        while os.path.exists(new_fpath):
-            if fpath[-2] == ')':
-                new_fpath = fpath[:-4] + '(' +str(i) + ')/'
-                
-            else:
-                new_fpath = fpath[:-1] + '(' +str(i) + ')/'
-            
-            i += 1
-            
-        os.makedirs(new_fpath)
         
+        # Create counter
+        i = 1
+        
+        # Cycle through possible filenames
+        while True:
+            
+            # If it doesn't exist, create the folder
+            if not os.path.exists(new_fpath):
+                os.makedirs(new_fpath)
+                break
+            
+            # If it exists and overwrite is on, check if it is empty (appart from notes)
+            elif overwrite == True and len(glob(new_fpath + '*')) < 2:
+                break
+                
+            # If it exists and isn't empty then create new folder name
+            new_fpath = fpath[:-1] + '(' +str(i) + ')/'
+
+            i += 1
+    
     return new_fpath

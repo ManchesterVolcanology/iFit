@@ -2,8 +2,11 @@ Wave Start;306
 Wave Stop;319.9
 Spectrometer;USB2+H04173
 Spectra Type;IFRiT
+int_time;100.0
+coadds;10.0
+no_darks;10.0
 ILS Width;0.7
-Gauss Weight;0.8
+Gauss Weight;1.0
 Fit ILS;0
 LDF;0.0
 Fit LDF;0

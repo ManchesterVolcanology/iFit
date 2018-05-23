@@ -17,6 +17,7 @@ from tkinter import filedialog as fd
 import seabreeze.spectrometers as sb
 from queue import Queue
 from threading import Thread
+import datetime
 from seabreeze.cseabreeze.wrapper import SeaBreezeError
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -74,9 +75,9 @@ class mygui(tk.Tk):
         page3 = ttk.Frame(nb)
         
         # Create two frames, one for post analysis and one for real time acquisition
-        nb.add(page1, text='Post Analysis')
-        nb.add(page2, text='Real Time Acquisition')
-        nb.add(page3, text='Model Parameters')
+        nb.add(page1, text = 'Post Analysis')
+        nb.add(page2, text = 'Real Time Acquisition')
+        nb.add(page3, text = 'Model Parameters')
         
         nb.grid(column=0, padx=5, pady=5)
         
@@ -152,14 +153,25 @@ class mygui(tk.Tk):
         # Create flag to ensure only one output file is created per program launch
         settings['create_out_flag'] = True
         
+        # Create flag to see if darks have been measured yet
+        settings['rt_dark_flag'] = False
+        
         
 #========================================================================================
-#=================================Connect to Spectrometer================================
+#==================================Create output folder==================================
 #======================================================================================== 
 
-        # Find devices
+        # Create filepath to directory to hold program outputs
+        rt_results_folder = 'Results/iFit/' + str(datetime.date.today()) + '/ifit_out/'
+       
+        # Create folder
+        settings['rt_folder'] = make_directory(rt_results_folder, overwrite = True)
         
-
+        # Create notes file
+        settings['notes_fname'] = settings['rt_folder'] + 'notes.txt'
+        with open(settings['notes_fname'], 'w') as w:
+            w.write('Notes file for iFit\n\n')
+        
 #========================================================================================
 #====================================Create plot canvas==================================
 #========================================================================================        
@@ -175,10 +187,10 @@ class mygui(tk.Tk):
         self.ax2 = self.fig.add_subplot(gs[2])
         self.ax3 = self.fig.add_subplot(gs[3])
         
-        # Three axes: 1) Spectrum and fit
-        #             2) Residual
-        #             3) Full spectrum
-        #             4) SO2 amount time series
+        # Axes: 1) Spectrum and fit
+        #       2) Residual
+        #       3) Full spectrum
+        #       4) SO2 amount time series
         
         
         # Set axis labels
@@ -274,6 +286,10 @@ class mygui(tk.Tk):
         
         button_frame = tk.LabelFrame(page1, text='Control', font = LARG_FONT)
         button_frame.grid(row=1, column=0, padx = 10, pady = 10, sticky="ew")
+        
+        # Frame for quick analysis
+        quick_frame = tk.LabelFrame(page1, text = 'Quick Analysis', font = LARG_FONT)
+        quick_frame.grid(row=2, column=0, padx=10, pady=10, sticky="NW")
       
 #========================================================================================
 #==================================Create control inputs=================================
@@ -355,7 +371,25 @@ class mygui(tk.Tk):
         stop_b = ttk.Button(button_frame, text = 'Stop', command = self.stop)
         stop_b.grid(row = 0, column = 2, padx = 40, pady = 5, columnspan = 2)
         
-
+#========================================================================================
+#==============================Create quick analysis outputs=============================
+#========================================================================================
+        
+        # Create ouput for last so2 amount
+        self.last_so2_amt = tk.DoubleVar(self, value = 0)
+        last_so2_amt_l = tk.Label(quick_frame, text = 'SO2 amount:', 
+                                  font = NORM_FONT)
+        last_so2_amt_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+        last_so2_amt_e = ttk.Entry(quick_frame, textvariable = self.last_so2_amt)
+        last_so2_amt_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+        
+        # Create ouput for last so2 error
+        self.last_so2_err = tk.DoubleVar(self, value = 0)
+        last_so2_err_l = tk.Label(quick_frame, text = 'SO2 error:', 
+                                  font = NORM_FONT)
+        last_so2_err_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
+        last_so2_err_e = ttk.Entry(quick_frame, textvariable = self.last_so2_err)
+        last_so2_err_e.grid(row = 0, column = 3, padx = 5, pady = 5)
         
      
 
@@ -375,10 +409,14 @@ class mygui(tk.Tk):
 
         # Create frames for diferent sections for post analysis     
         setup_frame2 = tk.LabelFrame(page2, text='Spectrometer Setup', font = LARG_FONT)
-        setup_frame2.grid(row=1, column=1, padx = 10, pady = 10, sticky="ew")
+        setup_frame2.grid(row=0, column=0, padx = 10, pady = 10, sticky="ew")
         
         button_frame2 = tk.LabelFrame(page2, text='Control', font = LARG_FONT)
-        button_frame2.grid(row=5, column=1, padx = 10, pady = 10, sticky="ew")
+        button_frame2.grid(row=1, column=0, padx = 10, pady = 10, sticky="ew")
+        
+        # Frame for quick analysis
+        quick_frame2 = tk.LabelFrame(page2, text = 'Quick Analysis', font = LARG_FONT)
+        quick_frame2.grid(row=2, column=0, padx=10, pady=10, sticky="NW")
 
 #========================================================================================
 #==================================Create control inputs=================================
@@ -455,7 +493,27 @@ class mygui(tk.Tk):
         self.toggle_button.grid(row=1, column=0, padx=5, pady=5, columnspan=2)
 
 
-
+#========================================================================================
+#==============================Create quick analysis outputs=============================
+#========================================================================================
+        
+        # Create ouput for last so2 amount
+        last_so2_amt_l = tk.Label(quick_frame2, text = 'SO2 amount:', 
+                                  font = NORM_FONT)
+        last_so2_amt_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+        last_so2_amt_e = ttk.Entry(quick_frame2, textvariable = self.last_so2_amt)
+        last_so2_amt_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+        
+        # Create ouput for last so2 error
+        last_so2_err_l = tk.Label(quick_frame2, text = 'SO2 error:', 
+                                  font = NORM_FONT)
+        last_so2_err_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
+        last_so2_err_e = ttk.Entry(quick_frame2, textvariable = self.last_so2_err)
+        last_so2_err_e.grid(row = 0, column = 3, padx = 5, pady = 5)
+        
+        
+        
+        
 
 
 
@@ -478,7 +536,7 @@ class mygui(tk.Tk):
         model_frame = tk.LabelFrame(page3, text = 'Model Setup', font = LARG_FONT)
         model_frame.grid(row=0, column=0, padx=10, pady=10, sticky="NW")
 
-        # Frame from parameters
+        # Frame for parameters
         param_frame = tk.LabelFrame(page3, text = 'Fit Paramters', font = LARG_FONT)
         param_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW")
 
@@ -708,6 +766,14 @@ class mygui(tk.Tk):
         # Scroll if needed
         self.text_box.see(tk.END)
         
+        # Write to notes file
+        try:
+            with open(settings['notes_fname'], 'a') as a:
+                a.write(text)
+        
+        except KeyError:
+            pass
+        
         # Force gui to update
         mygui.update(self)        
         
@@ -737,7 +803,7 @@ class mygui(tk.Tk):
                 # Record serial number in settings
                 settings['Spectrometer'] = str(settings['spec'].serial_number)
                 
-                self.print_output('Spectrometer Connected')
+                self.print_output('Spectrometer '+settings['Spectrometer']+' Connected')
                 
             except SeaBreezeError:
                 self.print_output('Spectrometer already open')
@@ -755,6 +821,9 @@ class mygui(tk.Tk):
             # Update integration time on spectrometer
             settings['spec'].integration_time_micros(float(self.int_time.get())*1000)
             
+            self.print_output('Integration time updated to '+str(settings['int_time']) +\
+                              '\nSpectrum number ' + str(settings['loop']))
+            
         except KeyError:
             self.print_output('No spectrometer conected')
 
@@ -763,19 +832,86 @@ class mygui(tk.Tk):
 #========================================================================================
 
     def test_spec(self):
-        x, y, header = aquire_spectrum(settings['spec'],
-                                       settings['int_time'],
-                                       int(self.coadds.get()),
-                                       True,
-                                       True)
-        self.print_output(str(y))
+        x, y, header, read_time = aquire_spectrum(self,
+                                                  settings['spec'], 
+                                                  settings['int_time'], 
+                                                  int(self.coadds.get()))
+        
+        # Display the test spectrum
+        self.line2.set_data(x, y)
+        self.ax1.set_xlim(x.min(), x.max())
+        self.ax1.set_ylim(y.min(), y.max())
+        self.canvas.draw()
 
 #========================================================================================
 #========================================Read Darks======================================
 #========================================================================================
 
     def read_darks(self):
-        self.print_output('test')
+        
+        # Update notes
+        self.print_output('Begin reading darks')
+        
+        # Create zero array to hold dark spectra
+        dark = np.zeros(2048)
+        
+        # Define dark filepath
+        dark_fp = settings['rt_folder'] + 'dark/'
+        
+        # Create the directory  
+        dark_fp = make_directory(dark_fp)
+        
+        # Loop over number of darks to collect
+        dark_n = int(self.no_darks.get())
+        
+        for i in range(dark_n):
+            
+            # Create filename
+            n = str('{num:05d}'.format(num=i))
+            filepath = dark_fp + 'spectrum_' + n + '.txt'
+            
+            # Read spectrometer
+            try:
+                spc = aquire_spectrum(self, settings['spec'], settings['int_time'],
+                                      int(self.coadds.get()))
+            except KeyError:
+                self.print_output('No spectrometer connected')
+                return
+            
+            except SeaBreezeError:
+                self.print_output('Spectrometer disconnected')
+                return 
+            
+            # Unpack spectrum data
+            x, y, header, read_time = spc
+            
+            # Save
+            np.savetxt(filepath, np.column_stack((x,y)), header = header)
+            
+            # Sum up the darks
+            dark = np.add(dark, y)
+        
+        # Divide by number of darks to get average
+        settings['dark_spec'] = np.divide(dark, dark_n)
+        
+        # Display the dark spectrum
+        self.line2.set_data(x, dark)
+        self.ax1.set_xlim(x.min(), x.max())
+        self.ax1.set_ylim(dark.min(), dark.max())
+        self.canvas.draw()
+        
+        # Add dark to common
+        settings['dark_spec']  = dark
+        
+        # Update notes file
+        self.print_output('Dark updated\n' + \
+                          'Spectrum no: ' + str(settings['loop']) + '\n' + \
+                          'No. darks: ' + str(dark_n) + '\n' + \
+                          'Integration time (ms): ' + str(settings['int_time']) + '\n' +\
+                          'Coadds: ' + str(self.coadds.get()))
+         
+        # Set dark_flag to True
+        settings['rt_dark_flag'] = True
         
 #========================================================================================
 #========================================Read Darks======================================
@@ -783,7 +919,7 @@ class mygui(tk.Tk):
         
     def stop(self):
         settings['stop_flag'] = True
-        self.print_output('Analysis Stopped')
+        self.print_output('Loop Stopped\nSpectrum number ' + str(settings['loop']-1))
         
 #========================================================================================
 #=======================================Toggle fitting===================================
@@ -796,9 +932,13 @@ class mygui(tk.Tk):
         if self.toggle_button.config('text')[-1] == 'FITTING ON':
             self.toggle_button.config(text = 'FITTING OFF')
             self.toggle_button.config(bg = 'red')
+            self.print_output('Fitting turned off\n' +\
+                              'Spectrum number ' + str(settings['loop']))
         else:
             self.toggle_button.config(text = 'FITTING ON')
             self.toggle_button.config(bg = 'green')
+            self.print_output('Fitting turned on\n' +\
+                              'Spectrum number ' + str(settings['loop']))
         
 #========================================================================================
 #========================================Begin iFit======================================
@@ -827,6 +967,11 @@ class mygui(tk.Tk):
         common['spec_name']        = self.spec_name.get()
         common['dark_flag']        = int(settings['dark_flag'])
         common['flat_flag']        = int(settings['flat_flag'])
+        
+        # Turn of dark flag if in real time and no darks have been taken
+        if rt_flag == 'rt_analysis' and settings['rt_dark_flag'] == False:
+            common['dark_flag'] = 0
+            self.print_output('WARNING! No dark spectra aquired')
 
 #========================================================================================
 #================================Build parameter dictionary==============================
@@ -867,7 +1012,7 @@ class mygui(tk.Tk):
 
         # Build filepath to flat spectrum from spectrometer serial number
         if rt_flag == 'post_analysis':
-            settings['flat_path']  = 'data_bases/flat_'+str(self.spec_name.get())+'.txt'
+            settings['flat_path'] = 'data_bases/flat_'+str(self.spec_name.get())+'.txt'
         else:
             settings['flat_path'] = 'data_bases/flat_'+str(self.c_spec.get())+'.txt'
         
@@ -878,12 +1023,19 @@ class mygui(tk.Tk):
 #===================================Build dark spectrum==================================
 #========================================================================================
 
-        # Read format of spectra
-        spec_type = self.spec_type.get()
-
-        # Read in dark spectra
-        if common['dark_flag'] == True:
-            x, common['dark'] = average_spectra(common['dark_files'], spec_type)
+        if rt_flag == 'post_analysis':
+            
+            # Read format of spectra
+            spec_type = self.spec_type.get()
+    
+            # Read in dark spectra
+            if common['dark_flag'] == True:
+                x, common['dark'] = average_spectra(common['dark_files'], spec_type)
+                
+        elif settings['rt_dark_flag'] == True and common['dark_flag'] == True:
+            
+            # Assign dark spectrum
+            common['dark'] = settings['dark_spec']
 
 #========================================================================================
 #========================Read test spectrum to get wavelength grid=======================
@@ -899,7 +1051,7 @@ class mygui(tk.Tk):
 
             # Read a single spectrum to get wavelength data
             try:
-                x, y, header, t = aquire_spectrum(settings['spec'], 1, 1, True, True)
+                x, y, header, t = aquire_spectrum(self, settings['spec'], 1, 1)
                 read_date, read_time = t.split(' ')
                 
             except KeyError:
@@ -934,12 +1086,8 @@ class mygui(tk.Tk):
             # Create new output folder
             if settings['create_out_flag'] == True:
                
-                # Create filepath to directory to hold program outputs
-                rt_results_folder = 'Results/iFit/' + read_date + '/ifit_output/'
-               
-                # Create folder
-                settings['rt_folder'] = make_directory(rt_results_folder)
-                make_directory(settings['rt_folder'] + 'spectra/')
+                # Reset loop counter
+                settings['loop'] = 0
                 
                 # Create filename for output file
                 out_excel_fname = settings['rt_folder'] + 'iFit_out.csv'
@@ -959,6 +1107,10 @@ class mygui(tk.Tk):
                                  str(common['ils_width']) + 'ILS Gauss Weight: '    + \
                                  str(common['ils_gauss_weight']) + '\n')
                 
+                # Create folder to hold spectra
+                if not os.path.exists(settings['rt_folder'] + 'spectra/'):
+                        os.makedirs(settings['rt_folder'] + 'spectra/')
+                
                 # Turn off flag to limit folders to one per program run
                 settings['create_out_flag'] = False
                 
@@ -966,13 +1118,9 @@ class mygui(tk.Tk):
                 
                 # Get final spectrum number in folder
                 flist = glob.glob(settings['rt_folder'] + 'spectra/spectrum*')
-                a = np.zeros(len(flist))
-                
-                for n, i in enumerate(flist):
-                    a[n] = float(i[-9:-4])
                 
                 # Update loop number to append spectra to those in the folder
-                settings['loop'] = int(a.max() + 1)
+                settings['loop'] = int(flist[-1][-9:-4]) + 1
                 
                 # Create filename for output file
                 out_excel_fname = settings['rt_folder'] + 'iFit_out.csv'
@@ -1020,7 +1168,9 @@ class mygui(tk.Tk):
         # Open excel file and write header line
         with open(out_excel_fname, 'a') as writer:
 
-            self.print_output('Begin fitting')
+            # Print output
+            self.print_output('Loop Started\n' +\
+                              'Spectrum number ' + str(settings['loop']))  
             
             # Create empty arrays to hold the loop number and so2_amt values
             spec_nos    = []
@@ -1058,7 +1208,8 @@ class mygui(tk.Tk):
                     result_queue = Queue()
                     
                     # Create two threads, one to read a spectrum and one to fit
-                    t1 = Thread(target = aquire_spectrum, args = (settings['spec'],
+                    t1 = Thread(target = aquire_spectrum, args = (self,
+                                                                  settings['spec'],
                                                                   settings['int_time'],
                                                                   int(self.coadds.get()),
                                                                   True,
@@ -1107,11 +1258,9 @@ class mygui(tk.Tk):
                 else:
 
                     # Read spectrum
-                    x, y, header, t = aquire_spectrum(settings['spec'],
+                    x, y, header, t = aquire_spectrum(self, settings['spec'], 
                                                       settings['int_time'],
-                                                      int(self.coadds.get()),
-                                                      True,
-                                                      True)
+                                                      int(self.coadds.get()))
                     
                     # Build file name
                     n = str('{num:05d}'.format(num=settings['loop']))
@@ -1157,7 +1306,14 @@ class mygui(tk.Tk):
                     spec_nos.append(spec_no)
                     so2_amts.append(fit_dict['so2_amt']/2.463e15)
                     amt_errs.append(err_dict['so2_amt']/2.463e15)
-                       
+                    
+                    # Update quick analysis with values if in real time
+                    if rt_flag == 'rt_analysis':
+                        last_so2 = "{0:0.1f}".format(fit_dict['so2_amt']/2.463e15)
+                        last_err = "{0:0.1f}".format(err_dict['so2_amt']/2.463e15)
+                        self.last_so2_amt.set(last_so2 + ' ppm.m')
+                        self.last_so2_err.set(last_err + ' ppm.m')
+                    
                     # Cut if too long to avoid slowing program
                     if settings['scroll_flag'] == True:
                         if len(spec_nos) > settings['scroll_spec_no']:

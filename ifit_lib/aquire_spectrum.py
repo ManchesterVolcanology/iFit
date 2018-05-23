@@ -7,12 +7,14 @@ Created on Thu Mar 16 13:24:15 2017
 
 import numpy as np
 import datetime
+from seabreeze.cseabreeze.wrapper import SeaBreezeError
 
 #========================================================================================
 #======================================read_spectro======================================
 #========================================================================================
 
-def aquire_spectrum(spec, integration_time_ms, coadds, dk_flag, nonlin_flag, q = None):
+def aquire_spectrum(self, spec, integration_time_ms, coadds, dk_flag = True, 
+                    nonlin_flag = True, q = None):
     
     '''
     Subprocess to read an ocean optics spectrometer
@@ -41,10 +43,15 @@ def aquire_spectrum(spec, integration_time_ms, coadds, dk_flag, nonlin_flag, q =
     y = np.zeros(2048)
     
     # Loop over the coadds
-    for i in range(coadds):
-        y = np.add(y, spec.intensities(correct_dark_counts = dk_flag,
-                                       correct_nonlinearity = nonlin_flag))
-        
+    try:
+        for i in range(coadds):
+            y = np.add(y, spec.intensities(correct_dark_counts = dk_flag,
+                                           correct_nonlinearity = nonlin_flag))
+    
+    except SeaBreezeError:
+        self.print_output('Spectrometer disconnected')
+        return
+    
     # Divide by number of coadds
     y = np.divide(y, coadds)
     
