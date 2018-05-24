@@ -105,8 +105,12 @@ def fit_spec(common, y, grid, q = None):
 
     # Appempt to fit!
     try:
+        # Fit
         results, cov = curve_fit(ifit_fwd, grid, y, p0 = params, sigma = sigma)
-                                 
+        
+        # Form so2 transmittance spectrum
+        trans_so2 = y / F_no_so2
+                        
         # Fit successful
         fitted_flag = True
     
@@ -114,6 +118,7 @@ def fit_spec(common, y, grid, q = None):
     except RuntimeError:
         results = np.zeros(len(params))
         cov = np.zeros((len(params),len(params)))
+        trans_so2 = np.zeros(len(y))
         fitted_flag = False
 
     # Generate a dictionary of errors
@@ -125,10 +130,10 @@ def fit_spec(common, y, grid, q = None):
         err_dict[l] = np.sqrt(np.diag(cov))[m]
     
     if q == None:                     
-        return results, err_dict, y, fitted_flag
+        return results, err_dict, y, trans_so2, so2_spec, fitted_flag
     
     else:
-        output = results, err_dict, y, fitted_flag
+        output = results, err_dict, y, trans_so2, so2_spec, fitted_flag
         q.put(('fit', output))
 
 
@@ -203,10 +208,18 @@ def ifit_fwd(grid,*args):
     # Add light dilution effect
     light_d = np.multiply(raw_F_no_so2, ldf)
     raw_F = np.add(raw_F, light_d)
+    raw_F_no_so2 = np.add(raw_F_no_so2, light_d)
 
+    # Avoid unphysical ils widths
+    if ils_width < 0.0:
+        ils_width = 0.1
+    if ils_width > 2.0:
+        ils_width = 2.0    
+        
     # Convolve high res raw_F with ILS
     ils = make_ils(ils_width, (model_grid[1] - model_grid[0]), ils_gauss_weight)
     F_conv = np.convolve(raw_F, ils, 'same')
+    F_conv_no_so2 = np.convolve(raw_F_no_so2, ils, 'same')
     
     # Apply shift and stretch to the model_grid
     shift_model_grid = np.add(model_grid, shift)
@@ -216,5 +229,9 @@ def ifit_fwd(grid,*args):
     
     # Interpolate onto measurement wavelength grid
     F = griddata(shift_model_grid, F_conv, grid)
+    global F_no_so2
+    F_no_so2 = griddata(shift_model_grid, F_conv_no_so2, grid)
+    global so2_spec
+    so2_spec = griddata(shift_model_grid, so2_T, grid)
     
     return F

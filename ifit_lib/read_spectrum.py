@@ -14,7 +14,7 @@ import numpy as np
 
 # Reads spectrum file from spectro_gui
 
-def read_spectrum(fname, spec_type):
+def read_spectrum(fname, spec_type='IFRiT'):
 
     if spec_type == 'IFRiT':
         

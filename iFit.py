@@ -55,7 +55,7 @@ class mygui(tk.Tk):
         ttk.Style().configure('TButton', width = 20, height = 20, relief="flat") 
         
         # Add a title and icon
-        tk.Tk.wm_title(self, 'iFit-2-1')
+        tk.Tk.wm_title(self, 'iFit-2-2')
         tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         
         # Build a menubar to hold options for the user
@@ -75,8 +75,8 @@ class mygui(tk.Tk):
         page3 = ttk.Frame(nb)
         
         # Create two frames, one for post analysis and one for real time acquisition
-        nb.add(page1, text = 'Post Analysis')
         nb.add(page2, text = 'Real Time Acquisition')
+        nb.add(page1, text = 'Post Analysis')
         nb.add(page3, text = 'Model Parameters')
         
         nb.grid(column=0, padx=5, pady=5)
@@ -84,10 +84,15 @@ class mygui(tk.Tk):
         # Create frame to hold graphs
         graph_frame = ttk.Frame(self, relief = 'groove')
         graph_frame.grid(row=0, column=1, padx=10, pady=10, rowspan=10, sticky="NW")
+        graph_frame.columnconfigure(index=0, weight=1)
+        graph_frame.rowconfigure(index = 0, weight = 1)
         
         # Create frame to hold text output
         text_frame = ttk.Frame(self, relief = 'groove')
         text_frame.grid(row=1, column=0, padx=10, pady=10, rowspan=10, sticky="NW")
+        
+        mygui.columnconfigure(index=1, weight=1, self = self)
+        mygui.rowconfigure(index = 5, weight = 1, self = self)
         
 #========================================================================================
 #===================================Set program settings=================================
@@ -125,6 +130,7 @@ class mygui(tk.Tk):
             settings['Fit LDF']           = 0
             settings['dark_flag']         = 1
             settings['flat_flag']         = 1
+            settings['update_params']     = 1
             settings['Show Graphs']       = 1
             settings['Show Error Bars']   = 0
             settings['scroll_flag']       = 1
@@ -179,13 +185,14 @@ class mygui(tk.Tk):
         # Create figure to hold the graphs
         plt.rcParams.update({'font.size': 8} )
         self.fig = plt.figure(figsize = (8,6))
-        gs = gridspec.GridSpec(2,2)
+        gs = gridspec.GridSpec(3,2)
         
         # Create plot axes
-        self.ax0 = self.fig.add_subplot(gs[0])
-        self.ax1 = self.fig.add_subplot(gs[1])
-        self.ax2 = self.fig.add_subplot(gs[2])
-        self.ax3 = self.fig.add_subplot(gs[3])
+        self.ax0 = self.fig.add_subplot(gs[0,0])
+        self.ax1 = self.fig.add_subplot(gs[0,1])
+        self.ax2 = self.fig.add_subplot(gs[1,0])
+        self.ax3 = self.fig.add_subplot(gs[1,1])
+        self.ax4 = self.fig.add_subplot(gs[2,:])
         
         # Axes: 1) Spectrum and fit
         #       2) Residual
@@ -205,6 +212,9 @@ class mygui(tk.Tk):
         self.ax3.set_ylabel('SO2 amt (ppm.m)', fontsize=10)
         self.ax3.set_xlabel('Spectrum number', fontsize=10)
         
+        self.ax4.set_ylabel('SO2 amt (ppm.m)', fontsize=10)
+        self.ax4.set_xlabel('Spectrum number', fontsize=10)
+        
         # Create lines to plot data series
         
         # Spectral data
@@ -218,8 +228,13 @@ class mygui(tk.Tk):
         # Residual
         self.line3, = self.ax2.plot(0, 0, 'r')
         
+        # SO2 transmittance data
+        self.line4, = self.ax3.plot(0, 0, 'b', label = 'y / F_no_so2')
+        self.line5, = self.ax3.plot(0, 0, 'r', label = 'so2 trans')
+        self.ax3.legend(loc = 0)
+        
         # SO2 Time series and error bars
-        self.line4, = self.ax3.plot(0, 0, 'g')
+        self.line6, = self.ax4.plot(0, 0, 'g')
         
         # Make it look nice
         plt.tight_layout()
@@ -714,6 +729,7 @@ class mygui(tk.Tk):
             w.write('Fit LDF;'          + str(self.ldf_b.get())             + '\n')
             w.write('dark_flag;'        + str(settings['dark_flag'])        + '\n')
             w.write('flat_flag;'        + str(settings['flat_flag'])        + '\n')
+            w.write('update_params;'    + str(settings['update_params'])    + '\n')
             w.write('Show Graphs;'      + str(settings['Show Graphs'])      + '\n')
             w.write('Show Error Bars;'  + str(settings['Show Error Bars'])  + '\n')
             w.write('scroll_flag;'      + str(settings['scroll_flag'])      + '\n')
@@ -895,10 +911,20 @@ class mygui(tk.Tk):
         settings['dark_spec'] = np.divide(dark, dark_n)
         
         # Display the dark spectrum
-        self.line2.set_data(x, dark)
-        self.ax1.set_xlim(x.min(), x.max())
-        self.ax1.set_ylim(dark.min(), dark.max())
-        self.canvas.draw()
+        lines = [self.line2]
+        axes =  [self.ax1  ]
+        
+        # Calculate limits
+        y_lo  = min(dark) - abs((0.1*max(dark)))
+        y_hi  = max(dark) + abs((0.1*max(dark)))
+        x_lo, x_hi = x.min() - 1, x.max() + 1
+        
+        # Build data array to pass to graphing function
+        #                 x data    y data    x limits     y limits
+        data = np.array(([x,        dark,     [x_lo,x_hi], [y_lo,y_hi]]))
+        
+        # Update graph
+        update_graph(lines, axes, self, data)
         
         # Add dark to common
         settings['dark_spec']  = dark
@@ -1173,9 +1199,9 @@ class mygui(tk.Tk):
                               'Spectrum number ' + str(settings['loop']))  
             
             # Create empty arrays to hold the loop number and so2_amt values
-            spec_nos    = []
-            so2_amts    = []
-            amt_errs    = []
+            spec_nos = []
+            so2_amts = []
+            amt_errs = []
 
             # Begin analysis loop
             while True:
@@ -1192,7 +1218,8 @@ class mygui(tk.Tk):
                         x,y,read_date,read_time,spec_no = read_spectrum(fname,spec_type)
                         
                         # Fit
-                        fit_params, err_dict, y_data, fit_flag = fit_spec(common,y,grid)
+                        fit_p,err_dict,y_data,so2_T,so2_spec,fit_flag=fit_spec(common,
+                                                                               y,grid)
                         
                         now_fit_spec = True
                 
@@ -1236,7 +1263,7 @@ class mygui(tk.Tk):
                         thread_out[result[0]] = result[1]
 
                     # Get fit results
-                    fit_params, err_dict, y_data, fit_flag = thread_out['fit']
+                    fit_p,err_dict,y_data,so2_T,so2_spec,fit_flag=thread_out['fit']
                    
                     # Get spectrum
                     x, y, header, t = thread_out['spectrum']
@@ -1283,7 +1310,7 @@ class mygui(tk.Tk):
                     # Unpack fit results
                     fit_dict  = {}
                     for m, l in enumerate(common['params'].keys()):
-                        fit_dict[l] = fit_params[m]
+                        fit_dict[l] = fit_p[m]
     
                     # Write results to excel file, starting with spectrum info
                     writer.write(str(fname)     + ',' + \
@@ -1307,12 +1334,11 @@ class mygui(tk.Tk):
                     so2_amts.append(fit_dict['so2_amt']/2.463e15)
                     amt_errs.append(err_dict['so2_amt']/2.463e15)
                     
-                    # Update quick analysis with values if in real time
-                    if rt_flag == 'rt_analysis':
-                        last_so2 = "{0:0.1f}".format(fit_dict['so2_amt']/2.463e15)
-                        last_err = "{0:0.1f}".format(err_dict['so2_amt']/2.463e15)
-                        self.last_so2_amt.set(last_so2 + ' ppm.m')
-                        self.last_so2_err.set(last_err + ' ppm.m')
+                    # Update quick analysis with values
+                    last_so2 = "{0:0.1f}".format(fit_dict['so2_amt']/2.463e15)
+                    last_err = "{0:0.1f}".format(err_dict['so2_amt']/2.463e15)
+                    self.last_so2_amt.set(last_so2 + ' ppm.m')
+                    self.last_so2_err.set(last_err + ' ppm.m')
                     
                     # Cut if too long to avoid slowing program
                     if settings['scroll_flag'] == True:
@@ -1322,27 +1348,29 @@ class mygui(tk.Tk):
                             amt_errs = amt_errs[1:]
                 
                     # Feed fit params into forward
-                    fit = ifit_fwd(grid, *fit_params)
+                    fit = ifit_fwd(grid, *fit_p)
     
                     # Calculate the residual of the fit
                     resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 100)
                     
                     # If fit fails or max resid > 10% revert to initial fit parameters
-                    if fit_flag == False:
-                        common['params'] = common['initial_params']
-                        self.print_output('Fitting for spectrum ' + str(spec_no) + \
-                                          ' failed, resetting parameters')
-                        
-                    elif max((resid)**2)**0.5 > 10:
-                        common['params'] = common['initial_params']
-                        self.print_output('Fitting for spectrum ' + str(spec_no) + \
-                                          ' bad, resetting parameters')
-                   
-                    else:
-                        
-                        # Update first guesses with last fitted params
-                        for i in fit_dict:
-                            common['params'][i] = fit_dict[i]
+                    
+                    if settings['update_params'] == True:
+                        if fit_flag == False:
+                            common['params'] = common['initial_params']
+                            self.print_output('Fitting for spectrum ' + str(spec_no) + \
+                                              ' failed, resetting parameters')
+                            
+                        elif max((resid)**2)**0.5 > 10:
+                            common['params'] = common['initial_params']
+                            self.print_output('Fitting for spectrum ' + str(spec_no) + \
+                                              ' bad, resetting parameters')
+                       
+                        else:
+                            
+                            # Update first guesses with last fitted params
+                            for i in fit_dict:
+                                common['params'][i] = fit_dict[i]
                 
 #========================================================================================
 #=======================================Update plot======================================
@@ -1354,38 +1382,55 @@ class mygui(tk.Tk):
                     if now_fit_spec == True:
                     
                         # Build axes and lines arrays
-                        lines = [self.line0,self.line1,self.line2,self.line3,self.line4]
-                        axes =  [self.ax0,  self.ax0,  self.ax1,  self.ax2,  self.ax3  ]
+                        lines = [self.line0, self.line1, self.line2, self.line3, 
+                                 self.line4, self.line5, self.line6]
+                        axes =  [self.ax0,   self.ax0,   self.ax1,   self.ax2,  
+                                 self.ax3,   self.ax3,   self.ax4  ]
                         
-                        # Calculate graph limits
-                        y_lo  = min(y_data) - abs((0.1*max(y_data)))
+                        # Calculate graph limits for spectrum fit
+                        y_lo = min(y_data) - abs((0.1*max(y_data)))
                         y_hi = max(y_data) + abs((0.1*max(y_data)))
-                        f_lo  = min(fit) - abs((0.1*max(fit)))
+                        f_lo = min(fit) - abs((0.1*max(fit)))
                         f_hi = max(fit) + abs((0.1*max(fit)))
                         y_lo, y_hi = min([f_lo, y_lo]), max([f_hi, y_hi])
                         x_lo, x_hi = grid.min() - 1, grid.max() + 1
                         
+                        # Limits for residual
                         r_lo = min(resid) - abs((0.1*max(resid)))
                         r_hi = max(resid) + abs((0.1*max(resid)))
                         
-                        g_lo, g_hi = x.min(), x.max()
+                        # Limits for full spectrum
+                        g_lo = min(x) - abs((0.1*max(x)))
+                        g_hi = max(x) + abs((0.1*max(x)))
+                        i_lo = 0 #min(y) - abs((0.1*max(y)))
+                        i_hi = max(y) + abs((0.1*max(y))) 
                         
-                        s_lo = min(so2_amts) - abs((0.1*max(so2_amts)))
-                        s_hi = max(so2_amts) + abs((0.1*max(so2_amts)))
+                        # Limits for so2 trans spectrum
+                        t_lo = min(so2_T) - abs((0.1*min(so2_T)))
+                        t_hi = max(so2_T) + (0.1*max(so2_T)) 
+                        s_lo = min(so2_spec) - abs((0.1*min(so2_spec)))
+                        s_hi = max(so2_spec) + (0.1*max(so2_spec))
+                        t_lo, t_hi = min([t_lo, s_lo]), max([t_hi, s_hi])
+                        
+                        # Limits for so2 time series
+                        a_lo = min(so2_amts) - abs((0.1*max(so2_amts)))
+                        a_hi = max(so2_amts) + abs((0.1*max(so2_amts)))
                         
                         # Build data array to pass to graphing function
                         #                 x data    y data    x limits     y limits
                         data = np.array(([grid,     y_data,   [x_lo,x_hi], [y_lo,y_hi]],
                                          [grid,     fit,      [x_lo,x_hi], [y_lo,y_hi]],
-                                         [x   ,     y,        [g_lo,g_hi], [0,  70000]],
+                                         [x   ,     y,        [g_lo,g_hi], [i_lo,i_hi]],
                                          [grid,     resid,    [x_lo,x_hi], [r_lo,r_hi]],
-                                         [spec_nos, so2_amts, False,       [s_lo,s_hi]]))
+                                         [grid,     so2_T,    [x_lo,x_hi], [t_lo,t_hi]],
+                                         [grid,     so2_spec, [x_lo,x_hi], [t_lo,t_hi]],
+                                         [spec_nos, so2_amts, False,       [a_lo,a_hi]]))
                     
                     else:
                         
                         # Build axes and lines arrays
-                        lines = [self.line0, self.line1]
-                        axes =  [self.ax0,   self.ax0  ]
+                        lines = [self.line2]
+                        axes =  [self.ax1  ]
                         
                         # Calculate limits
                         y_lo  = min(y) - abs((0.1*max(y)))
@@ -1394,20 +1439,11 @@ class mygui(tk.Tk):
                         
                         # Build data array to pass to graphing function
                         #                 x data    y data    x limits     y limits
-                        data = np.array(([x,        y,        [x_lo,x_hi], [y_lo,y_hi]],
-                                         [0,        0,        [x_lo,x_hi], [y_lo,y_hi]]))
+                        data = np.array(([x,        y,        [x_lo,x_hi], [y_lo,y_hi]]))
                     
                     # Update graph
                     update_graph(lines, axes, self, data)
-                    
-                    
-                    
-#========================================================================================
-#==================================Update fit parameters=================================
-#========================================================================================
-                    
-                
-                            
+                                               
                 # Add to the count cycle
                 settings['loop'] += 1
                 
@@ -1456,6 +1492,7 @@ def model_settings():
         settings['model_resolution'] = float(model_res_e.get())
         settings['dark_flag'] = dark_b.get()
         settings['flat_flag'] = flat_b.get()
+        settings['update_params'] = update_b.get()
         
         # Close the window
         popup.destroy()
@@ -1485,6 +1522,14 @@ def model_settings():
     flat_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     flat_c = ttk.Checkbutton(popup, variable = flat_b)
     flat_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
+    
+    # Control whether or not to update fit parameter guesses with the last fit values
+    update_b = tk.IntVar(popup, value = settings['update_params'])
+    update_l = tk.Label(popup, text = 'Auto-update fit paramseters?', font = NORM_FONT)
+    update_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    update_c = ttk.Checkbutton(popup, variable = update_b)
+    update_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
     # Button to apply changes and close
