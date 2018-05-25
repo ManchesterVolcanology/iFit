@@ -95,6 +95,32 @@ class mygui(tk.Tk):
         mygui.rowconfigure(index = 5, weight = 1, self = self)
         
 #========================================================================================
+#====================================Create text output==================================
+#========================================================================================        
+                 
+        # Create a scroll bar
+        scrollbar = ttk.Scrollbar(text_frame)
+        scrollbar.grid(row=1, column=4, padx = 5, pady = 5, sticky='NSE')
+        
+        # Build text box
+        self.text_box = tk.Text(text_frame, width = 60, height = 10, 
+                                yscrollcommand = scrollbar.set)
+        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
+                           columnspan = 4)
+        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')
+        
+        # Connect the scrollbar to the textbox
+        scrollbar.config(command = self.text_box.yview)
+        
+        # Create button to save settings
+        save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
+        save_b.grid(row = 0, column = 0, columnspan = 2, padx = 5, pady = 5)
+        
+        # Create a button to exit
+        exit_b = ttk.Button(text_frame, text = 'Exit', command = self.quit)
+        exit_b.grid(row = 0, column = 2, columnspan = 2, padx = 5, pady = 5)
+        
+#========================================================================================
 #===================================Set program settings=================================
 #========================================================================================
 
@@ -135,7 +161,7 @@ class mygui(tk.Tk):
             settings['Show Error Bars']   = 0
             settings['scroll_flag']       = 1
             settings['scroll_spec_no']    = 200
-            settings['resid_flag']        = 'percent'
+            settings['resid_type']        = 'Percent'
             settings['poly_n']            = 4
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
@@ -254,31 +280,7 @@ class mygui(tk.Tk):
         toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
         toolbar.update()
         
-#========================================================================================
-#====================================Create text output==================================
-#========================================================================================        
-                 
-        # Create a scroll bar
-        scrollbar = ttk.Scrollbar(text_frame)
-        scrollbar.grid(row=1, column=4, padx = 5, pady = 5, sticky='NSE')
-        
-        # Build text box
-        self.text_box = tk.Text(text_frame, width = 60, height = 10, 
-                                yscrollcommand = scrollbar.set)
-        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
-                           columnspan = 4)
-        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')
-        
-        # Connect the scrollbar to the textbox
-        scrollbar.config(command = self.text_box.yview)
-        
-        # Create button to save settings
-        save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
-        save_b.grid(row = 0, column = 0, columnspan = 2, padx = 5, pady = 5)
-        
-        # Create a button to exit
-        exit_b = ttk.Button(text_frame, text = 'Exit', command = self.quit)
-        exit_b.grid(row = 0, column = 2, columnspan = 2, padx = 5, pady = 5)
+
 
 
           
