@@ -62,7 +62,7 @@ class mygui(tk.Tk):
         menubar = tk.Menu(self)
         filemenu = tk.Menu(menubar, tearoff = 0)
         filemenu.add_command(label = 'Model Settings', command = model_settings)
-        filemenu.add_command(label = 'Graph Settings', command = graph_settings)
+        filemenu.add_command(label='Graph Settings',command=lambda: graph_settings(self))
         filemenu.add_command(label = 'Data Bases', command = data_bases)
         filemenu.add_separator()
         menubar.add_cascade(label = 'Options', menu = filemenu)
@@ -135,6 +135,7 @@ class mygui(tk.Tk):
             settings['Show Error Bars']   = 0
             settings['scroll_flag']       = 1
             settings['scroll_spec_no']    = 200
+            settings['resid_flag']        = 'percent'
             settings['poly_n']            = 4
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
@@ -206,7 +207,10 @@ class mygui(tk.Tk):
         self.ax1.set_ylabel('Intensity (arb)', fontsize=10)
         self.ax1.set_xlabel('Wavelength (nm)', fontsize=10)
         
-        self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
+        if settings['resid_type'] == 'Percentage':
+            self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
+        if settings['resid_type'] == 'Absolute':
+            self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
         self.ax2.set_xlabel('Wavelength (nm)', fontsize=10)
         
         self.ax3.set_ylabel('SO2 amt (ppm.m)', fontsize=10)
@@ -732,6 +736,7 @@ class mygui(tk.Tk):
             w.write('update_params;'    + str(settings['update_params'])    + '\n')
             w.write('Show Graphs;'      + str(settings['Show Graphs'])      + '\n')
             w.write('Show Error Bars;'  + str(settings['Show Error Bars'])  + '\n')
+            w.write('resid_type;'       + str(settings['resid_type'])       + '\n')
             w.write('scroll_flag;'      + str(settings['scroll_flag'])      + '\n')
             w.write('scroll_spec_no;'   + str(settings['scroll_spec_no'])   + '\n')
             w.write('poly_n;'           + str(self.poly_n.get())            + '\n')
@@ -1341,8 +1346,8 @@ class mygui(tk.Tk):
                     self.last_so2_err.set(last_err + ' ppm.m')
                     
                     # Cut if too long to avoid slowing program
-                    if settings['scroll_flag'] == True:
-                        if len(spec_nos) > settings['scroll_spec_no']:
+                    if bool(settings['scroll_flag']) == True:
+                        if len(spec_nos) > int(settings['scroll_spec_no']):
                             spec_nos = spec_nos[1:]
                             so2_amts = so2_amts[1:]
                             amt_errs = amt_errs[1:]
@@ -1351,7 +1356,11 @@ class mygui(tk.Tk):
                     fit = ifit_fwd(grid, *fit_p)
     
                     # Calculate the residual of the fit
-                    resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 100)
+                    if settings['resid_type'] == 'Percentage':
+                        resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 
+                                            100)
+                    if settings['resid_type'] == 'Absolute': 
+                        resid = np.subtract(y_data, fit)
                     
                     # If fit fails or max resid > 10% revert to initial fit parameters
                     
@@ -1526,7 +1535,7 @@ def model_settings():
     
     # Control whether or not to update fit parameter guesses with the last fit values
     update_b = tk.IntVar(popup, value = settings['update_params'])
-    update_l = tk.Label(popup, text = 'Auto-update fit paramseters?', font = NORM_FONT)
+    update_l = tk.Label(popup, text = 'Auto-update fit parameters?', font = NORM_FONT)
     update_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     update_c = ttk.Checkbutton(popup, variable = update_b)
     update_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
@@ -1546,7 +1555,7 @@ def model_settings():
 
 
 # Define function to open another window to alter the graph settings
-def graph_settings():
+def graph_settings(self):
     popup = tk.Tk()
     tk.Tk.wm_title(popup, 'Graph Settings')
     
@@ -1557,6 +1566,14 @@ def graph_settings():
         settings['Show Error Bars'] = err_b.get()
         settings['scroll_flag']     = scroll_b.get()
         settings['scroll_spec_no']  = int(spec_no_e.get())
+        settings['resid_type']      = popup.resid_type.get()
+        
+        # Update graph
+        if settings['resid_type'] == 'Percentage':
+            self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
+        if settings['resid_type'] == 'Absolute':
+            self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
+        self.canvas.draw()
         
         # Close the window
         popup.destroy()
@@ -1594,6 +1611,17 @@ def graph_settings():
     spec_no_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     spec_no_e = ttk.Entry(popup, textvariable = popup.spec_no, font = NORM_FONT)
     spec_no_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
+    
+    # Set format of residual
+    resid_options = [settings['resid_type'],
+                     'Absolute',
+                     'Percentage']
+    popup.resid_type = tk.StringVar(popup, value = settings['resid_type'])
+    resid_type_l = tk.Label(popup, text = 'Residual Display', font = NORM_FONT)
+    resid_type_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    resid_type_m = ttk.OptionMenu(popup, popup.resid_type, *resid_options)
+    resid_type_m.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
     # Button to apply changes and close

@@ -232,6 +232,6 @@ def ifit_fwd(grid,*args):
     global F_no_so2
     F_no_so2 = griddata(shift_model_grid, F_conv_no_so2, grid)
     global so2_spec
-    so2_spec = griddata(shift_model_grid, so2_T, grid)
+    so2_spec = griddata(shift_model_grid, np.convolve(so2_T, ils, 'same'), grid)
     
     return F
