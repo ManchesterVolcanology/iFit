@@ -10,20 +10,6 @@ from ifit_lib.make_poly import make_poly
 #=========================================fit_spec=======================================
 #========================================================================================
 
-# Function to fit measured spectrum using a full forward model including a solar spectrum
-#  background polynomial, ring effect, shift, stretch, and gas amts for so2, no2, o3, bro
-
-# INPUTS: common; common dictionary of parameters and variables passed from the main 
-#                  program to subroutines
-#         y; intensity data from the measured spectrum 
-#         grid; measurement wavelength grid over which the fit occurs
-
-# OUTPUTS: results; resulting optimised fit parameters
-#          cov; covarience matrix
-#          y; processed spectral intensity data (after extracting the desired window and 
-#              correction for dark, flat and stray light)
-#          fitted_flag; boolian variable to tell the main program if the fit was achieved
-
 def fit_spec(common, y, grid, q = None):
     
     '''
@@ -47,14 +33,15 @@ def fit_spec(common, y, grid, q = None):
                    and correction for dark, flat and stray light)
     fitted_flag: boolian variable to tell the main program if the fit was achieved
 
-    '''
-    
+    '''  
     
     # Unpack the inital fit parameters
-    params = []
+    params = np.ones(len(common['params']))
+    i = 0
     
     for key, val in common['params'].items():
-        params.append(val)
+        params[i] = val
+        i += 1
     
     # Unpack the solar, ring spectra and gas cross sections and make global for forward
     global sol
@@ -107,7 +94,7 @@ def fit_spec(common, y, grid, q = None):
     try:
         # Fit
         results, cov = curve_fit(ifit_fwd, grid, y, p0 = params, sigma = sigma)
-        
+
         # Form so2 transmittance spectrum
         trans_so2 = y / F_no_so2
                         
@@ -141,20 +128,27 @@ def fit_spec(common, y, grid, q = None):
 #=========================================ifit_fwd=======================================
 #========================================================================================
 
-# Function describing the forward model used to fit the measured spectra
-
-# INPUTS: grid; measurement wavelength grid over which the fit occurs
-#         other params; fit paramters as decribed in the main program
-
-# OUTPUTS: F; constructed forward model
-
 def ifit_fwd(grid,*args):
+    
+    '''
+    INPUTS:
+    -------
+    grid:  measurement wavelength grid
+    *args: parameters used for fitting. These are n polynomial parameters, wavelength 
+             shift and stretch, ring amount and gas amounts for SO2, NO2, O3 and Bro.
+             Also optionally the ils width and ldf
 
-    # Unpack parameters
+    OUTPUTS:
+    --------
+    F: Fitted spectrum interpolated onto the  spectrometer wavelength grid             
+    '''
+
+    # Unpack polynomialparameters
     p = np.zeros(poly_n)
     for i in range(poly_n):
         p[i] = (args[i])
 
+    # Unpack rest
     i += 1
     shift = args[i]
     i += 1
@@ -170,6 +164,7 @@ def ifit_fwd(grid,*args):
     i += 1
     bro_amt = args[i]
 
+    # Unpack optional parameters
     if ils_flag == True:
         i += 1
         ils_width = args[i]
@@ -180,6 +175,8 @@ def ifit_fwd(grid,*args):
     if ldf_flag == True:
         i += 1
         ldf = args[i]
+        i += 1
+        #ldf_grad = args[i]
         
     else:
         ldf = set_ldf

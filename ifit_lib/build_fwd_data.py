@@ -19,7 +19,7 @@ from ifit_lib.find_nearest import extract_window
 # INPUTS: common: common dictionary of parameters and constants passed from the program 
 #                   to subroutines. Also contains the filepaths to the required data
 
-def build_fwd_data(self, common, settings):
+def build_fwd_data(common, settings, self):
 
     '''
     Read in required spectra and cross-sections etc and place them on the model grid as 
@@ -40,8 +40,8 @@ def build_fwd_data(self, common, settings):
     
     # Build model grid, a high res grid on which the forward model is build. It extends
     #  2 nm beyond the measurement grid and has a spacing controlled by the user
-    npts = ((common['wave_stop'] + 2) - (common['wave_start'] - 2)) * (1/float(settings['model_resolution']))
-    model_grid = np.linspace(common['wave_start'] - 2, common['wave_stop'] + 2, 
+    npts = ((common['wave_stop'] + 3) - (common['wave_start'] - 3)) * (1/float(settings['model_resolution']))
+    model_grid = np.linspace(common['wave_start'] - 3, common['wave_stop'] + 3, 
                              num = npts + 1)
     
     # Try importing flat spectrum. If not found set to 1
@@ -65,13 +65,6 @@ def build_fwd_data(self, common, settings):
     
     # Interpolate onto model_grid
     sol = griddata(sol_x, sol_y, model_grid)
-    
-    '''
-    # Import solar residual spectrum
-    self.print_output('Importing solar residual spectrum...', add_line = False)
-    grid, solar_resid = np.loadtxt(settings['resid_path'], unpack = True)
-    self.print_output('Residual imported', add_line = False)
-    '''
     
     # Import ring spectrum and interpolate onto the model_grid
     self.print_output('Importing ring spectrum...', add_line = False)
@@ -116,7 +109,6 @@ def build_fwd_data(self, common, settings):
     
     # Add the data to the common dictionary
     common['model_grid']  = model_grid
-    #common['solar_resid'] = solar_resid
     common['flat']        = flat
     common['sol']         = sol
     common['ring']        = ring

@@ -239,10 +239,10 @@ class mygui(tk.Tk):
             self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
         self.ax2.set_xlabel('Wavelength (nm)', fontsize=10)
         
-        self.ax3.set_ylabel('SO2 amt (ppm.m)', fontsize=10)
-        self.ax3.set_xlabel('Spectrum number', fontsize=10)
+        self.ax3.set_ylabel('SO$_2$ Transmission', fontsize=10)
+        self.ax3.set_xlabel('Wavelength (nm)', fontsize=10)
         
-        self.ax4.set_ylabel('SO2 amt (ppm.m)', fontsize=10)
+        self.ax4.set_ylabel('SO$_2$ amt (ppm.m)', fontsize=10)
         self.ax4.set_xlabel('Spectrum number', fontsize=10)
         
         # Create lines to plot data series
@@ -259,8 +259,8 @@ class mygui(tk.Tk):
         self.line3, = self.ax2.plot(0, 0, 'r')
         
         # SO2 transmittance data
-        self.line4, = self.ax3.plot(0, 0, 'b', label = 'y / F_no_so2')
-        self.line5, = self.ax3.plot(0, 0, 'r', label = 'so2 trans')
+        self.line4, = self.ax3.plot(0, 0, 'b', label = 'y / F_no_SO$_2$')
+        self.line5, = self.ax3.plot(0, 0, 'r', label = 'SO$_2$ trans')
         self.ax3.legend(loc = 0)
         
         # SO2 Time series and error bars
@@ -1000,11 +1000,11 @@ class mygui(tk.Tk):
         common['spec_name']        = self.spec_name.get()
         common['dark_flag']        = int(settings['dark_flag'])
         common['flat_flag']        = int(settings['flat_flag'])
-        
+
         # Turn of dark flag if in real time and no darks have been taken
         if rt_flag == 'rt_analysis' and settings['rt_dark_flag'] == False:
             common['dark_flag'] = 0
-            self.print_output('WARNING! No dark spectra aquired')
+            self.print_output('WARNING! No dark spectra aquired!')
 
 #========================================================================================
 #================================Build parameter dictionary==============================
@@ -1050,7 +1050,7 @@ class mygui(tk.Tk):
             settings['flat_path'] = 'data_bases/flat_'+str(self.c_spec.get())+'.txt'
         
         # Load fitting data files
-        common = build_fwd_data(self, common, settings)
+        common = build_fwd_data(common, settings, self)
 
 #========================================================================================
 #===================================Build dark spectrum==================================
@@ -1137,7 +1137,7 @@ class mygui(tk.Tk):
                     # Write other fit info
                     writer.write('Fit window: ' + str(common['wave_start']) + ' - ' + \
                                  str(common['wave_stop']) + ' nm,' + 'ILS width: '  + \
-                                 str(common['ils_width']) + 'ILS Gauss Weight: '    + \
+                                 str(common['ils_width']) + ',ILS Gauss Weight: '   + \
                                  str(common['ils_gauss_weight']) + '\n')
                 
                 # Create folder to hold spectra
@@ -1359,8 +1359,9 @@ class mygui(tk.Tk):
     
                     # Calculate the residual of the fit
                     if settings['resid_type'] == 'Percentage':
-                        resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 
-                                            100)
+                        #resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 
+                        #                    100)
+                        resid = np.divide(y_data, fit)
                     if settings['resid_type'] == 'Absolute': 
                         resid = np.subtract(y_data, fit)
                     
@@ -1407,8 +1408,8 @@ class mygui(tk.Tk):
                         x_lo, x_hi = grid.min() - 1, grid.max() + 1
                         
                         # Limits for residual
-                        r_lo = min(resid) - abs((0.1*max(resid)))
-                        r_hi = max(resid) + abs((0.1*max(resid)))
+                        r_lo = min(resid) - 0.05#abs((0.1*max(resid)))
+                        r_hi = max(resid) + 0.05#abs((0.1*max(resid)))
                         
                         # Limits for full spectrum
                         g_lo = min(x) - abs((0.1*max(x)))
