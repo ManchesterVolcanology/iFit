@@ -42,7 +42,7 @@ def fit_spec(common, y, grid, q = None):
     for key, val in common['params'].items():
         params[i] = val
         i += 1
-    
+    '''
     # Unpack the solar, ring spectra and gas cross sections and make global for forward
     global sol
     sol = common['sol']
@@ -70,6 +70,9 @@ def fit_spec(common, y, grid, q = None):
     ldf_flag = common['ldf_flag']
     global set_ldf
     set_ldf = float(common['ldf'])
+    '''
+    global com
+    com = common
 
     # Remove the dark spectrum from the measured spectrum
     if common['dark_flag'] == True:
@@ -96,7 +99,7 @@ def fit_spec(common, y, grid, q = None):
         results, cov = curve_fit(ifit_fwd, grid, y, p0 = params, sigma = sigma)
 
         # Form so2 transmittance spectrum
-        trans_so2 = y / F_no_so2
+        trans_so2 = y / com['F_no_so2']
                         
         # Fit successful
         fitted_flag = True
@@ -117,10 +120,10 @@ def fit_spec(common, y, grid, q = None):
         err_dict[l] = np.sqrt(np.diag(cov))[m]
     
     if q == None:                     
-        return results, err_dict, y, trans_so2, so2_spec, fitted_flag
+        return results, err_dict, y, trans_so2, com['so2_spec'], fitted_flag
     
     else:
-        output = results, err_dict, y, trans_so2, so2_spec, fitted_flag
+        output = results, err_dict, y, trans_so2, com['so2_spec'], fitted_flag
         q.put(('fit', output))
 
 
@@ -143,9 +146,9 @@ def ifit_fwd(grid,*args):
     F: Fitted spectrum interpolated onto the  spectrometer wavelength grid             
     '''
 
-    # Unpack polynomialparameters
-    p = np.zeros(poly_n)
-    for i in range(poly_n):
+     # Unpack polynomialparameters
+    p = np.zeros(com['poly_n'])
+    for i in range(com['poly_n']):
         p[i] = (args[i])
 
     # Unpack rest
@@ -165,34 +168,34 @@ def ifit_fwd(grid,*args):
     bro_amt = args[i]
 
     # Unpack optional parameters
-    if ils_flag == True:
+    if com['ils_flag'] == True:
         i += 1
         ils_width = args[i]
         
     else:
-        ils_width = set_ils_width
+        ils_width = com['ils_width']#set_ils_width
     
-    if ldf_flag == True:
+    if com['ldf_flag'] == True:
         i += 1
         ldf = args[i]
         i += 1
         #ldf_grad = args[i]
         
     else:
-        ldf = set_ldf
+        ldf = com['ldf']#set_ldf
 
     # Construct background polynomial
-    bg_poly = make_poly(model_grid, p)
+    bg_poly = make_poly(com['model_grid'], p)
     
     # Build gas transmittance spectra
-    so2_T = np.exp(-(np.multiply(so2_xsec, so2_amt)))
-    no2_T = np.exp(-(np.multiply(no2_xsec, no2_amt)))
-    o3_T  = np.exp(-(np.multiply(o3_xsec, o3_amt)))
-    bro_T  = np.exp(-(np.multiply(bro_xsec, bro_amt)))
+    so2_T = np.exp(-(np.multiply(com['so2_xsec'], so2_amt)))
+    no2_T = np.exp(-(np.multiply(com['no2_xsec'], no2_amt)))
+    o3_T  = np.exp(-(np.multiply(com['o3_xsec'], o3_amt)))
+    bro_T  = np.exp(-(np.multiply(com['bro_xsec'], bro_amt)))
     
     # Calculate ring effect
-    ring_T = np.multiply(sol, np.multiply(ring, ring_amt))
-    sol_T = np.add(sol, ring_T)
+    ring_T = np.multiply(com['sol'], np.multiply(com['ring'], ring_amt))
+    sol_T = np.add(com['sol'], ring_T)
     
     # Generate raw, high res spectrum with and without SO2
     raw_F = np.multiply(bg_poly, sol_T)
@@ -202,10 +205,22 @@ def ifit_fwd(grid,*args):
     raw_F_no_so2 = raw_F              # Create forward model without so2 contribution
     raw_F = np.multiply(raw_F, so2_T)
     
+    raw_F_no_o3 = np.multiply(bg_poly, sol_T)
+    raw_F_no_o3 = np.multiply(raw_F_no_o3, so2_T)
+    raw_F_no_o3 = np.multiply(raw_F_no_o3, no2_T)
+    raw_F_no_o3 = np.multiply(raw_F_no_o3, bro_T)
+    
+    raw_F_no_bro = np.multiply(bg_poly, sol_T)
+    raw_F_no_bro = np.multiply(raw_F_no_bro, so2_T)
+    raw_F_no_bro = np.multiply(raw_F_no_bro, no2_T)
+    raw_F_no_bro = np.multiply(raw_F_no_bro, o3_T)
+    
     # Add light dilution effect
     light_d = np.multiply(raw_F_no_so2, ldf)
     raw_F = np.add(raw_F, light_d)
     raw_F_no_so2 = np.add(raw_F_no_so2, light_d)
+    raw_F_no_o3  = np.add(raw_F_no_o3, light_d)
+    raw_F_no_bro = np.add(raw_F_no_bro, light_d)
 
     # Avoid unphysical ils widths
     if ils_width < 0.0:
@@ -214,21 +229,36 @@ def ifit_fwd(grid,*args):
         ils_width = 2.0    
         
     # Convolve high res raw_F with ILS
-    ils = make_ils(ils_width, (model_grid[1] - model_grid[0]), ils_gauss_weight)
+    ils = make_ils(ils_width, (com['model_grid'][1] - com['model_grid'][0]),
+                   com['ils_gauss_weight'])
     F_conv = np.convolve(raw_F, ils, 'same')
     F_conv_no_so2 = np.convolve(raw_F_no_so2, ils, 'same')
+    F_conv_no_o3  = np.convolve(raw_F_no_o3 , ils, 'same')
+    F_conv_no_bro = np.convolve(raw_F_no_bro, ils, 'same')
     
     # Apply shift and stretch to the model_grid
-    shift_model_grid = np.add(model_grid, shift)
-    line = np.subtract(model_grid, min(model_grid))
+    shift_model_grid = np.add(com['model_grid'], shift)
+    line = np.subtract(com['model_grid'], min(com['model_grid']))
     line = np.divide(line, max(line))
     shift_model_grid = np.add(shift_model_grid, np.multiply(line, stretch))
     
     # Interpolate onto measurement wavelength grid
     F = griddata(shift_model_grid, F_conv, grid)
-    global F_no_so2
-    F_no_so2 = griddata(shift_model_grid, F_conv_no_so2, grid)
-    global so2_spec
-    so2_spec = griddata(shift_model_grid, np.convolve(so2_T, ils, 'same'), grid)
+    
+    com['F_no_so2'] = griddata(shift_model_grid, F_conv_no_so2, grid)
+    com['so2_spec'] = griddata(shift_model_grid, np.convolve(so2_T, ils, 'same'), grid)
+
+    com['F_no_o3'] = griddata(shift_model_grid, F_conv_no_o3, grid)
+    com['o3_spec'] = griddata(shift_model_grid, np.convolve(o3_T, ils, 'same'), grid)
+
+    com['F_no_bro'] = griddata(shift_model_grid, F_conv_no_bro, grid)
+    com['bro_spec'] = griddata(shift_model_grid, np.convolve(bro_T, ils, 'same'), grid)
+    
+    # Remove solar residual
+    if com['solar_resid_flag'] == 'Remove':
+        F = np.multiply(F, com['solar_resid'])
+        com['F_no_so2'] = np.multiply(com['F_no_so2'], com['solar_resid'])
+        com['F_no_o3'] = np.multiply(com['F_no_o3'], com['solar_resid'])
+        com['F_no_bro'] = np.multiply(com['F_no_bro'], com['solar_resid'])
     
     return F

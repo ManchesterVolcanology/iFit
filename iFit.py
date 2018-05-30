@@ -237,6 +237,8 @@ class mygui(tk.Tk):
             self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
         if settings['resid_type'] == 'Absolute':
             self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
+        if settings['resid_type'] == 'Spec/Fit':
+            self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
         self.ax2.set_xlabel('Wavelength (nm)', fontsize=10)
         
         self.ax3.set_ylabel('SO$_2$ Transmission', fontsize=10)
@@ -739,6 +741,7 @@ class mygui(tk.Tk):
             w.write('Show Graphs;'      + str(settings['Show Graphs'])      + '\n')
             w.write('Show Error Bars;'  + str(settings['Show Error Bars'])  + '\n')
             w.write('resid_type;'       + str(settings['resid_type'])       + '\n')
+            w.write('solar_resid_flag;' + str(settings['solar_resid_flag']) + '\n')
             w.write('scroll_flag;'      + str(settings['scroll_flag'])      + '\n')
             w.write('scroll_spec_no;'   + str(settings['scroll_spec_no'])   + '\n')
             w.write('poly_n;'           + str(self.poly_n.get())            + '\n')
@@ -756,6 +759,7 @@ class mygui(tk.Tk):
             w.write('no2_path;'         + str(settings['no2_path'])         + '\n')
             w.write('o3_path;'          + str(settings['o3_path'])          + '\n')
             w.write('bro_path;'         + str(settings['bro_path'])         + '\n')
+            w.write('solar_resid_path;' + str(settings['solar_resid_path']) + '\n')
             
             try:
                 w.write('Spectra Filepaths;' + str(self.spec_fpaths) + '\n')
@@ -1000,6 +1004,7 @@ class mygui(tk.Tk):
         common['spec_name']        = self.spec_name.get()
         common['dark_flag']        = int(settings['dark_flag'])
         common['flat_flag']        = int(settings['flat_flag'])
+        common['solar_resid_flag'] = settings['solar_resid_flag']
 
         # Turn of dark flag if in real time and no darks have been taken
         if rt_flag == 'rt_analysis' and settings['rt_dark_flag'] == False:
@@ -1108,6 +1113,11 @@ class mygui(tk.Tk):
         # If no stray light pixels available, turn off the flag
         if common['stray_i1'] == common['stray_i2']:
             common['stray_flag'] = False 
+            
+        # If forming solar residual create empty array and counter
+        if common['solar_resid_flag'] == 'Generate':
+            common['solar_resid'] = np.zeros(len(grid))
+            resid_count = 0
  
 #========================================================================================
 #===================================Create ouput folder==================================
@@ -1359,11 +1369,19 @@ class mygui(tk.Tk):
     
                     # Calculate the residual of the fit
                     if settings['resid_type'] == 'Percentage':
-                        #resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 
-                        #                    100)
-                        resid = np.divide(y_data, fit)
+                        resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 
+                                            100)
+                        
                     if settings['resid_type'] == 'Absolute': 
                         resid = np.subtract(y_data, fit)
+                        
+                    if settings['resid_type'] == 'Spec/Fit':
+                        resid = np.divide(y_data, fit)
+                    
+                    # Add to solar residual
+                    if common['solar_resid_flag'] == 'Generate':
+                        common['solar_resid'] = np.add(common['solar_resid'], resid)
+                        resid_count += 1
                     
                     # If fit fails or max resid > 10% revert to initial fit parameters
                     
@@ -1461,7 +1479,17 @@ class mygui(tk.Tk):
                 
                 # Force gui to update
                 mygui.update(self)
-                    
+                
+            # Update solar residual
+            if settings['solar_resid_flag'] == 'Generate':
+                
+                # Find average residual
+                common['solar_resid'] = np.divide(common['solar_resid'], resid_count)
+                
+                # Save
+                np.savetxt('data_bases/solar_resid.txt', common['solar_resid'])
+                
+                self.print_output('Solar residual spectrum updated')
 
 
 
@@ -1505,6 +1533,7 @@ def model_settings():
         settings['dark_flag'] = dark_b.get()
         settings['flat_flag'] = flat_b.get()
         settings['update_params'] = update_b.get()
+        settings['solar_resid_flag'] = resid_b.get()
         
         # Close the window
         popup.destroy()
@@ -1536,8 +1565,20 @@ def model_settings():
     flat_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
+    # Control whether or not to remove, form or ignore the solar residual spectrum
+    resid_options = [settings['solar_resid_flag'],
+                     'Ignore',
+                     'Generate',
+                     'Remove']
+    resid_b = tk.StringVar(popup, value = settings['solar_resid_flag'])
+    resid_l = tk.Label(popup, text = 'Solar residual:', font = NORM_FONT)
+    resid_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    resid_c = ttk.OptionMenu(popup, resid_b, *resid_options)
+    resid_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
+    
     # Control whether or not to update fit parameter guesses with the last fit values
-    update_b = tk.IntVar(popup, value = settings['update_params'])
+    update_b = tk.StringVar(popup, value = settings['update_params'])
     update_l = tk.Label(popup, text = 'Auto-update fit parameters?', font = NORM_FONT)
     update_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     update_c = ttk.Checkbutton(popup, variable = update_b)
@@ -1576,6 +1617,8 @@ def graph_settings(self):
             self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
         if settings['resid_type'] == 'Absolute':
             self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
+        if settings['resid_type'] == 'Spec/Fit':
+            self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
         self.canvas.draw()
         
         # Close the window
@@ -1619,7 +1662,8 @@ def graph_settings(self):
     # Set format of residual
     resid_options = [settings['resid_type'],
                      'Absolute',
-                     'Percentage']
+                     'Percentage',
+                     'Spec/Fit']
     popup.resid_type = tk.StringVar(popup, value = settings['resid_type'])
     resid_type_l = tk.Label(popup, text = 'Residual Display', font = NORM_FONT)
     resid_type_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
@@ -1655,12 +1699,13 @@ def data_bases():
     def update_data_bases(settings):
         
         # Update graph settings in common
-        settings['sol_path']   = sol_path_e.get()
-        settings['ring_path']  = ring_path_e.get()
-        settings['so2_path']   = so2_path_e.get()
-        settings['no2_path']   = no2_path_e.get()
-        settings['o3_path']    = o3_path_e.get()
-        settings['bro_path']   = bro_path_e.get()
+        settings['sol_path']         = sol_path_e.get()
+        settings['ring_path']        = ring_path_e.get()
+        settings['so2_path']         = so2_path_e.get()
+        settings['no2_path']         = no2_path_e.get()
+        settings['o3_path']          = o3_path_e.get()
+        settings['bro_path']         = bro_path_e.get()
+        settings['solar_resid_path'] = solar_resid_path_e.get()
         
         # Close the window
         popup.destroy()
@@ -1739,6 +1784,18 @@ def data_bases():
     bro_path_b = ttk.Button(popup, text = "Select", 
                             command = lambda: update_fp(popup.bro_path))
     bro_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
+    
+    # Solar residual
+    popup.solar_resid_path = tk.StringVar(popup, value = settings['solar_resid_path'])
+    solar_resid_path_l = tk.Label(popup, text = 'Solar Residual:', font = NORM_FONT)
+    solar_resid_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    solar_resid_path_e = ttk.Entry(popup, textvariable = popup.solar_resid_path,
+                                   font = NORM_FONT, width = 40)
+    solar_resid_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
+    solar_resid_path_b = ttk.Button(popup, text = "Select", 
+                                    command = lambda: update_fp(popup.solar_resid_path))
+    solar_resid_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
     
     # Button to apply changes and close
