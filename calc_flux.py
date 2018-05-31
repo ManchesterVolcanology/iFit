@@ -9,7 +9,7 @@ from scipy.interpolate import griddata
 from pandas import read_csv
 
 from ifit_lib.click_zoom import click_zoom
-from ifit_lib.read_gps import read_txt_gps, gps_vector, haversine, read_nmea
+from ifit_lib.read_gps import read_txt_gps, gps_vector, haversine
 from ifit_lib.center_of_grav import cog
 
 #========================================================================================
@@ -63,9 +63,9 @@ from ifit_lib.center_of_grav import cog
 #time_diff = 6
 
 # Piton de la Fournaise
-volc_lon = 55.708889
-volc_lat = -21.2425
-time_diff = 0
+#volc_lon = 55.708889
+#volc_lat = -21.2425
+#time_diff = 0
 
 # Create output folder
 out_folder = 'Results/calc_flux/' + str(datetime.date.today()) + '/'

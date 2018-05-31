@@ -89,7 +89,11 @@ class mygui(tk.Tk):
         
         # Create frame to hold text output
         text_frame = ttk.Frame(self, relief = 'groove')
-        text_frame.grid(row=1, column=0, padx=10, pady=10, rowspan=10, sticky="NW")
+        text_frame.grid(row=2, column=0, padx=10, pady=10, rowspan=10, sticky="NW")
+        
+        # Frame for quick analysis
+        quick_frame = tk.LabelFrame(self, text = 'Quick Analysis', font = LARG_FONT)
+        quick_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW")
         
         mygui.columnconfigure(index=1, weight=1, self = self)
         mygui.rowconfigure(index = 5, weight = 1, self = self)
@@ -119,6 +123,33 @@ class mygui(tk.Tk):
         # Create a button to exit
         exit_b = ttk.Button(text_frame, text = 'Exit', command = self.quit)
         exit_b.grid(row = 0, column = 2, columnspan = 2, padx = 5, pady = 5)
+        
+#========================================================================================
+#==============================Create quick analysis outputs=============================
+#========================================================================================
+        
+        # Create loop counter
+        self.spec_count = tk.StringVar(self, value = '0 / 0')
+        spec_count_l = tk.Label(quick_frame, text = 'Spectrum:', font = NORM_FONT)
+        spec_count_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+        spec_count_e = ttk.Entry(quick_frame, textvariable = self.spec_count)
+        spec_count_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+        
+        # Create ouput for last so2 amount
+        self.last_so2_amt = tk.DoubleVar(self, value = 0)
+        last_so2_amt_l = tk.Label(quick_frame, text = 'Last amt:', 
+                                  font = NORM_FONT)
+        last_so2_amt_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+        last_so2_amt_e = ttk.Entry(quick_frame, textvariable = self.last_so2_amt)
+        last_so2_amt_e.grid(row = 1, column = 1, padx = 5, pady = 5)
+        
+        # Create ouput for last so2 error
+        self.last_so2_err = tk.DoubleVar(self, value = 0)
+        last_so2_err_l = tk.Label(quick_frame, text = 'Last error:', 
+                                  font = NORM_FONT)
+        last_so2_err_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
+        last_so2_err_e = ttk.Entry(quick_frame, textvariable = self.last_so2_err)
+        last_so2_err_e.grid(row = 1, column = 3, padx = 5, pady = 5)
         
 #========================================================================================
 #===================================Set program settings=================================
@@ -159,9 +190,11 @@ class mygui(tk.Tk):
             settings['update_params']     = 1
             settings['Show Graphs']       = 1
             settings['Show Error Bars']   = 0
+            settings['analysis_gas']      = 'SO2'
             settings['scroll_flag']       = 1
             settings['scroll_spec_no']    = 200
             settings['resid_type']        = 'Percent'
+            settings['solar_resid_flag']  = 'Ignore'
             settings['poly_n']            = 4
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
@@ -175,8 +208,9 @@ class mygui(tk.Tk):
             settings['ring_path']         = 'data_bases/ring.dat'
             settings['so2_path']          = 'data_bases/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/No2_223l.dat'
-            settings['o3_path']           = 'data_bases/o3_223l.dat'
+            settings['o3_path']           = 'data_bases/O3_298.dat'
             settings['bro_path']          = 'data_bases/BrO_Cross_298K.txt'
+            settings['solar_resid_path']  = 'data_bases/solar_resid.txt'
             settings['Spectra Filepaths'] = ''
             settings['Dark Filepaths']    = ''
  
@@ -231,7 +265,6 @@ class mygui(tk.Tk):
         self.ax0.set_ylabel('Intensity (arb)', fontsize=10)
         
         self.ax1.set_ylabel('Intensity (arb)', fontsize=10)
-        self.ax1.set_xlabel('Wavelength (nm)', fontsize=10)
         
         if settings['resid_type'] == 'Percentage':
             self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
@@ -241,10 +274,10 @@ class mygui(tk.Tk):
             self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
         self.ax2.set_xlabel('Wavelength (nm)', fontsize=10)
         
-        self.ax3.set_ylabel('SO$_2$ Transmission', fontsize=10)
+        self.ax3.set_ylabel(settings['analysis_gas'] + ' Transmittance', fontsize = 10)
         self.ax3.set_xlabel('Wavelength (nm)', fontsize=10)
         
-        self.ax4.set_ylabel('SO$_2$ amt (ppm.m)', fontsize=10)
+        self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
         self.ax4.set_xlabel('Spectrum number', fontsize=10)
         
         # Create lines to plot data series
@@ -261,8 +294,8 @@ class mygui(tk.Tk):
         self.line3, = self.ax2.plot(0, 0, 'r')
         
         # SO2 transmittance data
-        self.line4, = self.ax3.plot(0, 0, 'b', label = 'y / F_no_SO$_2$')
-        self.line5, = self.ax3.plot(0, 0, 'r', label = 'SO$_2$ trans')
+        self.line4, = self.ax3.plot(0, 0, 'b', label = 'Spec / F_no_gas')
+        self.line5, = self.ax3.plot(0, 0, 'r', label = 'Gas trans')
         self.ax3.legend(loc = 0)
         
         # SO2 Time series and error bars
@@ -309,10 +342,6 @@ class mygui(tk.Tk):
         
         button_frame = tk.LabelFrame(page1, text='Control', font = LARG_FONT)
         button_frame.grid(row=1, column=0, padx = 10, pady = 10, sticky="ew")
-        
-        # Frame for quick analysis
-        quick_frame = tk.LabelFrame(page1, text = 'Quick Analysis', font = LARG_FONT)
-        quick_frame.grid(row=2, column=0, padx=10, pady=10, sticky="NW")
       
 #========================================================================================
 #==================================Create control inputs=================================
@@ -394,25 +423,8 @@ class mygui(tk.Tk):
         stop_b = ttk.Button(button_frame, text = 'Stop', command = self.stop)
         stop_b.grid(row = 0, column = 2, padx = 40, pady = 5, columnspan = 2)
         
-#========================================================================================
-#==============================Create quick analysis outputs=============================
-#========================================================================================
+
         
-        # Create ouput for last so2 amount
-        self.last_so2_amt = tk.DoubleVar(self, value = 0)
-        last_so2_amt_l = tk.Label(quick_frame, text = 'SO2 amount:', 
-                                  font = NORM_FONT)
-        last_so2_amt_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        last_so2_amt_e = ttk.Entry(quick_frame, textvariable = self.last_so2_amt)
-        last_so2_amt_e.grid(row = 0, column = 1, padx = 5, pady = 5)
-        
-        # Create ouput for last so2 error
-        self.last_so2_err = tk.DoubleVar(self, value = 0)
-        last_so2_err_l = tk.Label(quick_frame, text = 'SO2 error:', 
-                                  font = NORM_FONT)
-        last_so2_err_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
-        last_so2_err_e = ttk.Entry(quick_frame, textvariable = self.last_so2_err)
-        last_so2_err_e.grid(row = 0, column = 3, padx = 5, pady = 5)
         
      
 
@@ -436,10 +448,6 @@ class mygui(tk.Tk):
         
         button_frame2 = tk.LabelFrame(page2, text='Control', font = LARG_FONT)
         button_frame2.grid(row=1, column=0, padx = 10, pady = 10, sticky="ew")
-        
-        # Frame for quick analysis
-        quick_frame2 = tk.LabelFrame(page2, text = 'Quick Analysis', font = LARG_FONT)
-        quick_frame2.grid(row=2, column=0, padx=10, pady=10, sticky="NW")
 
 #========================================================================================
 #==================================Create control inputs=================================
@@ -511,28 +519,9 @@ class mygui(tk.Tk):
         
         # Create switch to toggle fitting on or off
         self.toggle_button = tk.Button(button_frame2, text = 'FITTING OFF', 
-                                       command = self.fit_toggle, width = 14, height = 3,
+                                       command = self.fit_toggle, width = 12, height = 1,
                                        bg = 'red', font = LARG_FONT)
         self.toggle_button.grid(row=1, column=0, padx=5, pady=5, columnspan=2)
-
-
-#========================================================================================
-#==============================Create quick analysis outputs=============================
-#========================================================================================
-        
-        # Create ouput for last so2 amount
-        last_so2_amt_l = tk.Label(quick_frame2, text = 'SO2 amount:', 
-                                  font = NORM_FONT)
-        last_so2_amt_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        last_so2_amt_e = ttk.Entry(quick_frame2, textvariable = self.last_so2_amt)
-        last_so2_amt_e.grid(row = 0, column = 1, padx = 5, pady = 5)
-        
-        # Create ouput for last so2 error
-        last_so2_err_l = tk.Label(quick_frame2, text = 'SO2 error:', 
-                                  font = NORM_FONT)
-        last_so2_err_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
-        last_so2_err_e = ttk.Entry(quick_frame2, textvariable = self.last_so2_err)
-        last_so2_err_e.grid(row = 0, column = 3, padx = 5, pady = 5)
         
         
         
@@ -557,11 +546,11 @@ class mygui(tk.Tk):
 
         # Frame for model settings
         model_frame = tk.LabelFrame(page3, text = 'Model Setup', font = LARG_FONT)
-        model_frame.grid(row=0, column=0, padx=10, pady=10, sticky="NW")
+        model_frame.grid(row=0, column=0, padx=10, pady=6, sticky="NW")
 
         # Frame for parameters
         param_frame = tk.LabelFrame(page3, text = 'Fit Paramters', font = LARG_FONT)
-        param_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW")
+        param_frame.grid(row=1, column=0, padx=10, pady=5, sticky="NW")
 
 #========================================================================================
 #=======================================Model Setup======================================
@@ -740,6 +729,7 @@ class mygui(tk.Tk):
             w.write('update_params;'    + str(settings['update_params'])    + '\n')
             w.write('Show Graphs;'      + str(settings['Show Graphs'])      + '\n')
             w.write('Show Error Bars;'  + str(settings['Show Error Bars'])  + '\n')
+            w.write('analysis_gas;'     + str(settings['analysis_gas'])     + '\n')
             w.write('resid_type;'       + str(settings['resid_type'])       + '\n')
             w.write('solar_resid_flag;' + str(settings['solar_resid_flag']) + '\n')
             w.write('scroll_flag;'      + str(settings['scroll_flag'])      + '\n')
@@ -846,7 +836,8 @@ class mygui(tk.Tk):
         
         try:
             # Update integration time on spectrometer
-            settings['spec'].integration_time_micros(float(self.int_time.get())*1000)
+            settings['int_time'] = float(self.int_time.get())*1000
+            settings['spec'].integration_time_micros(float(settings['int_time']))
             
             self.print_output('Integration time updated to '+str(settings['int_time']) +\
                               '\nSpectrum number ' + str(settings['loop']))
@@ -1216,9 +1207,14 @@ class mygui(tk.Tk):
                               'Spectrum number ' + str(settings['loop']))  
             
             # Create empty arrays to hold the loop number and so2_amt values
+            gas = {}
             spec_nos = []
-            so2_amts = []
-            amt_errs = []
+            gas['SO2_amts'] = []
+            gas['SO2_errs'] = []
+            gas['O3_amts']  = []
+            gas['O3_errs']  = []
+            gas['BrO_amts'] = []
+            gas['BrO_errs'] = []
 
             # Begin analysis loop
             while True:
@@ -1235,14 +1231,17 @@ class mygui(tk.Tk):
                         x,y,read_date,read_time,spec_no = read_spectrum(fname,spec_type)
                         
                         # Fit
-                        fit_p,err_dict,y_data,so2_T,so2_spec,fit_flag=fit_spec(common,
-                                                                               y,grid)
+                        fit_p,err_dict,y_data,gas_T,fit_flag = fit_spec(common, y, grid)
                         
                         now_fit_spec = True
                 
                     except IndexError:
                         self.print_output('Fitting complete')
                         break 
+                    
+                    # Update loop counter display
+                    msg = str(settings['loop'])+' / '+str(len(common['spectra_files']))
+                    self.spec_count.set(msg)
                 
                 # Read spectrum from spectrometer and fit
                 elif rt_flag=='rt_analysis' and self.toggle_button.config('text')[-1]==\
@@ -1280,21 +1279,24 @@ class mygui(tk.Tk):
                         thread_out[result[0]] = result[1]
 
                     # Get fit results
-                    fit_p,err_dict,y_data,so2_T,so2_spec,fit_flag=thread_out['fit']
+                    fit_p, err_dict, y_data, gas_T, fit_flag = thread_out['fit']
                    
                     # Get spectrum
-                    x, y, header, t = thread_out['spectrum']
+                    x, y, header, read_time = thread_out['spectrum']
                     
                     # Build file name
                     n = str('{num:05d}'.format(num=settings['loop']))
                     fname = settings['rt_folder'] + 'spectra/spectrum_' + n + '.txt'
                     
                     # Save
-                    np.savetxt(fname, np.column_stack((x,y)), header = header)
+                    np.savetxt(fname, np.column_stack((x, y)), header = header)
                     
                     # Update last spec variable and spec number
                     common['last_spec'] = y
                     spec_no = settings['loop']
+                    
+                    # Update loop counter display
+                    self.spec_count.set(str(settings['loop']))
                     
                     now_fit_spec = True
                 
@@ -1302,9 +1304,9 @@ class mygui(tk.Tk):
                 else:
 
                     # Read spectrum
-                    x, y, header, t = aquire_spectrum(self, settings['spec'], 
-                                                      settings['int_time'],
-                                                      int(self.coadds.get()))
+                    x, y, header, read_time = aquire_spectrum(self, settings['spec'], 
+                                                              settings['int_time'],
+                                                              int(self.coadds.get()))
                     
                     # Build file name
                     n = str('{num:05d}'.format(num=settings['loop']))
@@ -1315,6 +1317,9 @@ class mygui(tk.Tk):
                     
                     # Update last spec variable
                     common['last_spec'] = y
+                    
+                    # Update loop counter display
+                    self.spec_count.set(str(settings['loop']))
                     
                     now_fit_spec = False
                 
@@ -1348,29 +1353,33 @@ class mygui(tk.Tk):
                 
                     # Add values to array for plotting
                     spec_nos.append(spec_no)
-                    so2_amts.append(fit_dict['so2_amt']/2.463e15)
-                    amt_errs.append(err_dict['so2_amt']/2.463e15)
+                    gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
+                    gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
+                    gas['O3_amts'].append(fit_dict['o3_amt']/2.463e15)
+                    gas['O3_errs'].append(err_dict['o3_amt']/2.463e15)
+                    gas['BrO_amts'].append(fit_dict['bro_amt']/2.463e15)
+                    gas['BrO_errs'].append(err_dict['bro_amt']/2.463e15)
                     
                     # Update quick analysis with values
-                    last_so2 = "{0:0.1f}".format(fit_dict['so2_amt']/2.463e15)
-                    last_err = "{0:0.1f}".format(err_dict['so2_amt']/2.463e15)
-                    self.last_so2_amt.set(last_so2 + ' ppm.m')
+                    last_amt="{0:0.2f}".format(gas[settings['analysis_gas']+'_amts'][-1])
+                    last_err="{0:0.2f}".format(gas[settings['analysis_gas']+'_errs'][-1])
+                    self.last_so2_amt.set(last_amt + ' ppm.m')
                     self.last_so2_err.set(last_err + ' ppm.m')
                     
                     # Cut if too long to avoid slowing program
                     if bool(settings['scroll_flag']) == True:
-                        if len(spec_nos) > int(settings['scroll_spec_no']):
+                        lim = int(settings['scroll_spec_no'])
+                        if len(spec_nos) > lim:
                             spec_nos = spec_nos[1:]
-                            so2_amts = so2_amts[1:]
-                            amt_errs = amt_errs[1:]
-                
+                            for m in gas:
+                                gas[m] = gas[m][1:]
+
                     # Feed fit params into forward
                     fit = ifit_fwd(grid, *fit_p)
     
                     # Calculate the residual of the fit
                     if settings['resid_type'] == 'Percentage':
-                        resid = np.multiply(np.divide(np.subtract(y_data, fit), y_data), 
-                                            100)
+                        resid=np.multiply(np.divide(np.subtract(y_data,fit),y_data),100)
                         
                     if settings['resid_type'] == 'Absolute': 
                         resid = np.subtract(y_data, fit)
@@ -1384,14 +1393,13 @@ class mygui(tk.Tk):
                         resid_count += 1
                     
                     # If fit fails or max resid > 10% revert to initial fit parameters
-                    
-                    if settings['update_params'] == True:
+                    if bool(settings['update_params']) == True:
                         if fit_flag == False:
                             common['params'] = common['initial_params']
                             self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                               ' failed, resetting parameters')
                             
-                        elif max((resid)**2)**0.5 > 10:
+                        elif max(abs(np.subtract(resid, 1))) > 0.1:
                             common['params'] = common['initial_params']
                             self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                               ' bad, resetting parameters')
@@ -1410,6 +1418,11 @@ class mygui(tk.Tk):
                 if int(settings['Show Graphs']) == 1:            
                     
                     if now_fit_spec == True:
+                        
+                        # Get selected transmittance data
+                        gas_tran = gas_T[settings['analysis_gas'] + '_tran']
+                        gas_spec = gas_T[settings['analysis_gas'] + '_spec']
+                        gas_amts = gas[settings['analysis_gas'] + '_amts']
                     
                         # Build axes and lines arrays
                         lines = [self.line0, self.line1, self.line2, self.line3, 
@@ -1436,15 +1449,15 @@ class mygui(tk.Tk):
                         i_hi = max(y) + abs((0.1*max(y))) 
                         
                         # Limits for so2 trans spectrum
-                        t_lo = min(so2_T) - abs((0.1*min(so2_T)))
-                        t_hi = max(so2_T) + (0.1*max(so2_T)) 
-                        s_lo = min(so2_spec) - abs((0.1*min(so2_spec)))
-                        s_hi = max(so2_spec) + (0.1*max(so2_spec))
+                        t_lo = min(gas_tran) - abs((0.1*min(gas_tran)))
+                        t_hi = max(gas_tran) + (0.1*max(gas_tran)) 
+                        s_lo = min(gas_spec) - abs((0.1*min(gas_spec)))
+                        s_hi = max(gas_spec) + (0.1*max(gas_spec))
                         t_lo, t_hi = min([t_lo, s_lo]), max([t_hi, s_hi])
                         
                         # Limits for so2 time series
-                        a_lo = min(so2_amts) - abs((0.1*max(so2_amts)))
-                        a_hi = max(so2_amts) + abs((0.1*max(so2_amts)))
+                        a_lo = min(gas_amts) - abs((0.1*max(gas_amts)))
+                        a_hi = max(gas_amts) + abs((0.1*max(gas_amts)))
                         
                         # Build data array to pass to graphing function
                         #                 x data    y data    x limits     y limits
@@ -1452,9 +1465,9 @@ class mygui(tk.Tk):
                                          [grid,     fit,      [x_lo,x_hi], [y_lo,y_hi]],
                                          [x   ,     y,        [g_lo,g_hi], [i_lo,i_hi]],
                                          [grid,     resid,    [x_lo,x_hi], [r_lo,r_hi]],
-                                         [grid,     so2_T,    [x_lo,x_hi], [t_lo,t_hi]],
-                                         [grid,     so2_spec, [x_lo,x_hi], [t_lo,t_hi]],
-                                         [spec_nos, so2_amts, False,       [a_lo,a_hi]]))
+                                         [grid,     gas_tran, [x_lo,x_hi], [t_lo,t_hi]],
+                                         [grid,     gas_spec, [x_lo,x_hi], [t_lo,t_hi]],
+                                         [spec_nos, gas_amts, False,       [a_lo,a_hi]]))
                     
                     else:
                         
@@ -1465,7 +1478,7 @@ class mygui(tk.Tk):
                         # Calculate limits
                         y_lo  = min(y) - abs((0.1*max(y)))
                         y_hi  = max(y) + abs((0.1*max(y)))
-                        x_lo, x_hi = grid.min() - 1, grid.max() + 1
+                        x_lo, x_hi = x.min() - 1, x.max() + 1
                         
                         # Build data array to pass to graphing function
                         #                 x data    y data    x limits     y limits
@@ -1610,7 +1623,8 @@ def graph_settings(self):
         settings['Show Error Bars'] = err_b.get()
         settings['scroll_flag']     = scroll_b.get()
         settings['scroll_spec_no']  = int(spec_no_e.get())
-        settings['resid_type']      = popup.resid_type.get()
+        settings['resid_type']      = resid_type.get()
+        settings['analysis_gas']    = gas.get()
         
         # Update graph
         if settings['resid_type'] == 'Percentage':
@@ -1619,6 +1633,11 @@ def graph_settings(self):
             self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
         if settings['resid_type'] == 'Spec/Fit':
             self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
+            
+        self.ax3.set_ylabel(settings['analysis_gas'] + ' Transmittance', fontsize = 10)
+        
+        self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
+            
         self.canvas.draw()
         
         # Close the window
@@ -1643,6 +1662,18 @@ def graph_settings(self):
     err_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
+    # Select which gas to analyse
+    gas_options = [settings['analysis_gas'],
+                   'SO2',
+                   'O3',
+                   'BrO']
+    gas = tk.StringVar(popup, value = settings['scroll_flag'])
+    gas_l = tk.Label(popup, text = 'Gas to analyse:', font = NORM_FONT)
+    gas_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    gas_c = ttk.OptionMenu(popup, gas, *gas_options)
+    gas_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
+    
     # Turn on/off graph scrolling
     scroll_b = tk.IntVar(popup, value = settings['scroll_flag'])
     scroll_l = tk.Label(popup, text = 'Scroll Graph?', font = NORM_FONT)
@@ -1664,10 +1695,10 @@ def graph_settings(self):
                      'Absolute',
                      'Percentage',
                      'Spec/Fit']
-    popup.resid_type = tk.StringVar(popup, value = settings['resid_type'])
+    resid_type = tk.StringVar(popup, value = settings['resid_type'])
     resid_type_l = tk.Label(popup, text = 'Residual Display', font = NORM_FONT)
     resid_type_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    resid_type_m = ttk.OptionMenu(popup, popup.resid_type, *resid_options)
+    resid_type_m = ttk.OptionMenu(popup, resid_type, *resid_options)
     resid_type_m.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     

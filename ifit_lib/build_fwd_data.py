@@ -99,8 +99,8 @@ def build_fwd_data(common, settings, self):
     
     
     # Import O3 data
-    o3_xsec = np.loadtxt(settings['o3_path'], skiprows=44)
-    o3_xsec = griddata(o3_xsec[:,0], o3_xsec[:,2], model_grid)
+    o3_xsec = np.loadtxt(settings['o3_path'], skiprows=41)
+    o3_xsec = griddata(o3_xsec[:,0], o3_xsec[:,1], model_grid)
     self.print_output('O3 cross-section imported', add_line = False)
     
     

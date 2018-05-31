@@ -40,18 +40,21 @@ def update_graph(lines, axes, fig, new_data):
         axes[i].relim()
         axes[i].autoscale_view()     
         
-        
-        # If no limits given, fix as max/min        
-        if xlims[i] == False:
-            # Manually fix the x axis limits
-            axes[i].set_xlim(xdata[i][0], xdata[i][-1])
-        else:
-            axes[i].set_xlim(xlims[i][0], xlims[i][1])
-            
-        if ylims[i] == False:
-            axes[i].set_ylim(ydata[i][0], ydata[i][-1])
-        else:
-            axes[i].set_ylim(ylims[i][0], ylims[i][1])            
+        try:
+            # If no limits given, fix as max/min        
+            if xlims[i] == False:
+                # Manually fix the x axis limits
+                axes[i].set_xlim(xdata[i][0], xdata[i][-1])
+            else:
+                axes[i].set_xlim(xlims[i][0], xlims[i][1])
+                
+            if ylims[i] == False:
+                axes[i].set_ylim(ydata[i][0], ydata[i][-1])
+            else:
+                axes[i].set_ylim(ylims[i][0], ylims[i][1]) 
+                
+        except ValueError:
+            pass
         
     # Apply changes
     fig.canvas.draw()
