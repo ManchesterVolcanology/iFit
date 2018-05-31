@@ -193,7 +193,7 @@ class mygui(tk.Tk):
             settings['analysis_gas']      = 'SO2'
             settings['scroll_flag']       = 1
             settings['scroll_spec_no']    = 200
-            settings['resid_type']        = 'Percent'
+            settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
             settings['poly_n']            = 4
             settings['shift']             = -0.2
@@ -203,12 +203,12 @@ class mygui(tk.Tk):
             settings['NO2']               = 1e+17
             settings['O3']                = 1e+19
             settings['BrO']               = 1e+15
-            settings['model_resolution']  = 0.52
+            settings['model_resolution']  = 0.02
             settings['sol_path']          = 'data_bases/sao2010_full.txt'
             settings['ring_path']         = 'data_bases/ring.dat'
             settings['so2_path']          = 'data_bases/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/No2_223l.dat'
-            settings['o3_path']           = 'data_bases/O3_298.dat'
+            settings['o3_path']           = 'data_bases/O3_293K.dat'
             settings['bro_path']          = 'data_bases/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/solar_resid.txt'
             settings['Spectra Filepaths'] = ''
