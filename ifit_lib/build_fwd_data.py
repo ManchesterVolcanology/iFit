@@ -51,7 +51,8 @@ def build_fwd_data(common, settings, self):
         # Import flat spectrum and extract window of interest
         flat_grid, flat = np.loadtxt(settings['flat_path'] , unpack = True)
         x, i1, i2 = extract_window(flat_grid, common['wave_start'], common['wave_stop'])
-        flat = flat[i1:i2]
+        common['flat'] = flat[i1:i2]
+        
         self.print_output('Flat spectrum imported', add_line = False)
         
     except FileNotFoundError:
@@ -120,7 +121,6 @@ def build_fwd_data(common, settings, self):
     
     # Add the data to the common dictionary
     common['model_grid']  = model_grid
-    common['flat']        = flat
     common['sol']         = sol
     common['ring']        = ring
     common['so2_xsec']    = so2_xsec

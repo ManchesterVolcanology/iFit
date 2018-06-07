@@ -87,7 +87,7 @@ def read_nmea(fpath, time_diff):
 
 # OUTPUTS: date, time, latitude, longitude and altitude of readings
 
-def read_txt_gps(gps_fname, time_diff):
+def read_txt_gps(gps_fname):
 
     '''
     Function to read in gps .txt file
@@ -137,12 +137,6 @@ def read_txt_gps(gps_fname, time_diff):
             s = float(time_text[6:8])
             
             t = (h * 3600.0 + m * 60.0 + s) / 86400.0
-            
-            # Correct for time difference
-            t = t - time_diff / 24
-            
-            if t > 1:
-                t = t - 1
             
             # Append to array            
             time = np.append(time,t)

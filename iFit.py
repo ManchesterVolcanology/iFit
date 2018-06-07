@@ -1282,7 +1282,8 @@ class mygui(tk.Tk):
                     fit_p, err_dict, y_data, gas_T, fit_flag = thread_out['fit']
                    
                     # Get spectrum
-                    x, y, header, read_time = thread_out['spectrum']
+                    x, y, header, t = thread_out['spectrum']
+                    read_date, read_time = t.split(' ')
                     
                     # Build file name
                     n = str('{num:05d}'.format(num=settings['loop']))
@@ -1304,9 +1305,10 @@ class mygui(tk.Tk):
                 else:
 
                     # Read spectrum
-                    x, y, header, read_time = aquire_spectrum(self, settings['spec'], 
-                                                              settings['int_time'],
-                                                              int(self.coadds.get()))
+                    x, y, header, t = aquire_spectrum(self, settings['spec'], 
+                                                      settings['int_time'],
+                                                      int(self.coadds.get()))
+                    read_date, read_time = t.split(' ')
                     
                     # Build file name
                     n = str('{num:05d}'.format(num=settings['loop']))

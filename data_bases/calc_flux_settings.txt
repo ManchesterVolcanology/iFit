@@ -1,0 +1,5 @@
+Volcano name         ; Longitude    ; Latitude    ; Time difference
+Soufriere Hills      ; -62.175384   ; 16.710445   ; 4
+Etna                 ; 14.9929      ; 37.7509     ; -1
+Masaya               ; -86.169058   ; 11.984104   ; 6
+Piton de la Fournaise; 55.708889    ; -21.2425    ; 0
