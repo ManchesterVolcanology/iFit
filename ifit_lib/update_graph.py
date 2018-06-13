@@ -13,7 +13,7 @@ import numpy as np
 #         new_data; array of new data to plot. Has the form [[x1, y1, xlims, ylims], ...]
 
 
-def update_graph(lines, axes, fig, new_data):
+def update_graph(lines, axes, canvas, new_data):
 
     # Unpack new data
     if len(np.shape(new_data)) > 1:
@@ -27,8 +27,8 @@ def update_graph(lines, axes, fig, new_data):
         ydata = [new_data[1]]
         xlims = [new_data[2]]
         ylims = [new_data[3]]
-        
-        
+
+
     # Iterate plotting over each data series
     for i in range(len(lines)):
 
@@ -41,15 +41,29 @@ def update_graph(lines, axes, fig, new_data):
         axes[i].autoscale_view()     
         
         try:
-            # If no limits given, fix as max/min        
-            if xlims[i] == False:
-                # Manually fix the x axis limits
-                axes[i].set_xlim(xdata[i][0], xdata[i][-1])
+            # If auto, pad by 10% of range      
+            if xlims[i] == 'auto':
+                x_min = min(xdata) - abs(max(xdata) - min(xdata)) * 0.1
+                x_max = max(xdata) + abs(max(xdata) - min(xdata)) * 0.1
+                axes[i].set_xlim(x_min, x_max)
+            
+            # If false set as limits +/- 1
+            elif xlims[i] == False:
+                axes[i].set_xlim(min(xdata[i])-1, max(xdata[i])+1)
+            
+            # If fixed, fix value
             else:
                 axes[i].set_xlim(xlims[i][0], xlims[i][1])
+            
+            # Do same for y axis
+            if ylims[i] == 'auto':
+                y_min = min(ydata) - abs(max(ydata) - min(ydata)) * 0.1
+                y_max = max(ydata) + abs(max(ydata) - min(ydata)) * 0.1
+                axes[i].set_ylim(y_min, y_max)
                 
-            if ylims[i] == False:
-                axes[i].set_ylim(ydata[i][0], ydata[i][-1])
+            elif ylims[i] == False:
+                axes[i].set_ylim(min(ydata[i])-1, max(ydata[i])+1)
+            
             else:
                 axes[i].set_ylim(ylims[i][0], ylims[i][1]) 
                 
@@ -57,4 +71,4 @@ def update_graph(lines, axes, fig, new_data):
             pass
         
     # Apply changes
-    fig.canvas.draw()
+    canvas.draw()

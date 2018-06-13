@@ -9,6 +9,7 @@ Created on Fri Mar  2 09:24:05 2018
 import matplotlib
 matplotlib.use('TkAgg')
 import os
+import sys
 import glob
 import numpy as np
 from tkinter import ttk
@@ -47,9 +48,9 @@ class mygui(tk.Tk):
         
         # Create GUI in the backend
         tk.Tk.__init__(self, *args, **kwargs)
-        
+               
         # Close program on closure of window
-        #mygui.protocol("WM_DELETE_WINDOW", mygui.destroy(self))
+        self.protocol("WM_DELETE_WINDOW",self.handler)
         
         # Button Style
         ttk.Style().configure('TButton', width = 20, height = 20, relief="flat") 
@@ -116,6 +117,10 @@ class mygui(tk.Tk):
         # Connect the scrollbar to the textbox
         scrollbar.config(command = self.text_box.yview)
         
+        # Print error messages in red to the text box
+        self.text_box.tag_configure("stderr", foreground="#b22222")
+        sys.stderr = TextRedirector(self.text_box, 'stderr')
+        
         # Create button to save settings
         save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
         save_b.grid(row = 0, column = 0, columnspan = 2, padx = 5, pady = 5)
@@ -173,7 +178,7 @@ class mygui(tk.Tk):
    
         except FileNotFoundError:
             self.print_output('No settings file found, reverting to origional')
-            settings['Wave Start']        = 306
+            settings['Wave Start']        = 305
             settings['Wave Stop']         = 318
             settings['Spectrometer']      = '-select-'
             settings['Spectra Type']      = '-select-'
@@ -361,7 +366,7 @@ class mygui(tk.Tk):
         
         # Create entry to select spectra type
         spec_options = [settings['Spectra Type'],
-                        'IFRiT',
+                        'iFit',
                         'Master.Scope',
                         'Jai Spec',
                         'Spectrasuite']
@@ -557,21 +562,21 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # Create entry for start and stop wavelengths
-        self.wave_start = tk.IntVar(model_frame, value = settings['Wave Start'])
+        self.wave_start = tk.DoubleVar(model_frame, value = settings['Wave Start'])
         self.wave_start_l = tk.Label(model_frame, text = 'Wave Start:', font = NORM_FONT)
         self.wave_start_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
         self.wave_start_e = ttk.Entry(model_frame, textvariable = self.wave_start)
         self.wave_start_e.grid(row = 0, column = 1, padx = 5, pady = 5)
         
-        self.wave_stop = tk.IntVar(model_frame, value = settings['Wave Stop'])
+        self.wave_stop = tk.DoubleVar(model_frame, value = settings['Wave Stop'])
         self.wave_stop_l = tk.Label(model_frame, text = 'Wave Stop:', font = NORM_FONT)
         self.wave_stop_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
         self.wave_stop_e = ttk.Entry(model_frame, textvariable = self.wave_stop)
         self.wave_stop_e.grid(row = 0, column = 3, padx = 5, pady = 5)
         
         # Instrument lineshape width
-        self.ils_width = tk.IntVar(model_frame, value = settings['ILS Width'])
-        self.ils_width_b = tk.IntVar(model_frame, value = settings['Fit ILS'])
+        self.ils_width = tk.DoubleVar(model_frame, value = settings['ILS Width'])
+        self.ils_width_b = tk.BooleanVar(model_frame, value = settings['Fit ILS'])
         self.ils_width_l = tk.Label(model_frame, text = 'ILS Width:', font = NORM_FONT)
         self.ils_width_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
         self.ils_width_e = ttk.Entry(model_frame, textvariable = self.ils_width)
@@ -590,8 +595,8 @@ class mygui(tk.Tk):
         gauss_weight_e.grid(row = 2, column = 1, padx = 5, pady = 5)
         
         # Light dilution factor
-        self.ldf = tk.IntVar(model_frame, value = settings['LDF'])
-        self.ldf_b = tk.IntVar(model_frame, value = settings['Fit LDF'])
+        self.ldf = tk.DoubleVar(model_frame, value = settings['LDF'])
+        self.ldf_b = tk.BooleanVar(model_frame, value = settings['Fit LDF'])
         self.ldf_l = tk.Label(model_frame, text = 'LDF:', font = NORM_FONT)
         self.ldf_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
         self.ldf_e = ttk.Entry(model_frame, textvariable = self.ldf)
@@ -668,6 +673,11 @@ class mygui(tk.Tk):
 #=====================================Button Functions===================================
 #======================================================================================== 
 #======================================================================================== 
+
+
+    def handler(self):
+
+        self.quit()
 
 #========================================================================================
 #=====================================Filepath Buttons===================================
@@ -1033,7 +1043,7 @@ class mygui(tk.Tk):
         common['params'] = OrderedDict(common['params'])
         
         # Save initial guess parameters
-        common['initial_params'] = common['params']
+        initial_params = common['params'].copy()
 
 #========================================================================================
 #=================================Read in xsecs and flat=================================
@@ -1165,7 +1175,7 @@ class mygui(tk.Tk):
             settings['loop'] = 0
             
             # Create filepath to directory to hold program outputs
-            post_results_folder = 'Results/iFit/' + read_date + '/'
+            post_results_folder = 'Results/iFit/' + str(read_date) + '/'
             
             # Create folder if it doesn't exist
             if not os.path.exists(post_results_folder):
@@ -1240,7 +1250,7 @@ class mygui(tk.Tk):
                         break 
                     
                     # Update loop counter display
-                    msg = str(settings['loop'])+' / '+str(len(common['spectra_files']))
+                    msg = str(settings['loop'])+' / '+str(len(common['spectra_files'])-1)
                     self.spec_count.set(msg)
                 
                 # Read spectrum from spectrometer and fit
@@ -1337,10 +1347,10 @@ class mygui(tk.Tk):
                         fit_dict[l] = fit_p[m]
     
                     # Write results to excel file, starting with spectrum info
-                    writer.write(str(fname)     + ',' + \
-                                 str(spec_no)   + ',' + \
-                                 str(read_date) + ',' + \
-                                 str(read_time))
+                    writer.write(str(fname)          + ',' + \
+                                 str(spec_no)        + ',' + \
+                                 str(str(read_date)) + ',' + \
+                                 str(str(read_time)))
                     
                     # Print so2 amount and error in ppm.m for ease
                     writer.write(',' + str(fit_dict['so2_amt']/2.463e15) + ',' + \
@@ -1397,12 +1407,12 @@ class mygui(tk.Tk):
                     # If fit fails or max resid > 10% revert to initial fit parameters
                     if bool(settings['update_params']) == True:
                         if fit_flag == False:
-                            common['params'] = common['initial_params']
+                            common['params'] = initial_params.copy()
                             self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                               ' failed, resetting parameters')
                             
-                        elif max(abs(np.subtract(resid, 1))) > 0.1:
-                            common['params'] = common['initial_params']
+                        elif max(abs(np.subtract(resid, 1))) > 0.3:
+                            common['params'] = initial_params.copy()
                             self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                               ' bad, resetting parameters')
                        
@@ -1433,22 +1443,11 @@ class mygui(tk.Tk):
                                  self.ax3,   self.ax3,   self.ax4  ]
                         
                         # Calculate graph limits for spectrum fit
-                        y_lo = min(y_data) - abs((0.1*max(y_data)))
-                        y_hi = max(y_data) + abs((0.1*max(y_data)))
-                        f_lo = min(fit) - abs((0.1*max(fit)))
-                        f_hi = max(fit) + abs((0.1*max(fit)))
+                        y_lo = min(y_data) - abs(max(y_data) - min(y_data)) * 0.1
+                        y_hi = max(y_data) + abs(max(y_data) - min(y_data)) * 0.1
+                        f_lo = min(fit) - abs(max(fit) - min(fit)) * 0.1
+                        f_hi = max(fit) + abs(max(fit) - min(fit)) * 0.1
                         y_lo, y_hi = min([f_lo, y_lo]), max([f_hi, y_hi])
-                        x_lo, x_hi = grid.min() - 1, grid.max() + 1
-                        
-                        # Limits for residual
-                        r_lo = min(resid) - 0.05#abs((0.1*max(resid)))
-                        r_hi = max(resid) + 0.05#abs((0.1*max(resid)))
-                        
-                        # Limits for full spectrum
-                        g_lo = min(x) - abs((0.1*max(x)))
-                        g_hi = max(x) + abs((0.1*max(x)))
-                        i_lo = 0 #min(y) - abs((0.1*max(y)))
-                        i_hi = max(y) + abs((0.1*max(y))) 
                         
                         # Limits for so2 trans spectrum
                         t_lo = min(gas_tran) - abs((0.1*min(gas_tran)))
@@ -1457,19 +1456,16 @@ class mygui(tk.Tk):
                         s_hi = max(gas_spec) + (0.1*max(gas_spec))
                         t_lo, t_hi = min([t_lo, s_lo]), max([t_hi, s_hi])
                         
-                        # Limits for so2 time series
-                        a_lo = min(gas_amts) - abs((0.1*max(gas_amts)))
-                        a_hi = max(gas_amts) + abs((0.1*max(gas_amts)))
                         
                         # Build data array to pass to graphing function
                         #                 x data    y data    x limits     y limits
-                        data = np.array(([grid,     y_data,   [x_lo,x_hi], [y_lo,y_hi]],
-                                         [grid,     fit,      [x_lo,x_hi], [y_lo,y_hi]],
-                                         [x   ,     y,        [g_lo,g_hi], [i_lo,i_hi]],
-                                         [grid,     resid,    [x_lo,x_hi], [r_lo,r_hi]],
-                                         [grid,     gas_tran, [x_lo,x_hi], [t_lo,t_hi]],
-                                         [grid,     gas_spec, [x_lo,x_hi], [t_lo,t_hi]],
-                                         [spec_nos, gas_amts, False,       [a_lo,a_hi]]))
+                        data = np.array(([grid,     y_data,   'auto'     , [y_lo,y_hi]],
+                                         [grid,     fit,      'auto'     , [y_lo,y_hi]],
+                                         [x   ,     y,        'auto'     , 'auto'     ],
+                                         [grid,     resid,    'auto'     , 'auto'     ],
+                                         [grid,     gas_tran, 'auto'     , [t_lo,t_hi]],
+                                         [grid,     gas_spec, 'auto'     , [t_lo,t_hi]],
+                                         [spec_nos, gas_amts, 'auto'     , 'auto'     ]))
                     
                     else:
                         
@@ -1487,7 +1483,7 @@ class mygui(tk.Tk):
                         data = np.array(([x,        y,        [x_lo,x_hi], [y_lo,y_hi]]))
                     
                     # Update graph
-                    update_graph(lines, axes, self, data)
+                    update_graph(lines, axes, self.canvas, data)
                                                
                 # Add to the count cycle
                 settings['loop'] += 1
@@ -1837,6 +1833,17 @@ def data_bases():
     b2 = ttk.Button(popup, text='Cancel', command=lambda: popup.destroy())
     b2.grid(row = row_n, column = 1, padx = 5, pady = 5, columnspan=2) 
     row_n += 1
+
+class TextRedirector(object):
+    def __init__(self, widget, tag="stdout"):
+        self.widget = widget
+        self.tag = tag
+
+    def write(self, str):
+        self.widget.configure(state="normal")
+        self.widget.insert("end", str, (self.tag,))
+        self.widget.configure(state="disabled")
           
-# Tkinter stuff      
-mygui().mainloop()
+# Tkinter stuff 
+if __name__ == '__main__':    
+    mygui().mainloop()

@@ -46,18 +46,19 @@ def build_fwd_data(common, settings, self):
                              num = npts + 1)
     
     # Try importing flat spectrum. If not found set to 1
-    self.print_output('Importing flat spectrum', add_line = False)
-    try:
-        # Import flat spectrum and extract window of interest
-        flat_grid, flat = np.loadtxt(settings['flat_path'] , unpack = True)
-        x, i1, i2 = extract_window(flat_grid, common['wave_start'], common['wave_stop'])
-        common['flat'] = flat[i1:i2]
-        
-        self.print_output('Flat spectrum imported', add_line = False)
-        
-    except FileNotFoundError:
-        self.print_output('No flat spectrum found', add_line = False)
-        common['flat_flag'] = False    
+    if common['flat_flag'] == True:
+        self.print_output('Importing flat spectrum', add_line = False)
+        try:
+            # Import flat spectrum and extract window of interest
+            flat_grid, flat = np.loadtxt(settings['flat_path'] , unpack = True)
+            x,i1,i2 = extract_window(flat_grid,common['wave_start'],common['wave_stop'])
+            common['flat'] = flat[i1:i2]
+            
+            self.print_output('Flat spectrum imported', add_line = False)
+            
+        except FileNotFoundError:
+            self.print_output('No flat spectrum found', add_line = False)
+            common['flat_flag'] = False    
     
     
     # Import solar reference spectrum

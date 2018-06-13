@@ -8,6 +8,7 @@ Created on Thu May 31 16:36:22 2018
 # Import required libraries
 import numpy as np
 import os
+import sys
 import matplotlib
 matplotlib.use('TkAgg')
 from tkinter import ttk
@@ -41,6 +42,9 @@ class mygui(tk.Tk):
 
         # Create GUI in the backend
         tk.Tk.__init__(self, *args, **kwargs)
+        
+        # Close program on closure of window
+        self.protocol("WM_DELETE_WINDOW",self.handler)
         
         # Button Style
         ttk.Style().configure('TButton', width = 20, height = 20, relief = 'flat')
@@ -102,7 +106,10 @@ class mygui(tk.Tk):
                     volc_data[v_name] = [v_lon, v_lat, t_diff]
                     
         except  FileNotFoundError:
-            pass
+            print('No input file found')
+            
+            # Set all values to zero
+            volc_data['--select--'] = [0,0,0]
         
 #========================================================================================
 #===================================Create output folder=================================
@@ -135,6 +142,10 @@ class mygui(tk.Tk):
         
         # Connect the scrollbar to the textbox
         scrollbar.config(command = self.text_box.yview)
+        
+        # Print error messages in red to the text box
+        self.text_box.tag_configure("stderr", foreground="#b22222")
+        sys.stderr = TextRedirector(self.text_box, 'stderr')
         
 #========================================================================================
 #=====================================Build Graph========================================
@@ -313,6 +324,10 @@ class mygui(tk.Tk):
 #======================================================================================== 
 #======================================================================================== 
 
+    def handler(self):
+
+        self.quit()
+
 #========================================================================================
 #=====================================Filepath Buttons===================================
 #========================================================================================
@@ -407,16 +422,27 @@ class mygui(tk.Tk):
             self.text_output('ERROR: Wrong iFit file format')
             return
         
-        # Convert the time to julian time
+        # Create empty time array
         common['time'] = np.ones(len(txt_time))
         
-        for n, i in enumerate(txt_time):
-            h = float(i[0:2])
-            m = float(i[3:5])
-            s = float(i[6:8])
+        for n, t in enumerate(txt_time):
+        
+            # Convert the time to julian time
+            try:
+                timestamp = datetime.datetime.strptime(t, '%H:%M:%S.%f').time()
+                
+            except ValueError:
+                timestamp = datetime.datetime.strptime(t, '%H:%M:%S').time()
+            
+            # Split into hours, minutes and seconds
+            h = timestamp.hour
+            m = timestamp.minute
+            s = timestamp.second + timestamp.microsecond/1e6
+            
+            # Convert to julian time
             common['time'][n] = (h * 3600.0 + m * 60.0 + s) / 86400.0
             
-        # Convert others from string to number arrays
+         # Convert others from string to number arrays
         common['so2_amt'] = np.ones(len(txt_so2_amt))
         for n, i in enumerate(txt_so2_amt):
             common['so2_amt'][n] = float(i)
@@ -544,7 +570,7 @@ class mygui(tk.Tk):
             
         # Correct for if going the wrong way
         orthog_correction = np.multiply(orthog_correction, dir_corr)    
-        
+
         # Apply the correction
         corr_dists = np.multiply(displacement, orthog_correction)    
         
@@ -704,11 +730,11 @@ def make_graph(d):
     ax1.set_ylabel('SO2 column amount (ppm.m)', fontsize = 10)
 
     # Plot the selected traverse points and SO2 amounts wrt the volcano
-    sc = ax2.scatter(d['modlon'], d['modlat'], c = d['so2_amt'], s=50, cmap = 'plasma',
+    sc = ax2.scatter(d['modlon'], d['modlat'], c = d['so2_amt'], s=50,
                      lw=0.0,alpha = 0.5)
     cbax = plt.subplot(gs[0,2])
     cb = Colorbar(ax = cbax, mappable = sc)
-    cb.set_label('SO2 column amount (ppm.m)')
+    cb.set_label('SO2 column amount (ppm.m)', fontsize = 10)
     
     ax2.scatter(d['volc_lon'], d['volc_lat'], c='darkorange', s=180, label = 'Volcano')
     
@@ -736,7 +762,7 @@ def make_graph(d):
                 label = 'Plume CoM')
     ax4.set_xlabel('Longitude (deg)', fontsize = 10)
     ax4.set_ylabel('Latitude (deg)', fontsize = 10)
-    ax4.legend(loc='center right', bbox_to_anchor=(1.4, 0.5), fontsize = 10)
+    ax4.legend(loc='center right', bbox_to_anchor=(1.5, 0.5), fontsize = 10)
 
     # Display the plots
     plt.tight_layout()
@@ -754,6 +780,15 @@ def make_graph(d):
     cancel_b = ttk.Button(popup, text = 'Cancel', command = popup.destroy)
     cancel_b.grid(row = 1, column = 1, padx = 5, pady = 5)
 
-        
+class TextRedirector(object):
+    def __init__(self, widget, tag="stdout"):
+        self.widget = widget
+        self.tag = tag
+
+    def write(self, str):
+        self.widget.configure(state="normal")
+        self.widget.insert("end", str, (self.tag,))
+        self.widget.configure(state="disabled")
+       
 # Tkinter stuff      
 mygui().mainloop()
