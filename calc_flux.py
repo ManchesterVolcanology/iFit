@@ -8,7 +8,9 @@ Created on Thu May 31 16:36:22 2018
 # Import required libraries
 import numpy as np
 import os
-import sys
+import traceback
+import tkinter.messagebox as tkMessageBox
+import tkinter.scrolledtext as tkst
 import matplotlib
 matplotlib.use('TkAgg')
 from tkinter import ttk
@@ -42,6 +44,9 @@ class mygui(tk.Tk):
 
         # Create GUI in the backend
         tk.Tk.__init__(self, *args, **kwargs)
+        
+        # Cause exceptions to report in a new window
+        tk.Tk.report_callback_exception = self.report_callback_exception
         
         # Close program on closure of window
         self.protocol("WM_DELETE_WINDOW",self.handler)
@@ -135,17 +140,13 @@ class mygui(tk.Tk):
         scrollbar.grid(row=1, column=4, padx = 5, pady = 5, sticky='NSE')
         
         # Build text box
-        self.text_box = tk.Text(text_frame, width = 55, height = 10, 
-                                yscrollcommand = scrollbar.set)
-        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5)
+        self.text_box = tkst.ScrolledText(text_frame, width = 60, height = 10)
+        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
+                           columnspan = 4)
         self.text_box.insert('1.0', 'Welcome to calc_flux! Written by Ben Esse\n\n')
         
         # Connect the scrollbar to the textbox
         scrollbar.config(command = self.text_box.yview)
-        
-        # Print error messages in red to the text box
-        self.text_box.tag_configure("stderr", foreground="#b22222")
-        sys.stderr = TextRedirector(self.text_box, 'stderr')
         
 #========================================================================================
 #=====================================Build Graph========================================
@@ -318,15 +319,38 @@ class mygui(tk.Tk):
         exit_b = ttk.Button(cont_frame, text = 'Exit', command = self.close_window)
         exit_b.grid(row = 2, column = 1, padx = 5, pady = 5)
         
+        
+        
+        
+        
+        
+#========================================================================================         
+#========================================================================================
+#======================================GUI Operations====================================
+#======================================================================================== 
+#======================================================================================== 
+
+    # Report exceptions in a new window
+    def report_callback_exception(self, *args):
+        err = traceback.format_exception(*args)
+        tkMessageBox.showerror('Exception', err)
+        
+
+    def handler(self):
+
+        self.quit()        
+        
+        
+        
+        
+        
+        
+        
 #========================================================================================         
 #========================================================================================
 #=====================================Button Functions===================================
 #======================================================================================== 
 #======================================================================================== 
-
-    def handler(self):
-
-        self.quit()
 
 #========================================================================================
 #=====================================Filepath Buttons===================================
@@ -679,11 +703,14 @@ def make_graph(d):
 
         with open(common['out_fname'], 'a') as writer:
             # Write header information to the file
-            writer.write('Peak number,' + str(common['loop'])      + '\n' \
-                         'Flux (Tonnes/day),' + str(d['flux'])     + '\n' \
-                         'Windspeed (m/s),' + str(d['wind_speed']) + '\n' \
-                         'Volcano Long/Lat,' + volc_loc            + '\n' \
-                         'CoM position,' + cog_pos                 + '\n' )
+            writer.write('Peak number,' + str(common['loop'])                 + '\n' \
+                         'Flux (Tonnes/day),' + str(d['flux'])                + '\n' \
+                         'Windspeed (m/s),' + str(d['wind_speed'])            + '\n' \
+                         'Volcano Long/Lat,' + volc_loc                       + '\n' \
+                         'CoM position,' + cog_pos                            + '\n' \
+                         'Plume Start Time,' + str(d['time'][0])              + '\n' \
+                         'Plume Centre Time,' + str(d['time'][d['peak_idx']]) + '\n' \
+                         'Plume Stop Time,' + str(d['time'][-1])              + '\n' )
              
             # Write column headers            
             writer.write('Julian Time (GMT),SO2 Amount,Error,Longitude,Latitude,' + \

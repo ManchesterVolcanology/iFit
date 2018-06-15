@@ -9,7 +9,9 @@ Created on Fri Mar  2 09:24:05 2018
 import matplotlib
 matplotlib.use('TkAgg')
 import os
-import sys
+import traceback
+import tkinter.messagebox as tkMessageBox
+import tkinter.scrolledtext as tkst
 import glob
 import numpy as np
 from tkinter import ttk
@@ -48,9 +50,12 @@ class mygui(tk.Tk):
         
         # Create GUI in the backend
         tk.Tk.__init__(self, *args, **kwargs)
+        
+        # Cause exceptions to report in a new window
+        tk.Tk.report_callback_exception = self.report_callback_exception
                
         # Close program on closure of window
-        self.protocol("WM_DELETE_WINDOW",self.handler)
+        self.protocol("WM_DELETE_WINDOW", self.handler)
         
         # Button Style
         ttk.Style().configure('TButton', width = 20, height = 20, relief="flat") 
@@ -103,24 +108,12 @@ class mygui(tk.Tk):
 #====================================Create text output==================================
 #========================================================================================        
                  
-        # Create a scroll bar
-        scrollbar = ttk.Scrollbar(text_frame)
-        scrollbar.grid(row=1, column=4, padx = 5, pady = 5, sticky='NSE')
-        
         # Build text box
-        self.text_box = tk.Text(text_frame, width = 60, height = 10, 
-                                yscrollcommand = scrollbar.set)
+        self.text_box = tkst.ScrolledText(text_frame, width = 60, height = 10)
         self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
                            columnspan = 4)
-        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')
-        
-        # Connect the scrollbar to the textbox
-        scrollbar.config(command = self.text_box.yview)
-        
-        # Print error messages in red to the text box
-        self.text_box.tag_configure("stderr", foreground="#b22222")
-        sys.stderr = TextRedirector(self.text_box, 'stderr')
-        
+        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')        
+
         # Create button to save settings
         save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
         save_b.grid(row = 0, column = 0, columnspan = 2, padx = 5, pady = 5)
@@ -311,7 +304,7 @@ class mygui(tk.Tk):
         
         # Create the canvas to hold the graph in the GUI
         self.canvas = FigureCanvasTkAgg(self.fig, graph_frame)
-        self.canvas.show()
+        self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady = 10)
         
         # Add matplotlib toolbar above the plot canvas
@@ -369,7 +362,8 @@ class mygui(tk.Tk):
                         'iFit',
                         'Master.Scope',
                         'Jai Spec',
-                        'Spectrasuite']
+                        'Spectrasuite',
+                        'GSJ']
         
         self.spec_type = tk.StringVar(setup_frame, value = spec_options[0])
         self.spec_l = tk.Label(setup_frame, text = 'Spectra Type:', font = NORM_FONT)
@@ -670,14 +664,34 @@ class mygui(tk.Tk):
         
 #========================================================================================         
 #========================================================================================
+#======================================GUI Operations====================================
+#======================================================================================== 
+#======================================================================================== 
+
+    # Report exceptions in a new window
+    def report_callback_exception(self, *args):
+        err = traceback.format_exception(*args)
+        tkMessageBox.showerror('Exception', err)
+
+    # Close program on 'x' button
+    def handler(self):
+        self.quit()
+
+
+
+
+
+
+#========================================================================================         
+#========================================================================================
 #=====================================Button Functions===================================
 #======================================================================================== 
-#======================================================================================== 
+#========================================================================================
+        
+        
+        
+        
 
-
-    def handler(self):
-
-        self.quit()
 
 #========================================================================================
 #=====================================Filepath Buttons===================================
@@ -985,9 +999,12 @@ class mygui(tk.Tk):
     # Function to begin analysis loop
     def begin(self, rt_flag):
         
-        # Turn off stopping falg
+        # Turn off stopping flag
         settings['stop_flag'] = False
-        
+ 
+        # Create flag to skip an analyis
+        skip_flag = [False, 'No error']
+       
         # Create common dictionary
         common = {}
         
@@ -1083,8 +1100,8 @@ class mygui(tk.Tk):
         if rt_flag == 'post_analysis':
             
             # Read first spectrum to get date of data and define stray light indices
-            x,y,read_date,read_time,spec_no = read_spectrum(common['spectra_files'][0],
-                                                            spec_type)
+            spectrum_data = read_spectrum(common['spectra_files'][0], spec_type)
+            x, y, read_date, read_time, spec_no, fit_flag = spectrum_data
             
         else:
 
@@ -1228,6 +1245,12 @@ class mygui(tk.Tk):
 
             # Begin analysis loop
             while True:
+                            
+                
+#========================================================================================
+#======================================Post analysis=====================================
+#========================================================================================                
+                
                 
                 # End loop if finished
                 if settings['stop_flag'] == True:
@@ -1238,20 +1261,30 @@ class mygui(tk.Tk):
 
                     try:
                         fname = common['spectra_files'][settings['loop']]
-                        x,y,read_date,read_time,spec_no = read_spectrum(fname,spec_type)
-                        
-                        # Fit
-                        fit_p,err_dict,y_data,gas_T,fit_flag = fit_spec(common, y, grid)
-                        
-                        now_fit_spec = True
-                
+                        spec_data = read_spectrum(fname, spec_type)
+                        x, y, read_date, read_time, spec_no, skip_flag = spec_data
+
                     except IndexError:
                         self.print_output('Fitting complete')
                         break 
                     
-                    # Update loop counter display
-                    msg = str(settings['loop'])+' / '+str(len(common['spectra_files'])-1)
-                    self.spec_count.set(msg)
+                    if skip_flag[0] == False:
+                    
+                        # Fit
+                        fit_p,err_dict,y_data,gas_T,fit_flag = fit_spec(common, y, grid)
+                        
+                        now_fit_spec = True
+                        
+                        # Update loop counter display
+                        msg = str(settings['loop']) + ' / ' + \
+                              str(len(common['spectra_files']) - 1)
+                        self.spec_count.set(msg)
+                
+                
+#========================================================================================
+#=======================================RT analysis======================================
+#========================================================================================  
+                        
                 
                 # Read spectrum from spectrometer and fit
                 elif rt_flag=='rt_analysis' and self.toggle_button.config('text')[-1]==\
@@ -1311,6 +1344,12 @@ class mygui(tk.Tk):
                     
                     now_fit_spec = True
                 
+                
+#========================================================================================
+#====================================Just read spectrum==================================
+#========================================================================================                
+                
+                
                 # Read spectrum from spectrometer but do not fit
                 else:
 
@@ -1336,10 +1375,10 @@ class mygui(tk.Tk):
                     now_fit_spec = False
                 
 #========================================================================================
-#=========================Analyse spectrum and add to output file========================
+#========================Unpack fit results and add to output file=======================
 #========================================================================================
                  
-                if now_fit_spec == True:
+                if now_fit_spec == True and skip_flag[0] == False:
                     
                     # Unpack fit results
                     fit_dict  = {}
@@ -1427,7 +1466,7 @@ class mygui(tk.Tk):
 #========================================================================================
         
                 # Replot data
-                if int(settings['Show Graphs']) == 1:            
+                if int(settings['Show Graphs']) == 1 and skip_flag[0] == False:            
                     
                     if now_fit_spec == True:
                         
@@ -1484,7 +1523,11 @@ class mygui(tk.Tk):
                     
                     # Update graph
                     update_graph(lines, axes, self.canvas, data)
-                                               
+                
+                if skip_flag[0] == True:
+                    
+                    self.print_output(str(skip_flag[1]))
+                               
                 # Add to the count cycle
                 settings['loop'] += 1
                 

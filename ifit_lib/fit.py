@@ -166,7 +166,7 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
         ils_width = args[i]
         
     else:
-        ils_width = com['ils_width']#set_ils_width
+        ils_width = com['ils_width']
     
     if com['ldf_flag'] == True:
         i += 1
@@ -175,7 +175,7 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
         #ldf_grad = args[i]
         
     else:
-        ldf = com['ldf']#set_ldf
+        ldf = com['ldf']
 
     # Construct background polynomial
     bg_poly = make_poly(com['model_grid'], p)
@@ -203,6 +203,7 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
     
     # Add light dilution effect
     light_d = np.multiply(bg_spec, ldf)
+    #light_d = np.multiply(np.multiply(bg_poly, sol_T), ldf)
     raw_F = np.add(raw_F, light_d)
 
 

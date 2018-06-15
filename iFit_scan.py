@@ -560,8 +560,8 @@ class mygui(tk.Tk):
         common['ils_flag']         = self.ils_width_b.get()
         common['ldf_flag']         = self.ldf_b.get()
         common['scan_files']       = self.scan_fpaths
-        common['dark_flag']        = int(settings['dark_flag'])
-        common['flat_flag']        = int(settings['flat_flag'])
+        common['dark_flag']        = bool(settings['dark_flag'])
+        common['flat_flag']        = bool(settings['flat_flag'])
         common['solar_resid_flag'] = settings['solar_resid_flag']
 
 #========================================================================================
@@ -688,7 +688,7 @@ class mygui(tk.Tk):
                 # Create output file
                 out_file = results_folder + 'scan' + str(settings['loop']) + '.csv'
                 with open(out_file, 'w') as w:
-                    w.write('Scan no,Time,Motor Position,so2 (ppm.m),so2 error,')
+                    w.write('Scan no,Time,Motor Position,Angle,so2 (ppm.m),so2 error,')
                             
                     for i in common['params'].keys():
                         w.write(i + ',' + i + '_e,')
@@ -720,9 +720,10 @@ class mygui(tk.Tk):
                                     str(int(info_block[2][n])) + ':' + \
                                     str(int(info_block[3][n]))
                         motor_pos = str(info_block[4][n])
+                        view_ang  = str(float(motor_pos) * 0.06 - 102)
                             
                         # Add the data to the results file
-                        w.write(spec_no + ',' + timestamp + ',' + motor_pos)
+                        w.write(spec_no + ','+timestamp+','+motor_pos+','+view_ang)
                         
                         # Print so2 amount and error in ppm.m for ease
                         w.write(',' + str(fit_dict['so2_amt']/2.463e15) + ',' + \
@@ -783,7 +784,7 @@ class mygui(tk.Tk):
                                 self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                                   ' failed, resetting parameters')
                                 
-                            elif max(abs(np.subtract(resid, 1))) > 0.1:
+                            elif max(abs(np.subtract(resid, 1))) > 0.15:
                                 common['params'] = initial_params.copy()
                                 self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                                   ' bad, resetting parameters')
@@ -857,7 +858,7 @@ class mygui(tk.Tk):
             # Add to the count cycle
             settings['loop'] += 1   
                 
-                
+        self.print_output('Analysis Complete!')        
                 
         # Update solar residual
         if settings['solar_resid_flag'] == 'Generate':

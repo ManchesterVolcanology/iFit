@@ -1,8 +1,0 @@
-<<<<<<< HEAD
-volcano longitude;55.709837
-volcano latitude;-21.260328
-=======
-volcano longitude;55.709837
-volcano latitude;-21.260328
->>>>>>> 48b8998131ff17cf5c934df4c062ae1c752e4198
-Time Difference (hours);0
