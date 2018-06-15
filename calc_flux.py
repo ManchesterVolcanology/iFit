@@ -115,22 +115,7 @@ class mygui(tk.Tk):
             
             # Set all values to zero
             volc_data['--select--'] = [0,0,0]
-        
-#========================================================================================
-#===================================Create output folder=================================
-#========================================================================================         
-        
-        # Create output folder
-        common['out_folder'] = 'Results/calc_flux/' + str(datetime.date.today()) + '/'
-        if not os.path.exists(common['out_folder']):
-            os.makedirs(common['out_folder'])
-            
-        # Create output .csv file if it doesn't exist
-        common['out_fname'] = common['out_folder'] + 'flux_out.csv'
-        
-        with open(common['out_fname'], 'w') as writer:
-            writer.write('calc_flux.py output file \n')
-        
+              
 #========================================================================================
 #====================================Create text output==================================
 #========================================================================================        
@@ -438,7 +423,7 @@ class mygui(tk.Tk):
             data = read_csv(str(self.ifit_path.get()))
 
             # Load required data into arrays
-            txt_time    = data['Time']
+            txt_time    = data['Time'] 
             txt_so2_amt = data['so2 (ppm.m)']
             txt_so2_err = data['so2 error']
             
@@ -488,7 +473,18 @@ class mygui(tk.Tk):
             self.text_output('ERROR: Wrong GPS file format')
             return
         
-        self.text_output('Done!')
+        self.text_output('Done!')        
+        
+        # Create output folder
+        common['out_folder'] = 'Results/calc_flux/' + str(data['Date'][0]) + '/'
+        if not os.path.exists(common['out_folder']):
+            os.makedirs(common['out_folder'])
+            
+        # Create output .csv file if it doesn't exist
+        common['out_fname'] = common['out_folder'] + 'flux_out.csv'
+        
+        with open(common['out_fname'], 'w') as writer:
+            writer.write('calc_flux.py output file \n')
         
         # Update graph
         self.line0.set_xdata(common['time'])
