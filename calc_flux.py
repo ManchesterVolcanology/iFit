@@ -118,20 +118,13 @@ class mygui(tk.Tk):
               
 #========================================================================================
 #====================================Create text output==================================
-#========================================================================================        
-        
-        # Create a scroll bar
-        scrollbar = ttk.Scrollbar(text_frame)
-        scrollbar.grid(row=1, column=4, padx = 5, pady = 5, sticky='NSE')
+#========================================================================================     
         
         # Build text box
         self.text_box = tkst.ScrolledText(text_frame, width = 60, height = 10)
         self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
                            columnspan = 4)
         self.text_box.insert('1.0', 'Welcome to calc_flux! Written by Ben Esse\n\n')
-        
-        # Connect the scrollbar to the textbox
-        scrollbar.config(command = self.text_box.yview)
         
 #========================================================================================
 #=====================================Build Graph========================================
@@ -803,15 +796,5 @@ def make_graph(d):
     cancel_b = ttk.Button(popup, text = 'Cancel', command = popup.destroy)
     cancel_b.grid(row = 1, column = 1, padx = 5, pady = 5)
 
-class TextRedirector(object):
-    def __init__(self, widget, tag="stdout"):
-        self.widget = widget
-        self.tag = tag
-
-    def write(self, str):
-        self.widget.configure(state="normal")
-        self.widget.insert("end", str, (self.tag,))
-        self.widget.configure(state="disabled")
-       
-# Tkinter stuff      
+# Run the App!     
 mygui().mainloop()

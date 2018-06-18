@@ -13,7 +13,6 @@ import numpy as np
 from tkinter import ttk
 import tkinter as tk
 from tkinter import filedialog as fd
-import sys
 import tkinter.scrolledtext as tkst
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -87,12 +86,8 @@ class mygui(tk.Tk):
         self.text_box = tkst.ScrolledText(text_frame, width = 60, height = 10)
         self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
                            columnspan = 4)
-        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')     
-        '''
-        # Print error messages in red to the text box
-        self.text_box.tag_configure("stderr", foreground="#b22222")
-        sys.stderr = TextRedirector(self.text_box, 'stderr')
-        '''
+        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')    
+        
         # Create button to start
         start_b = ttk.Button(text_frame, text = 'Begin!', command = self.begin)
         start_b.grid(row = 0, column = 0, padx = 5, pady = 5)
@@ -208,7 +203,7 @@ class mygui(tk.Tk):
         self.ax3.set_xlabel('Wavelength (nm)', fontsize=10)
         
         self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
-        self.ax4.set_xlabel('Spectrum number', fontsize=10)
+        self.ax4.set_xlabel('Spcan Angle', fontsize=10)
         
         # Create lines to plot data series
         
@@ -696,8 +691,8 @@ class mygui(tk.Tk):
                     # Starrt new line 
                     w.write('\n')
                 
-                    # Analyse rest (105 spectra to a scan)
-                    for n in range(1, len(spec_block.T)):
+                    # Analyse rest (106 spectra to a scan, first is dark, last is crap)
+                    for n in range(1, len(spec_block.T)-1):
                         
                         # End loop if finished
                         if settings['stop_flag'] == True:
@@ -737,7 +732,7 @@ class mygui(tk.Tk):
                         w.write('\n')
                         
                         # Add values to array for plotting
-                        spec_nos.append(float(motor_pos))
+                        spec_nos.append(float(view_ang))
                         gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
                         gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
                         gas['O3_amts'].append(fit_dict['o3_amt']/2.463e15)
@@ -764,36 +759,38 @@ class mygui(tk.Tk):
     
                         # Calculate the residual of the fit
                         if settings['resid_type'] == 'Percentage':
-                            resid=np.multiply(np.divide(np.subtract(y_data,fit),y_data),100)
+                            resid=np.multiply(np.divide(np.subtract(y_data,fit),y_data), 100)
+                            max_resid = resid.max() / 100
                             
                         if settings['resid_type'] == 'Absolute': 
                             resid = np.subtract(y_data, fit)
+                            max_resid = np.divide(resid, fit.max()).max()
                             
                         if settings['resid_type'] == 'Spec/Fit':
                             resid = np.divide(y_data, fit)
+                            max_resid = np.abs(np.subtract(resid, 1)).max()
                         
                         # Add to solar residual
                         if common['solar_resid_flag'] == 'Generate':
                             common['solar_resid'] = np.add(common['solar_resid'], resid)
                             resid_count += 1
 
-                        # If fit fails or max resid > 10% revert to initial fit parameters
                         if bool(settings['update_params']) == True:
                             if fit_flag == False:
                                 common['params'] = initial_params.copy()
-                                self.print_output('Fitting for spectrum ' + str(spec_no) + \
+                                self.print_output('Fitting for spectrum '+str(spec_no)+\
                                                   ' failed, resetting parameters')
-                                
-                            elif max(abs(np.subtract(resid, 1))) > 0.15:
+                               
+                            elif max_resid > 0.15:
                                 common['params'] = initial_params.copy()
-                                self.print_output('Fitting for spectrum ' + str(spec_no) + \
+                                self.print_output('Fitting for spectrum '+str(spec_no)+\
                                                   ' bad, resetting parameters')
                            
                             else:
                                 
                                 # Update first guesses with last fitted params
                                 for i in fit_dict:
-                                    common['params'][i] = fit_dict[i]                      
+                                    common['params'][i] = fit_dict[i]                     
                 
 #========================================================================================
 #=======================================Update plot======================================
@@ -1199,16 +1196,6 @@ def data_bases():
     b2 = ttk.Button(popup, text='Cancel', command=lambda: popup.destroy())
     b2.grid(row = row_n, column = 1, padx = 5, pady = 5, columnspan=2) 
     row_n += 1
-
-class TextRedirector(object):
-    def __init__(self, widget, tag="stdout"):
-        self.widget = widget
-        self.tag = tag
-
-    def write(self, str):
-        self.widget.configure(state="normal")
-        self.widget.insert("end", str, (self.tag,))
-        self.widget.configure(state="disabled")
           
 # Tkinter stuff 
 if __name__ == '__main__':    
