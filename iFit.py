@@ -121,17 +121,14 @@ class mygui(tk.Tk):
 #==============================Create quick analysis outputs=============================
 #========================================================================================
         
-        # Create loop counter
-        self.spec_count = tk.StringVar(self, value = '0 / 0')
-        spec_count_l = tk.Label(quick_frame, text = 'Spectrum:', font = NORM_FONT)
-        spec_count_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        spec_count_e = ttk.Entry(quick_frame, textvariable = self.spec_count)
-        spec_count_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+        # Create progress bar
+        self.progress = ttk.Progressbar(quick_frame, orient = tk.HORIZONTAL, length=400,
+                                        mode = 'determinate')
+        self.progress.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 4)
         
         # Create ouput for last so2 amount
         self.last_so2_amt = tk.DoubleVar(self, value = 0)
-        last_so2_amt_l = tk.Label(quick_frame, text = 'Last amt:', 
-                                  font = NORM_FONT)
+        last_so2_amt_l = tk.Label(quick_frame, text = 'Last amt:', font = NORM_FONT)
         last_so2_amt_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
         last_so2_amt_e = ttk.Entry(quick_frame, textvariable = self.last_so2_amt)
         last_so2_amt_e.grid(row = 1, column = 1, padx = 5, pady = 5)
@@ -198,13 +195,13 @@ class mygui(tk.Tk):
             settings['O3']                = 1e+19
             settings['BrO']               = 1e+15
             settings['model_resolution']  = 0.02
-            settings['sol_path']          = 'data_bases/sao2010_full.txt'
-            settings['ring_path']         = 'data_bases/ring.dat'
-            settings['so2_path']          = 'data_bases/SO2_293K.dat'
-            settings['no2_path']          = 'data_bases/No2_223l.dat'
-            settings['o3_path']           = 'data_bases/O3_293K.dat'
-            settings['bro_path']          = 'data_bases/BrO_Cross_298K.txt'
-            settings['solar_resid_path']  = 'data_bases/solar_resid.txt'
+            settings['sol_path']          = 'data_bases/gas data/sao2010.txt'
+            settings['ring_path']         = 'data_bases/gas data/ring.dat'
+            settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
+            settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
+            settings['o3_path']           = 'data_bases/gas data/O3_293K.dat'
+            settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
+            settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['Spectra Filepaths'] = ''
             settings['Dark Filepaths']    = ''
  
@@ -344,8 +341,8 @@ class mygui(tk.Tk):
         # Find available flat spectra and form into list
         options = [settings['Spectrometer']]       
 
-        for i, name in enumerate(glob.glob('data_bases/flat_*')):
-            options.append(name[16:-4])
+        for i, name in enumerate(glob.glob('data_bases/Spectrometer/flat_*')):
+            options.append(name[29:-4])
         
         # Create entry to select spectrometer
         self.spec_name = tk.StringVar(setup_frame, value = options[0])
@@ -933,7 +930,7 @@ class mygui(tk.Tk):
         data = np.array(([x,        dark,     [x_lo,x_hi], [y_lo,y_hi]]))
         
         # Update graph
-        update_graph(lines, axes, self, data)
+        update_graph(lines, axes, self.canvas, data)
         
         # Add dark to common
         settings['dark_spec']  = dark
@@ -1051,9 +1048,11 @@ class mygui(tk.Tk):
 
         # Build filepath to flat spectrum from spectrometer serial number
         if rt_flag == 'post_analysis':
-            settings['flat_path'] = 'data_bases/flat_'+str(self.spec_name.get())+'.txt'
+            settings['flat_path'] = 'data_bases/Spectrometer/flat_' + \
+                                     str(self.spec_name.get())+'.txt'
         else:
-            settings['flat_path'] = 'data_bases/flat_'+str(self.c_spec.get())+'.txt'
+            settings['flat_path'] = 'data_bases/Spectrometer/flat_' + \
+                                     str(self.c_spec.get())+'.txt'
         
         # Load fitting data files
         common = build_fwd_data(common, settings, self)
@@ -1145,6 +1144,9 @@ class mygui(tk.Tk):
                     for i in common['params'].keys():
                         writer.write(i + ',' + i + '_e,')
                         
+                    # Add column for fit info
+                    writer.write('Fit Quality,')
+                        
                     # Write other fit info
                     writer.write('Fit window: ' + str(common['wave_start']) + ' - ' + \
                                  str(common['wave_stop']) + ' nm,' + 'ILS width: '  + \
@@ -1195,6 +1197,9 @@ class mygui(tk.Tk):
                     for i in common['params'].keys():
                         writer.write(i + ',' + i + '_e,')
                         
+                    # Add column for fit info
+                    writer.write('Fit Quality,')
+                        
                     # Write other fit info
                     writer.write('Fit window: ' + str(common['wave_start']) + ' - ' + \
                                  str(common['wave_stop']) + ' nm,' + 'ILS width: '  + \
@@ -1205,6 +1210,15 @@ class mygui(tk.Tk):
                 self.print_output('Please close iFit output file to continue')
                 return                
 
+#========================================================================================
+#===========================Set Progress bar to correct format===========================
+#========================================================================================
+            
+        if rt_flag == 'rt_analysis':
+            self.progress['mode'] = 'indeterminate'
+        else:
+            self.progress['mode'] = 'determinate'
+             
 #========================================================================================
 #===================================Start Analysis Loop==================================
 #========================================================================================
@@ -1258,11 +1272,10 @@ class mygui(tk.Tk):
                         
                         now_fit_spec = True
                         
-                        # Update loop counter display
-                        msg = str(settings['loop']) + ' / ' + \
-                              str(len(common['spectra_files']) - 1)
-                        self.spec_count.set(msg)
-                
+                        # Update progress bar
+                        prog = settings['loop']/len(common['spectra_files']) * 100
+                        self.progress['value'] = prog
+                        
                 
 #========================================================================================
 #=======================================RT analysis======================================
@@ -1322,8 +1335,10 @@ class mygui(tk.Tk):
                     common['last_spec'] = y
                     spec_no = settings['loop']
                     
-                    # Update loop counter display
-                    self.spec_count.set(str(settings['loop']))
+                    # Update progress bar
+                    prog = settings['loop']
+                    self.progress['value'] = prog
+                    
                     
                     now_fit_spec = True
                 
@@ -1352,8 +1367,9 @@ class mygui(tk.Tk):
                     # Update last spec variable
                     common['last_spec'] = y
                     
-                    # Update loop counter display
-                    self.spec_count.set(str(settings['loop']))
+                    # Update progress bar
+                    prog = settings['loop']
+                    self.progress['value'] = prog
                     
                     now_fit_spec = False
                 
@@ -1368,47 +1384,7 @@ class mygui(tk.Tk):
                     for m, l in enumerate(common['params'].keys()):
                         fit_dict[l] = fit_p[m]
     
-                    # Write results to excel file, starting with spectrum info
-                    writer.write(str(fname)          + ',' + \
-                                 str(spec_no)        + ',' + \
-                                 str(str(read_date)) + ',' + \
-                                 str(str(read_time)))
-                    
-                    # Print so2 amount and error in ppm.m for ease
-                    writer.write(',' + str(fit_dict['so2_amt']/2.463e15) + ',' + \
-                                 str(err_dict['so2_amt']/2.463e15))            
-        
-                    # Print fit results and error for each parameter          
-                    for l in common['params'].keys():
-                        writer.write(','+str(fit_dict[l])+','+str(err_dict[l]))
-                        
-                    # Start new line
-                    writer.write('\n')
-                
-                    # Add values to array for plotting
-                    spec_nos.append(spec_no)
-                    gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
-                    gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
-                    gas['O3_amts'].append(fit_dict['o3_amt']/2.463e15)
-                    gas['O3_errs'].append(err_dict['o3_amt']/2.463e15)
-                    gas['BrO_amts'].append(fit_dict['bro_amt']/2.463e15)
-                    gas['BrO_errs'].append(err_dict['bro_amt']/2.463e15)
-                    
-                    # Update quick analysis with values
-                    last_amt="{0:0.2f}".format(gas[settings['analysis_gas']+'_amts'][-1])
-                    last_err="{0:0.2f}".format(gas[settings['analysis_gas']+'_errs'][-1])
-                    self.last_so2_amt.set(last_amt + ' ppm.m')
-                    self.last_so2_err.set(last_err + ' ppm.m')
-                    
-                    # Cut if too long to avoid slowing program
-                    if bool(settings['scroll_flag']) == True:
-                        lim = int(settings['scroll_spec_no'])
-                        if len(spec_nos) > lim:
-                            spec_nos = spec_nos[1:]
-                            for m in gas:
-                                gas[m] = gas[m][1:]
-
-                    # Feed fit params into forward
+                     # Feed fit params into forward
                     fit = ifit_fwd(grid, *fit_p)
     
                     # Calculate the residual of the fit
@@ -1435,18 +1411,61 @@ class mygui(tk.Tk):
                             common['params'] = initial_params.copy()
                             self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                               ' failed, resetting parameters')
+                            fit_msg = 'Failed'
                            
                         elif max_resid > float(settings['good_fit_bound'])/100:
                             common['params'] = initial_params.copy()
                             self.print_output('Fitting for spectrum ' + str(spec_no) + \
                                               ' bad, resetting parameters')
+                            fit_msg = 'Bad'
                        
                         else:
                             
                             # Update first guesses with last fitted params
                             for i in fit_dict:
                                 common['params'][i] = fit_dict[i]
+                            fit_msg = 'Good'
+    
+                    # Write results to excel file, starting with spectrum info
+                    writer.write(str(fname)          + ',' + \
+                                 str(spec_no)        + ',' + \
+                                 str(str(read_date)) + ',' + \
+                                 str(str(read_time)))
+                    
+                    # Print so2 amount and error in ppm.m for ease
+                    writer.write(',' + str(fit_dict['so2_amt']/2.463e15) + ',' + \
+                                 str(err_dict['so2_amt']/2.463e15))            
+        
+                    # Print fit results and error for each parameter          
+                    for l in common['params'].keys():
+                        writer.write(','+str(fit_dict[l])+','+str(err_dict[l]))
+                        
+                    # Write fit quality and start new line
+                    writer.write(',' + fit_msg + '\n')
                 
+                    # Add values to array for plotting
+                    spec_nos.append(spec_no)
+                    gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
+                    gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
+                    gas['O3_amts'].append(fit_dict['o3_amt']/2.463e15)
+                    gas['O3_errs'].append(err_dict['o3_amt']/2.463e15)
+                    gas['BrO_amts'].append(fit_dict['bro_amt']/2.463e15)
+                    gas['BrO_errs'].append(err_dict['bro_amt']/2.463e15)
+                    
+                    # Update quick analysis with values
+                    last_amt="{0:0.2f}".format(gas[settings['analysis_gas']+'_amts'][-1])
+                    last_err="{0:0.2f}".format(gas[settings['analysis_gas']+'_errs'][-1])
+                    self.last_so2_amt.set(last_amt + ' ppm.m')
+                    self.last_so2_err.set(last_err + ' ppm.m')
+                    
+                    # Cut if too long to avoid slowing program
+                    if bool(settings['scroll_flag']) == True:
+                        lim = int(settings['scroll_spec_no'])
+                        if len(spec_nos) > lim:
+                            spec_nos = spec_nos[1:]
+                            for m in gas:
+                                gas[m] = gas[m][1:]
+                                
 #========================================================================================
 #=======================================Update plot======================================
 #========================================================================================
@@ -1527,7 +1546,7 @@ class mygui(tk.Tk):
                 common['solar_resid'] = np.divide(common['solar_resid'], resid_count)
                 
                 # Save
-                np.savetxt('data_bases/solar_resid.txt', common['solar_resid'])
+                np.savetxt('data_bases/gas data/solar_resid.txt', common['solar_resid'])
                 
                 self.print_output('Solar residual spectrum updated')
 

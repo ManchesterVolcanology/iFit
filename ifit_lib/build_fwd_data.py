@@ -7,6 +7,7 @@ Created on Mon May  8 09:07:32 2017
 
 import numpy as np
 from scipy.interpolate import griddata
+from ifit_lib.smooth import smooth
 from ifit_lib.find_nearest import extract_window
 
 #========================================================================================
@@ -66,8 +67,9 @@ def build_fwd_data(common, settings, self):
     sol_x, sol_y = np.loadtxt(settings['sol_path'], unpack = True)
     self.print_output('Solar reference spectrum imported', add_line = False)
     
-    # Interpolate onto model_grid
-    sol = griddata(sol_x, sol_y, model_grid)
+    # Smooth and interpolate onto model_grid
+    smooth_sol_y = sol_y#smooth(sol_y, 8)
+    sol = griddata(sol_x, smooth_sol_y, model_grid, method = 'cubic')
     
     
     # Import solar residual spectrum

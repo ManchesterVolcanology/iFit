@@ -21,14 +21,14 @@ def cog(array):
         
     '''
     
-    # Find cumulative frequency of the array
-    cul_freq = np.array(())
+    cul_freq = np.zeros(len(array))
     
-    for i in range(len(array)):
-        if i == 0:
-            cul_freq = np.append(cul_freq, array[i])
+    # Find cumulative frequency of the array
+    for n, val in enumerate(array):
+        if n == 0:
+            cul_freq[n] = val
         else:
-            cul_freq = np.append(cul_freq, (cul_freq[i-1] + array[i]))
+            cul_freq[n] = cul_freq[n-1] + val
     
     # Calulate half value
     half_total = cul_freq[-1] / 2.0
