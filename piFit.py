@@ -1,3 +1,5 @@
+#!/home/pi/berryconda3/bin/python3.6
+
 # -*- coding: utf-8 -*-
 """
 Created on Fri Mar  2 09:24:05 2018
@@ -36,9 +38,9 @@ from ifit_lib.file_control import make_directory
 from ifit_lib.update_graph import update_graph
 
 # Define some fonts to use in the program
-NORM_FONT = ('Verdana', 8)
-MED_FONT  = ('Veranda', 11)
-LARG_FONT = ('Verdana', 12, 'bold')
+NORM_FONT = ('Verdana', 6)
+MED_FONT  = ('Veranda', 8)
+LARG_FONT = ('Verdana', 10, 'bold')
 
 class mygui(tk.Tk):
     
@@ -63,7 +65,7 @@ class mygui(tk.Tk):
         
         # Add a title and icon
         tk.Tk.wm_title(self, 'piFit-2-2')
-        #tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+        #tk.Tk.iconbitmap('data_bases/icon.ico')
         
         # Create notebook to hold different frames
         nb = ttk.Notebook(self)
@@ -71,7 +73,7 @@ class mygui(tk.Tk):
         page2 = ttk.Frame(nb)
         
         # Create two frames, one for post analysis and one for real time acquisition
-        nb.add(page1, text = 'Real Time Acquisition')
+        nb.add(page1, text = 'Control')
         nb.add(page2, text =  'Model Parameters')
         nb.grid(column=0, row = 0, padx=5, pady=5)
         
@@ -83,11 +85,11 @@ class mygui(tk.Tk):
         
         # Create frame to hold text output
         text_frame = ttk.Frame(self, relief = 'groove')
-        text_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW", rowspan=2)
+        text_frame.grid(row=1, column=1, padx=10, pady=10, sticky="NW", rowspan=2)
         
         # Frame for quick analysis
-        quick_frame = tk.LabelFrame(self, text = 'Quick Analysis', font = LARG_FONT)
-        quick_frame.grid(row=2, column=1, padx=10, pady=10, sticky="NW")
+        quick_frame = tk.Frame(self, relief = 'groove')
+        quick_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW")
         
         mygui.columnconfigure(index=1, weight=1, self = self)
         mygui.rowconfigure(index = 5, weight = 1, self = self)
@@ -97,23 +99,10 @@ class mygui(tk.Tk):
 #========================================================================================        
                  
         # Build text box
-        self.text_box = tkst.ScrolledText(text_frame, width = 60, height = 5)
+        self.text_box = tkst.ScrolledText(text_frame, width = 45, height = 5)
         self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
                            columnspan = 4)
         self.text_box.insert('1.0', 'Welcome to piFit! Written by Ben Esse\n\n')  
-        
-        # Create button for advanced settings
-        adv_set_b = ttk.Button(text_frame, text = 'Adv. Settings', 
-                            command=lambda: adv_settings(self))
-        adv_set_b.grid(row = 0, column = 0, padx = 5, pady = 5)
-
-        # Create button to save settings
-        save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
-        save_b.grid(row = 0, column = 1, padx = 5, pady = 5)
-        
-        # Create a button to exit
-        exit_b = ttk.Button(text_frame, text = 'Exit', command = self.quit)
-        exit_b.grid(row = 0, column = 2, padx = 5, pady = 5)
         
 #========================================================================================
 #==============================Create quick analysis outputs=============================
@@ -123,17 +112,29 @@ class mygui(tk.Tk):
         self.last_so2_amt = tk.DoubleVar(self, value = 0)
         last_so2_amt_l = tk.Label(quick_frame, text = 'Last amt:', 
                                   font = NORM_FONT)
-        last_so2_amt_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        last_so2_amt_e = ttk.Entry(quick_frame, textvariable = self.last_so2_amt)
-        last_so2_amt_e.grid(row = 1, column = 1, padx = 5, pady = 5)
+        last_so2_amt_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+        last_so2_amt_e = ttk.Entry(quick_frame, textvariable = self.last_so2_amt,
+                                   width = 10)
+        last_so2_amt_e.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         # Create ouput for last so2 error
         self.last_so2_err = tk.DoubleVar(self, value = 0)
         last_so2_err_l = tk.Label(quick_frame, text = 'Last error:', 
                                   font = NORM_FONT)
-        last_so2_err_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
-        last_so2_err_e = ttk.Entry(quick_frame, textvariable = self.last_so2_err)
-        last_so2_err_e.grid(row = 1, column = 3, padx = 5, pady = 5)
+        last_so2_err_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+        last_so2_err_e = ttk.Entry(quick_frame, textvariable = self.last_so2_err,
+                                   width = 10)
+        last_so2_err_e.grid(row = 1, column = 1, padx = 5, pady = 5)
+
+        # Create button for advanced settings
+        adv_set_b = ttk.Button(quick_frame, text = 'Adv. Settings', width = 10, 
+                            command=lambda: adv_settings(self))
+        adv_set_b.grid(row = 0, column = 2, padx = 5, pady = 5)
+
+        # Create button to save settings
+        save_b = ttk.Button(quick_frame, text = 'Save Settings', width = 10,
+                            command = self.save)
+        save_b.grid(row = 1, column = 2, padx = 5, pady = 5)
         
 #========================================================================================
 #===================================Set program settings=================================
@@ -156,7 +157,7 @@ class mygui(tk.Tk):
                     settings[name] = val
    
         except FileNotFoundError:
-            self.print_output('No settings file found, reverting to origional')
+            self.print_output('No settings file found, reverting to default')
             settings['Wave Start']        = 305
             settings['Wave Stop']         = 318
             settings['int_time']          = 100
@@ -246,14 +247,7 @@ class mygui(tk.Tk):
         # Create the canvas to hold the graph in the GUI
         self.canvas = FigureCanvasTkAgg(self.fig, graph_frame)
         self.canvas.draw()
-        self.canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady = 10)
-        
-        # Add matplotlib toolbar above the plot canvas
-        toolbar_frame = tk.Frame(graph_frame, bg = 'black')  
-        toolbar_frame.grid(row=1,column=0, sticky = 'W', padx = 5, pady = 5)                             
-        toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
-        toolbar.update()
-        
+        self.canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady = 10)       
 
 
 
@@ -288,7 +282,7 @@ class mygui(tk.Tk):
         self.c_spec = tk.StringVar(setup_frame2, value = 'None connected')
         c_spec_l = ttk.Label(setup_frame2, text="Device: ", font = NORM_FONT)
         c_spec_l.grid(row=0, column=0, pady=5, padx=5, sticky='W')
-        c_spec_e = ttk.Entry(setup_frame2, textvariable = self.c_spec)
+        c_spec_e = ttk.Entry(setup_frame2, textvariable = self.c_spec, width = 10)
         c_spec_e.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         # Integration Time
@@ -296,7 +290,7 @@ class mygui(tk.Tk):
         int_time_l = tk.Label(setup_frame2, text = 'Integration time (ms):', 
                               font = NORM_FONT)
         int_time_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        int_time_e = ttk.Entry(setup_frame2, textvariable = self.int_time)
+        int_time_e = ttk.Entry(setup_frame2, textvariable = self.int_time, width = 10)
         int_time_e.grid(row = 1, column = 1, padx = 5, pady = 5)
         
         # Coadds
@@ -304,7 +298,7 @@ class mygui(tk.Tk):
         coadds_l = tk.Label(setup_frame2, text = 'Coadds:', 
                               font = NORM_FONT)
         coadds_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        coadds_e = ttk.Entry(setup_frame2, textvariable = self.coadds)
+        coadds_e = ttk.Entry(setup_frame2, textvariable = self.coadds, width = 10)
         coadds_e.grid(row = 2, column = 1, padx = 5, pady = 5)
         
         # Number of darks to get
@@ -312,46 +306,48 @@ class mygui(tk.Tk):
         no_darks_l = tk.Label(setup_frame2, text = 'No. Darks:', 
                               font = NORM_FONT)
         no_darks_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        no_darks_e = ttk.Entry(setup_frame2, textvariable = self.no_darks)
+        no_darks_e = ttk.Entry(setup_frame2, textvariable = self.no_darks, width = 10)
         no_darks_e.grid(row = 3, column = 1, padx = 5, pady = 5)
         
         # Create button to connect to spectrometer
-        connect_spec_b = ttk.Button(setup_frame2, text = 'Connect',
+        connect_spec_b = ttk.Button(setup_frame2, text = 'Connect', width = 10,
                                     command = self.connect_spec)
-        connect_spec_b.grid(row = 0, column = 2, padx = 5, pady = 5)
+        connect_spec_b.grid(row = 0, column = 2, pady = 5)
         
         # Create button to update integration time
-        update_int_time_b = ttk.Button(setup_frame2, text = 'Update',
+        update_int_time_b = ttk.Button(setup_frame2, text = 'Update', width = 10,
                                        command = self.update_int_time)
-        update_int_time_b.grid(row = 1, column = 2, padx = 5, pady = 5)
+        update_int_time_b.grid(row = 1, column = 2, pady = 5)
         
         # Create button to read a single spectrum
-        test_spec_b = ttk.Button(setup_frame2, text = 'Test Spectrum',
+        test_spec_b = ttk.Button(setup_frame2, text = 'Test Spec', width = 10,
                                  command = self.test_spec)
-        test_spec_b.grid(row = 2, column = 2, padx = 5, pady = 5)
+        test_spec_b.grid(row = 2, column = 2, pady = 5)
         
         # Create button to read darks
-        read_darks_b = ttk.Button(setup_frame2, text = 'Read Darks',
+        read_darks_b = ttk.Button(setup_frame2, text = 'Read Darks', width = 10,
                                   command = self.read_darks)
-        read_darks_b.grid(row = 3, column = 2, padx = 5, pady = 5)
+        read_darks_b.grid(row = 3, column = 2, pady = 5)
         
 #========================================================================================
-#==============================Create start and exit buttons=============================
+#==============================Create start and stop buttons=============================
 #========================================================================================         
         
         # Create button to start
-        start_aq_b = ttk.Button(button_frame2, text = 'Begin!', command = self.begin)
-        start_aq_b.grid(row = 0, column = 0, padx = 5, pady = 5)
+        start_aq_b = ttk.Button(button_frame2, text = 'Begin!', command = self.begin,
+                                width = 10)
+        start_aq_b.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan=2)
         
         # Create button to stop
-        stop_aq_b = ttk.Button(button_frame2, text = 'Stop', command = self.stop)
-        stop_aq_b.grid(row = 0, column = 1, padx = 5, pady = 5)
+        stop_aq_b = ttk.Button(button_frame2, text = 'Stop', command = self.stop,
+                               width = 10)
+        stop_aq_b.grid(row = 0, column = 1, padx = 5, pady = 5, columnspan=2)
         
         # Create switch to toggle fitting on or off
         self.toggle_button = tk.Button(button_frame2, text = 'FITTING OFF', 
                                        command = self.fit_toggle, width = 12, height = 1,
                                        bg = 'red', font = LARG_FONT)
-        self.toggle_button.grid(row=0, column=2, padx=5, pady=5)
+        self.toggle_button.grid(row=1, column=2, padx=5, pady=5)
         
         # Define function to handle changes to the graph view option
         def update(val):
@@ -380,11 +376,11 @@ class mygui(tk.Tk):
                              'Gas amount': ['Spectrum Number', 'Amount (ppm.m)']}
                 
         self.graph_view = tk.StringVar(button_frame2, value = settings['graph_view'])
-        graph_view_l = tk.Label(button_frame2, text = 'Graph View', font = NORM_FONT)
-        graph_view_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
+        graph_view_l = tk.Label(button_frame2, text = 'Graph View:', font = NORM_FONT)
+        graph_view_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
         graph_view_m = ttk.OptionMenu(button_frame2, self.graph_view, *graph_options,
                                       command = update)
-        graph_view_m.grid(row = 2, column = 1, padx = 5, pady = 5)
+        graph_view_m.grid(row = 1, column = 1, padx = 5, pady = 5)
         
 
 
@@ -446,7 +442,7 @@ class mygui(tk.Tk):
         
         # ILS Gaussian weighting
         self.gauss_weight = tk.DoubleVar(model_frame, value = settings['Gauss Weight'])
-        gauss_weight_l = tk.Label(model_frame, text = 'ILS Gauss Weight:', 
+        gauss_weight_l = tk.Label(model_frame, text = 'Gauss Wt:', 
                                   font = NORM_FONT)
         gauss_weight_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
         gauss_weight_e = ttk.Entry(model_frame, textvariable = self.gauss_weight,
@@ -473,54 +469,55 @@ class mygui(tk.Tk):
         # Polynomial coefficents
         self.poly_n = tk.DoubleVar(self, value = settings['poly_n'])
         poly_n_vals = [1,2,3,4,5,6,7,8,9,10]
-        poly_n_l = tk.Label(param_frame, text = 'Polynomial Order:', font = NORM_FONT)
+        poly_n_l = tk.Label(param_frame, text = 'Poly Order:', font = NORM_FONT)
         poly_n_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        poly_n_e = tk.Spinbox(param_frame, values = poly_n_vals)
+        poly_n_e = tk.Spinbox(param_frame, values = poly_n_vals, width = 10)
         poly_n_e.grid(row = 1, column = 1, padx = 5, pady = 5)
         
         # Spectrometer wavelength shift parameters
         self.shift = tk.DoubleVar(param_frame, value = settings['shift'])
         shift_l = tk.Label(param_frame, text = 'shift:', font = NORM_FONT)
         shift_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        shift_e = ttk.Entry(param_frame, textvariable = self.shift)
+        shift_e = ttk.Entry(param_frame, textvariable = self.shift, width = 10)
+        
         shift_e.grid(row = 2, column = 1, padx = 5, pady = 5)
         
         self.stretch = tk.DoubleVar(param_frame, value = settings['stretch'])
         stretch_l = tk.Label(param_frame, text = 'stretch:', font = NORM_FONT)
         stretch_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        stretch_e = ttk.Entry(param_frame, textvariable = self.stretch)
+        stretch_e = ttk.Entry(param_frame, textvariable = self.stretch, width = 10)
         stretch_e.grid(row = 3, column = 1, padx = 5, pady = 5)
         
         # Ring effect
         self.ring_amt = tk.DoubleVar(param_frame, value = settings['ring'])
         ring_amt_l = tk.Label(param_frame, text = 'Ring:', font = NORM_FONT)
         ring_amt_l.grid(row = 4, column = 0, padx = 5, pady = 5, sticky = 'W')
-        ring_amt_e = ttk.Entry(param_frame, textvariable = self.ring_amt)
+        ring_amt_e = ttk.Entry(param_frame, textvariable = self.ring_amt, width = 10)
         ring_amt_e.grid(row = 4, column = 1, padx = 5, pady = 5)
         
         # Gas amounts
         self.so2_amt = tk.DoubleVar(param_frame, value = settings['SO2'])
         so2_amt_l = tk.Label(param_frame, text = 'SO2:', font = NORM_FONT)
         so2_amt_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
-        so2_amt_e = ttk.Entry(param_frame, textvariable = self.so2_amt)
+        so2_amt_e = ttk.Entry(param_frame, textvariable = self.so2_amt, width = 10)
         so2_amt_e.grid(row = 1, column = 3, padx = 5, pady = 5)
         
         self.no2_amt = tk.DoubleVar(param_frame, value = settings['NO2'])
         no2_amt_l = tk.Label(param_frame, text = 'NO2:', font = NORM_FONT)
         no2_amt_l.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'W')
-        no2_amt_e = ttk.Entry(param_frame, textvariable = self.no2_amt)
+        no2_amt_e = ttk.Entry(param_frame, textvariable = self.no2_amt, width = 10)
         no2_amt_e.grid(row = 2, column = 3, padx = 5, pady = 5)
         
         self.o3_amt = tk.DoubleVar(param_frame, value = settings['O3'])
         o3_amt_l = tk.Label(param_frame, text = 'O3:', font = NORM_FONT)
         o3_amt_l.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'W')
-        o3_amt_e = ttk.Entry(param_frame, textvariable = self.o3_amt)
+        o3_amt_e = ttk.Entry(param_frame, textvariable = self.o3_amt, width = 10)
         o3_amt_e.grid(row = 3, column = 3, padx = 5, pady = 5)
        
         self.bro_amt = tk.DoubleVar(param_frame, value = settings['BrO'])
         bro_amt_l = tk.Label(param_frame, text = 'BrO:', font = NORM_FONT)
         bro_amt_l.grid(row = 4, column = 2, padx = 5, pady = 5, sticky = 'W')
-        bro_amt_e = ttk.Entry(param_frame, textvariable = self.bro_amt)
+        bro_amt_e = ttk.Entry(param_frame, textvariable = self.bro_amt, width = 10)
         bro_amt_e.grid(row = 4, column = 3, padx = 5, pady = 5)
         
 
