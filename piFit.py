@@ -14,7 +14,6 @@ import os
 import traceback
 import tkinter.messagebox as tkMessageBox
 import tkinter.scrolledtext as tkst
-import glob
 import numpy as np
 from tkinter import ttk
 import tkinter as tk
@@ -25,17 +24,14 @@ from threading import Thread
 import datetime
 from seabreeze.cseabreeze.wrapper import SeaBreezeError
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from collections import OrderedDict
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from ifit_lib.build_fwd_data import build_fwd_data
-from ifit_lib.read_spectrum import read_spectrum, average_spectra
 from ifit_lib.fit import fit_spec, ifit_fwd
 from ifit_lib.aquire_spectrum import aquire_spectrum
 from ifit_lib.find_nearest import extract_window
 from ifit_lib.file_control import make_directory
-from ifit_lib.update_graph import update_graph
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 6)

@@ -86,7 +86,7 @@ class mygui(tk.Tk):
         choice = ['--select--']
         volc_data = {}
         try:
-            with open('data_bases/calc_flux_settings.txt', 'r') as r:
+            with open('data_bases/volcano_data.txt', 'r') as r:
                 
                 # Read header line
                 r.readline()
@@ -95,10 +95,10 @@ class mygui(tk.Tk):
                 data = r.readlines()
                 
                 # Unpack and save to dictionary
-                for i in data:
+                for line in data:
                     
                     # Read each line
-                    v_name, v_lon, v_lat, t_diff = i.strip().split(';')
+                    v_name, v_lon, v_lat, t_diff = line.strip().split(';')
                     
                     # Remove white space from parameters
                     v_name = v_name.strip()
@@ -195,7 +195,7 @@ class mygui(tk.Tk):
         self.ifit_path = tk.StringVar(value = 'No file selected')
         ifit_path_l = tk.Label(trav_frame, text = 'iFit file:', font = NORM_FONT)
         ifit_path_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        ifit_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 30, 
+        ifit_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 20, 
                                text = self.ifit_path)
         ifit_path_e.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
         ifit_path_b = ttk.Button(trav_frame, text="Select iFit output", 
@@ -206,7 +206,7 @@ class mygui(tk.Tk):
         self.gps_path = tk.StringVar(value = 'No file selected')
         gps_path_l = tk.Label(trav_frame, text = 'GPS file:', font = NORM_FONT)
         gps_path_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        gps_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 30, 
+        gps_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 20, 
                               text = self.gps_path)
         gps_path_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
         gps_path_b = ttk.Button(trav_frame, text="Select GPS file", 
@@ -218,7 +218,7 @@ class mygui(tk.Tk):
         wind_speed_l = tk.Label(trav_frame, text = 'Wind Speed (ms-1):', 
                                 font = NORM_FONT)
         wind_speed_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        wind_speed_e = tk.Entry(trav_frame, font = NORM_FONT, width = 30, 
+        wind_speed_e = tk.Entry(trav_frame, font = NORM_FONT, width = 20, 
                                 text = self.wind_speed)
         wind_speed_e.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
         
@@ -227,7 +227,7 @@ class mygui(tk.Tk):
         wind_error_l = tk.Label(trav_frame, text = 'Wind Error (%):', 
                                 font = NORM_FONT)
         wind_error_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        wind_error_e = tk.Entry(trav_frame, font = NORM_FONT, width = 30, 
+        wind_error_e = tk.Entry(trav_frame, font = NORM_FONT, width = 20, 
                                 text = self.wind_error)
         wind_error_e.grid(row = 3, column = 1, padx = 5, pady = 5, sticky = 'W')
         
@@ -408,6 +408,9 @@ class mygui(tk.Tk):
 #========================================================================================
          
     def read_trav_data(self):
+        
+        # Reset loop counter
+        common['loop'] = 0
         
         self.text_output('Reading traverse data...', add_line = False)
            
