@@ -227,7 +227,7 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
     shift_model_grid = np.add(shift_model_grid, np.multiply(line, stretch))
     
     # Interpolate onto measurement wavelength grid
-    F = griddata(shift_model_grid, F_conv, grid)
+    F = griddata(shift_model_grid, F_conv, grid, method = 'cubic')
     
     if calc_trans_flag == True:
         

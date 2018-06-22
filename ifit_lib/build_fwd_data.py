@@ -68,7 +68,7 @@ def build_fwd_data(common, settings, self):
     self.print_output('Solar reference spectrum imported', add_line = False)
     
     # Smooth and interpolate onto model_grid
-    smooth_sol_y = sol_y#smooth(sol_y, 8)
+    smooth_sol_y = smooth(sol_y, 8)
     sol = griddata(sol_x, smooth_sol_y, model_grid, method = 'cubic')
     
     
@@ -84,7 +84,7 @@ def build_fwd_data(common, settings, self):
     # Import ring spectrum and interpolate onto the model_grid
     self.print_output('Importing ring spectrum...', add_line = False)
     ring_x, ring_y = np.loadtxt(settings['ring_path'], unpack = True)
-    ring = griddata(ring_x, ring_y, model_grid)
+    ring = griddata(ring_x, ring_y, model_grid, method = 'cubic')
     self.print_output('Ring spectrum imported', add_line = False)
     
     self.print_output('Importing gas cross-sections...', add_line = False)
@@ -92,19 +92,19 @@ def build_fwd_data(common, settings, self):
     
     # Import SO2 data
     so2_xsec = np.loadtxt(settings['so2_path'], skiprows=1)
-    so2_xsec = griddata(so2_xsec[:,0], so2_xsec[:,1], model_grid)
+    so2_xsec = griddata(so2_xsec[:,0], so2_xsec[:,1], model_grid, method = 'cubic')
     self.print_output('SO2 cross-section imported', add_line = False)
     
     
     # Import NO2 data
     no2_xsec = np.loadtxt(settings['no2_path'], skiprows=43)
-    no2_xsec = griddata(no2_xsec[:,0], no2_xsec[:,2], model_grid)
+    no2_xsec = griddata(no2_xsec[:,0], no2_xsec[:,2], model_grid, method = 'cubic')
     self.print_output('NO2 cross-section imported', add_line = False)
     
     
     # Import O3 data
     o3_xsec = np.loadtxt(settings['o3_path'], skiprows=41)
-    o3_xsec = griddata(o3_xsec[:,0], o3_xsec[:,1], model_grid)
+    o3_xsec = griddata(o3_xsec[:,0], o3_xsec[:,1], model_grid, method = 'cubic')
     self.print_output('O3 cross-section imported', add_line = False)
     
     
@@ -118,7 +118,7 @@ def build_fwd_data(common, settings, self):
     bro = bro[::-1]
     
     # Interpolate onto the grid
-    bro_xsec = griddata(bro[:,0], bro[:,1], model_grid)
+    bro_xsec = griddata(bro[:,0], bro[:,1], model_grid, method = 'cubic')
     self.print_output('BrO cross-section imported')
     
     
