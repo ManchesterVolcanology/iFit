@@ -34,9 +34,9 @@ from ifit_lib.find_nearest import extract_window
 from ifit_lib.file_control import make_directory
 
 # Define some fonts to use in the program
-NORM_FONT = ('Verdana', 6)
+NORM_FONT = ('Verdana', 8)
 MED_FONT  = ('Veranda', 8)
-LARG_FONT = ('Verdana', 10, 'bold')
+LARG_FONT = ('Verdana', 9, 'bold')
 
 class mygui(tk.Tk):
     
@@ -71,21 +71,21 @@ class mygui(tk.Tk):
         # Create two frames, one for post analysis and one for real time acquisition
         nb.add(page1, text = 'Control')
         nb.add(page2, text =  'Model Parameters')
-        nb.grid(column=0, row = 0, padx=5, pady=5)
+        nb.grid(column=0, row = 0, padx=5, pady=5, rowspan=2)
         
         # Create frame to hold graphs
         graph_frame = ttk.Frame(self, relief = 'groove')
-        graph_frame.grid(row=0, column=1, padx=10, pady=10, rowspan=2, sticky="NW")
+        graph_frame.grid( column=1,row=0, padx=10, pady=10, sticky="NW")
         graph_frame.columnconfigure(index=0, weight=1)
         graph_frame.rowconfigure(index = 0, weight = 1)
         
         # Create frame to hold text output
         text_frame = ttk.Frame(self, relief = 'groove')
-        text_frame.grid(row=1, column=1, padx=10, pady=10, sticky="NW", rowspan=2)
+        text_frame.grid(column=1, row=1, padx=10, pady=10, sticky="NW")
         
         # Frame for quick analysis
-        quick_frame = tk.Frame(self, relief = 'groove')
-        quick_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW")
+        quick_frame = tk.Frame(page1, relief = 'groove')
+        quick_frame.grid(column=0, row=2, padx=10, pady=10, sticky="NW")
         
         mygui.columnconfigure(index=1, weight=1, self = self)
         mygui.rowconfigure(index = 5, weight = 1, self = self)
@@ -98,7 +98,12 @@ class mygui(tk.Tk):
         self.text_box = tkst.ScrolledText(text_frame, width = 45, height = 5)
         self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
                            columnspan = 4)
-        self.text_box.insert('1.0', 'Welcome to piFit! Written by Ben Esse\n\n')  
+        self.text_box.insert('1.0', 'Welcome to piFit! Written by Ben Esse\n\n')
+        
+        # Create progress bar
+        self.progress = ttk.Progressbar(text_frame, orient = tk.HORIZONTAL, length=400,
+                                        mode = 'determinate')
+        self.progress.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 4)
         
 #========================================================================================
 #==============================Create quick analysis outputs=============================
@@ -123,12 +128,12 @@ class mygui(tk.Tk):
         last_so2_err_e.grid(row = 1, column = 1, padx = 5, pady = 5)
 
         # Create button for advanced settings
-        adv_set_b = ttk.Button(quick_frame, text = 'Adv. Settings', width = 10, 
+        adv_set_b = ttk.Button(quick_frame, text = 'Adv. Settings', width = 15, 
                             command=lambda: adv_settings(self))
         adv_set_b.grid(row = 0, column = 2, padx = 5, pady = 5)
 
         # Create button to save settings
-        save_b = ttk.Button(quick_frame, text = 'Save Settings', width = 10,
+        save_b = ttk.Button(quick_frame, text = 'Save Settings', width = 15,
                             command = self.save)
         save_b.grid(row = 1, column = 2, padx = 5, pady = 5)
         
@@ -223,8 +228,8 @@ class mygui(tk.Tk):
 #========================================================================================        
                     
         # Create figure to hold the graphs
-        plt.rcParams.update({'font.size': 10} )
-        self.fig = plt.figure(figsize = (4,3))
+        plt.rcParams.update({'font.size': 8} )
+        self.fig = plt.figure(figsize = (4,2.5))
         
         # Create plot axes
         self.ax = self.fig.add_subplot(111)
@@ -282,28 +287,27 @@ class mygui(tk.Tk):
         c_spec_e.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         # Integration Time
-        self.int_time = tk.DoubleVar(self, value = settings['int_time'])
-        int_time_l = tk.Label(setup_frame2, text = 'Integration time (ms):', 
-                              font = NORM_FONT)
+        int_time_vals = [settings['int_time'],1,2,3,4,5,10,20,30,40,50,100,200,300,400,
+                         500,600,700,800,900,1000]
+        int_time_l = tk.Label(setup_frame2, text = 'Int. Time:', font = NORM_FONT)
         int_time_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        int_time_e = ttk.Entry(setup_frame2, textvariable = self.int_time, width = 10)
-        int_time_e.grid(row = 1, column = 1, padx = 5, pady = 5)
+        self.int_time = tk.Spinbox(setup_frame2, values = int_time_vals, width = 10)
+        self.int_time.grid(row = 1, column = 1, padx = 5, pady = 5)
         
         # Coadds
-        self.coadds = tk.DoubleVar(self, value = settings['coadds'])
-        coadds_l = tk.Label(setup_frame2, text = 'Coadds:', 
-                              font = NORM_FONT)
+        coadd_vals=[settings['coadds'],1,2,3,4,5,10,20,30,40,50,100,200,300,400,500,1000]
+        coadds_l = tk.Label(setup_frame2, text = 'Coadds:', font = NORM_FONT)
         coadds_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        coadds_e = ttk.Entry(setup_frame2, textvariable = self.coadds, width = 10)
-        coadds_e.grid(row = 2, column = 1, padx = 5, pady = 5)
+        self.coadds = tk.Spinbox(setup_frame2, values = coadd_vals, width = 10)
+        self.coadds.grid(row = 2, column = 1, padx = 5, pady = 5)
         
         # Number of darks to get
-        self.no_darks = tk.DoubleVar(self, value = settings['no_darks'])
+        no_dark_vals = [settings['no_darks'],1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
         no_darks_l = tk.Label(setup_frame2, text = 'No. Darks:', 
                               font = NORM_FONT)
         no_darks_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        no_darks_e = ttk.Entry(setup_frame2, textvariable = self.no_darks, width = 10)
-        no_darks_e.grid(row = 3, column = 1, padx = 5, pady = 5)
+        self.no_darks = tk.Spinbox(setup_frame2, values = no_dark_vals, width = 10)
+        self.no_darks.grid(row = 3, column = 1, padx = 5, pady = 5)
         
         # Create button to connect to spectrometer
         connect_spec_b = ttk.Button(setup_frame2, text = 'Connect', width = 10,
@@ -700,6 +704,10 @@ class mygui(tk.Tk):
         # Update notes
         self.print_output('Begin reading darks')
         
+        # Reset progress bar
+        self.progress['mode'] = 'determinate'
+        self.progress['value'] = 0
+        
         # Create zero array to hold dark spectra
         dark = np.zeros(2048)
         
@@ -738,6 +746,13 @@ class mygui(tk.Tk):
             
             # Sum up the darks
             dark = np.add(dark, y)
+            
+            # Update the progress bar
+            prog = ((i+1)/dark_n) * 100
+            self.progress['value'] = prog
+            
+            # Force gui to update
+            mygui.update(self)
         
         # Divide by number of darks to get average
         settings['dark_spec'] = np.divide(dark, dark_n)
@@ -808,7 +823,7 @@ class mygui(tk.Tk):
         # Populate common with other data from the GUI
         common['wave_start']       = float(self.wave_start_e.get())
         common['wave_stop']        = float(self.wave_stop_e.get())
-        common['poly_n']           = int(self.poly_n.get())
+        common['poly_n']           = int(self.poly_n.get()) + 1
         common['ils_width']        = float(self.ils_width_e.get())
         common['ils_gauss_weight'] = float(self.gauss_weight.get())
         common['ldf']              = float(self.ldf_e.get())
@@ -952,6 +967,13 @@ class mygui(tk.Tk):
             
         else:
             out_excel_fname = settings['folder'] + 'iFit_out.csv'
+            
+#========================================================================================
+#===========================Set Progress bar to correct format===========================
+#========================================================================================
+            
+        self.progress['mode'] = 'indeterminate'
+        self.progress['value'] = 0
              
 #========================================================================================
 #===================================Start Analysis Loop==================================
@@ -1033,7 +1055,11 @@ class mygui(tk.Tk):
                     
                     # Update last spec variable and spec number
                     common['last_spec'] = y
-                    spec_no = settings['loop']   
+                    spec_no = settings['loop']  
+                    
+                    # Update progress bar
+                    prog = settings['loop']
+                    self.progress['value'] = prog
                     
                     wait_flag = False
                 
@@ -1059,6 +1085,10 @@ class mygui(tk.Tk):
                     
                     # Update last spec variable
                     common['last_spec'] = y
+                    
+                    # Update progress bar
+                    prog = settings['loop']
+                    self.progress['value'] = prog
                     
                     wait_flag = True
                 
@@ -1239,7 +1269,7 @@ def adv_settings(self):
     
     # Make popup window
     popup = tk.Tk()
-    tk.Tk.wm_title(popup, 'Advanced Settings')
+    tk.Tk.wm_title(popup, 'Advanced Settings')    
     
     # Make updating/closing function
     def update_settings(settings, close_flag):
@@ -1384,7 +1414,7 @@ def adv_settings(self):
     sol_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     sol_path_e = ttk.Entry(datab_frame, text=popup.sol_path, font=NORM_FONT, width=40)
     sol_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    sol_path_b = ttk.Button(datab_frame, text = "Select", 
+    sol_path_b = ttk.Button(datab_frame, text = "Update", 
                             command = lambda: update_fp(popup.sol_path))
     sol_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -1396,7 +1426,7 @@ def adv_settings(self):
     ring_path_e = ttk.Entry(datab_frame, textvariable=popup.ring_path, font=NORM_FONT, 
                             width=40)
     ring_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    ring_path_b = ttk.Button(datab_frame, text = "Select", 
+    ring_path_b = ttk.Button(datab_frame, text = "Update", 
                              command = lambda: update_fp(popup.ring_path))
     ring_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -1408,7 +1438,7 @@ def adv_settings(self):
     so2_path_e = ttk.Entry(datab_frame, textvariable = popup.so2_path, font = NORM_FONT,
                            width = 40)
     so2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    so2_path_b = ttk.Button(datab_frame, text = "Select", 
+    so2_path_b = ttk.Button(datab_frame, text = "Update", 
                             command = lambda: update_fp(popup.so2_path))
     so2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -1420,7 +1450,7 @@ def adv_settings(self):
     no2_path_e = ttk.Entry(datab_frame, textvariable = popup.no2_path, font = NORM_FONT,
                            width = 40)
     no2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    no2_path_b = ttk.Button(datab_frame, text = "Select", 
+    no2_path_b = ttk.Button(datab_frame, text = "Update", 
                             command = lambda: update_fp(popup.no2_path))
     no2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -1432,7 +1462,7 @@ def adv_settings(self):
     o3_path_e = ttk.Entry(datab_frame, textvariable = popup.o3_path, font = NORM_FONT,
                           width = 40)
     o3_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    o3_path_b = ttk.Button(datab_frame, text = "Select", 
+    o3_path_b = ttk.Button(datab_frame, text = "Update", 
                            command = lambda: update_fp(popup.o3_path))
     o3_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -1444,7 +1474,7 @@ def adv_settings(self):
     bro_path_e = ttk.Entry(datab_frame, textvariable = popup.bro_path, font = NORM_FONT,
                            width = 40)
     bro_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
-    bro_path_b = ttk.Button(datab_frame, text = "Select", 
+    bro_path_b = ttk.Button(datab_frame, text = "Update", 
                             command = lambda: update_fp(popup.bro_path))
     bro_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -1456,7 +1486,7 @@ def adv_settings(self):
     solar_resid_path_e = ttk.Entry(datab_frame, textvariable = popup.solar_resid_path,
                                    font = NORM_FONT, width = 40)
     solar_resid_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
-    solar_resid_path_b = ttk.Button(datab_frame, text = "Select", 
+    solar_resid_path_b = ttk.Button(datab_frame, text = "Update", 
                                     command = lambda: update_fp(popup.solar_resid_path))
     solar_resid_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1    
