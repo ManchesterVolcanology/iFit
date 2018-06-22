@@ -874,6 +874,10 @@ class mygui(tk.Tk):
         # Update notes
         self.print_output('Begin reading darks')
         
+        # Reset progress bar
+        self.progress['mode'] = 'determinate'
+        self.progress['value'] = 0
+        
         # Create zero array to hold dark spectra
         dark = np.zeros(2048)
         
@@ -912,6 +916,10 @@ class mygui(tk.Tk):
             
             # Sum up the darks
             dark = np.add(dark, y)
+            
+            # Update the progress bar
+            prog = (i/dark_n) * 100
+            self.progress['value'] = prog
         
         # Divide by number of darks to get average
         settings['dark_spec'] = np.divide(dark, dark_n)
@@ -991,7 +999,7 @@ class mygui(tk.Tk):
         # Populate common with other data from the GUI
         common['wave_start']       = float(self.wave_start_e.get())
         common['wave_stop']        = float(self.wave_stop_e.get())
-        common['poly_n']           = int(self.poly_n.get())
+        common['poly_n']           = int(self.poly_n.get()) + 1
         common['ils_width']        = float(self.ils_width_e.get())
         common['ils_gauss_weight'] = float(self.gauss_weight.get())
         common['ldf']              = float(self.ldf_e.get())
@@ -1216,8 +1224,10 @@ class mygui(tk.Tk):
             
         if rt_flag == 'rt_analysis':
             self.progress['mode'] = 'indeterminate'
+            self.progress['value'] = 0
         else:
             self.progress['mode'] = 'determinate'
+            self.progress['value'] = 0
              
 #========================================================================================
 #===================================Start Analysis Loop==================================
