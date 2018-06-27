@@ -171,11 +171,15 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
     if com['ldf_flag'] == True:
         i += 1
         ldf = args[i]
-        i += 1
-        #ldf_grad = args[i]
+        #i += 1
+        #aero_p0 = args[i]
+        #i += 1
+        #aero_p1 = args[i]
         
     else:
         ldf = com['ldf']
+        #aero_p0 = 1
+        #aero_p1 = 0
 
     # Construct background polynomial
     bg_poly = make_poly(com['model_grid'], p)
@@ -191,29 +195,29 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
     sol_T = np.add(com['sol'], ring_T)
 
     
-    # Generate raw, high res spectrum
     # Background sky spectrum
     raw_sol = np.multiply(bg_poly, sol_T)
     bg_spec = np.multiply(np.multiply(raw_sol, no2_T), o3_T)
        
     
-    # Include plume gasses
+    # Include plume gasses and areosol
     raw_F = np.multiply(np.multiply(bg_spec, bro_T), so2_T)
+    #aero_poly = make_poly(com['model_grid'], [1, aero_p1])
+    plume_F = raw_F#np.multiply(raw_F, aero_poly)
 
     
-    # Add light dilution effect
+    # If SO2 below 50 ppm.m, set ldf to 0
+    if so2_amt < 1.2315e17:
+        ldf = 0
+    
+    # Calc light dilution effect
     light_d = np.multiply(bg_spec, ldf)
-    #light_d = np.multiply(np.multiply(bg_poly, sol_T), ldf)
-    raw_F = np.add(raw_F, light_d)
+    
+    # Combine with normal spectrum
+    plume_F = np.multiply(plume_F, 1-ldf)
+    raw_F = np.add(plume_F, light_d)
+    
 
-
-    # Avoid unphysical ils widths
-    if ils_width < 0.0:
-        ils_width = 0.1
-    if ils_width > 2.0:
-        ils_width = 2.0    
-        
-        
     # Convolve high res raw_F with ILS
     ils = make_ils(ils_width, (com['model_grid'][1] - com['model_grid'][0]),
                    com['ils_gauss_weight'])
@@ -227,7 +231,7 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
     shift_model_grid = np.add(shift_model_grid, np.multiply(line, stretch))
     
     # Interpolate onto measurement wavelength grid
-    F = griddata(shift_model_grid, F_conv, grid, method = 'cubic')
+    F = griddata(shift_model_grid, F_conv, grid, method = 'linear')
     
     if calc_trans_flag == True:
         
@@ -245,9 +249,9 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
         raw_F_no_bro = np.multiply(raw_F_no_bro, o3_T)
         
         # Add light dilution
-        raw_F_no_so2 = np.add(raw_F_no_so2, light_d)
-        raw_F_no_o3  = np.add(raw_F_no_o3,  light_d)
-        raw_F_no_bro = np.add(raw_F_no_bro, light_d)
+        raw_F_no_so2 = np.add(np.multiply(raw_F_no_so2, 1 - ldf), light_d)
+        raw_F_no_o3  = np.add(np.multiply(raw_F_no_o3, 1 - ldf),  light_d)
+        raw_F_no_bro = np.add(np.multiply(raw_F_no_bro, 1 - ldf), light_d)
         
         # Convolve with the ils
         F_conv_no_so2 = np.convolve(raw_F_no_so2, ils, 'same')
@@ -256,13 +260,13 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
         
         # Place onto spectrometer grid
         com['F_no_so2'] = griddata(shift_model_grid, F_conv_no_so2, grid)
-        com['so2_spec'] = griddata(shift_model_grid, np.convolve(so2_T, ils,'same'),grid)
+        com['so2_spec'] = griddata(shift_model_grid, np.convolve(so2_T,ils,'same'), grid)
     
         com['F_no_o3'] = griddata(shift_model_grid, F_conv_no_o3, grid)
         com['o3_spec'] = griddata(shift_model_grid, np.convolve(o3_T, ils, 'same'), grid)
     
         com['F_no_bro'] = griddata(shift_model_grid, F_conv_no_bro, grid)
-        com['bro_spec'] = griddata(shift_model_grid, np.convolve(bro_T, ils,'same'),grid)
+        com['bro_spec'] = griddata(shift_model_grid, np.convolve(bro_T,ils,'same'), grid)
 
     # Remove solar residual
     if com['solar_resid_flag'] == 'Remove':
@@ -273,5 +277,4 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
             com['F_no_o3'] = np.multiply(com['F_no_o3'], com['solar_resid'])
             com['F_no_bro'] = np.multiply(com['F_no_bro'], com['solar_resid'])
         
-    
     return F

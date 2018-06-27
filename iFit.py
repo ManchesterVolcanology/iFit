@@ -122,9 +122,14 @@ class mygui(tk.Tk):
 #========================================================================================
         
         # Create progress bar
-        self.progress = ttk.Progressbar(quick_frame, orient = tk.HORIZONTAL, length=400,
+        self.progress = ttk.Progressbar(quick_frame, orient = tk.HORIZONTAL, length=350,
                                         mode = 'determinate')
-        self.progress.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 4)
+        self.progress.grid(row = 0, column = 1, padx = 5, pady = 5, columnspan = 3)
+        
+        # Create status indicator
+        self.status = tk.StringVar(quick_frame, value = 'Standby')
+        self.status_e = tk.Label(quick_frame, textvariable = self.status)
+        self.status_e.grid(row=0, column=0, padx=5, pady=5, sticky="EW")
         
         # Create ouput for last so2 amount
         self.last_so2_amt = tk.DoubleVar(self, value = 0)
@@ -186,7 +191,7 @@ class mygui(tk.Tk):
             settings['scroll_spec_no']    = 200
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
-            settings['poly_n']            = 4
+            settings['poly_n']            = 3
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
             settings['ring']              = 1.0
@@ -493,7 +498,7 @@ class mygui(tk.Tk):
         test_spec_b.grid(row = 2, column = 2, padx = 5, pady = 5)
         
         # Create button to read darks
-        read_darks_b = ttk.Button(setup_frame2, text = 'Read Darks',
+        read_darks_b = ttk.Button(setup_frame2, text = 'Acquire Darks',
                                   command = self.read_darks)
         read_darks_b.grid(row = 3, column = 2, padx = 5, pady = 5)
         
@@ -854,6 +859,11 @@ class mygui(tk.Tk):
 #========================================================================================
 
     def test_spec(self):
+        
+        # Update status
+        self.status.set('Acquiring')
+        mygui.update(self)
+        
         x, y, header, read_time = aquire_spectrum(self,
                                                   settings['spec'], 
                                                   settings['int_time'], 
@@ -864,6 +874,9 @@ class mygui(tk.Tk):
         self.ax1.set_xlim(x.min(), x.max())
         self.ax1.set_ylim(y.min(), y.max())
         self.canvas.draw()
+        
+        # Update status
+        self.status.set('Standby')
 
 #========================================================================================
 #========================================Read Darks======================================
@@ -871,87 +884,91 @@ class mygui(tk.Tk):
 
     def read_darks(self):
         
-        # Update notes
-        self.print_output('Begin reading darks')
+        if tkMessageBox.askyesno('Record Darks', 'Ready to begin measuring darks?'):
         
-        # Reset progress bar
-        self.progress['mode'] = 'determinate'
-        self.progress['value'] = 0
-        
-        # Create zero array to hold dark spectra
-        dark = np.zeros(2048)
-        
-        # Define dark filepath
-        dark_fp = settings['rt_folder'] + 'dark/'
-        
-        # Create the directory  
-        dark_fp = make_directory(dark_fp)
-        
-        # Loop over number of darks to collect
-        dark_n = int(self.no_darks.get())
-        
-        for i in range(dark_n):
+            # Update status
+            self.status.set('Acquiring darks')
+            mygui.update(self)
             
-            # Create filename
-            n = str('{num:05d}'.format(num=i))
-            filepath = dark_fp + 'spectrum_' + n + '.txt'
+            # Reset progress bar
+            self.progress['mode'] = 'determinate'
+            self.progress['value'] = 0
             
-            # Read spectrometer
-            try:
-                spc = aquire_spectrum(self, settings['spec'], settings['int_time'],
-                                      int(self.coadds.get()))
-            except KeyError:
-                self.print_output('No spectrometer connected')
-                return
+            # Create zero array to hold dark spectra
+            dark = np.zeros(2048)
             
-            except SeaBreezeError:
-                self.print_output('Spectrometer disconnected')
-                return 
+            # Define dark filepath
+            dark_fp = settings['rt_folder'] + 'dark/'
             
-            # Unpack spectrum data
-            x, y, header, read_time = spc
+            # Create the directory  
+            dark_fp = make_directory(dark_fp)
             
-            # Save
-            np.savetxt(filepath, np.column_stack((x,y)), header = header)
+            # Loop over number of darks to collect
+            dark_n = int(self.no_darks.get())
             
-            # Sum up the darks
-            dark = np.add(dark, y)
+            for i in range(dark_n):
+                
+                # Create filename
+                n = str('{num:05d}'.format(num=i))
+                filepath = dark_fp + 'spectrum_' + n + '.txt'
+                
+                # Read spectrometer
+                try:
+                    spc = aquire_spectrum(self, settings['spec'], settings['int_time'],
+                                          int(self.coadds.get()))
+                except KeyError:
+                    self.print_output('No spectrometer connected')
+                    return
+                
+                except SeaBreezeError:
+                    self.print_output('Spectrometer disconnected')
+                    return 
+                
+                # Unpack spectrum data
+                x, y, header, read_time = spc
+                
+                # Save
+                np.savetxt(filepath, np.column_stack((x,y)), header = header)
+                
+                # Sum up the darks
+                dark = np.add(dark, y)
+                
+                # Update the progress bar
+                prog = ((i+1)/dark_n) * 100
+                self.progress['value'] = prog
+                
+                # Force gui to update
+                mygui.update(self)
             
-            # Update the progress bar
-            prog = (i/dark_n) * 100
-            self.progress['value'] = prog
-        
-        # Divide by number of darks to get average
-        settings['dark_spec'] = np.divide(dark, dark_n)
-        
-        # Display the dark spectrum
-        lines = [self.line2]
-        axes =  [self.ax1  ]
-        
-        # Calculate limits
-        y_lo  = min(dark) - abs((0.1*max(dark)))
-        y_hi  = max(dark) + abs((0.1*max(dark)))
-        x_lo, x_hi = x.min() - 1, x.max() + 1
-        
-        # Build data array to pass to graphing function
-        #                 x data    y data    x limits     y limits
-        data = np.array(([x,        dark,     [x_lo,x_hi], [y_lo,y_hi]]))
-        
-        # Update graph
-        update_graph(lines, axes, self.canvas, data)
-        
-        # Add dark to common
-        settings['dark_spec']  = dark
-        
-        # Update notes file
-        self.print_output('Dark updated\n' + \
-                          'Spectrum no: ' + str(settings['loop']) + '\n' + \
-                          'No. darks: ' + str(dark_n) + '\n' + \
-                          'Integration time (ms): ' + str(settings['int_time']) + '\n' +\
-                          'Coadds: ' + str(self.coadds.get()))
-         
-        # Set dark_flag to True
-        settings['rt_dark_flag'] = True
+            # Divide by number of darks to get average
+            settings['dark_spec'] = np.divide(dark, dark_n)
+            
+            # Display the dark spectrum
+            lines = [self.line2]
+            axes =  [self.ax1  ]
+            
+            # Build data array to pass to graphing function
+            #                 x data    y data    x limits     y limits
+            data = np.array(([x,        dark,     'auto',      'auto']))
+            
+            # Update graph
+            update_graph(lines, axes, self.canvas, data)
+            
+            # Add dark to common
+            settings['dark_spec']  = dark
+            
+            # Update notes file
+            self.print_output('Dark updated\n' + \
+                              'Spectrum no: ' + str(settings['loop']) + '\n' + \
+                              'No. darks: ' + str(dark_n) + '\n' + \
+                              'Integration time (ms): '+str(settings['int_time'])+'\n'+\
+                              'Coadds: ' + str(self.coadds.get()))
+             
+            # Set dark_flag to True
+            settings['rt_dark_flag'] = True
+            
+            # Update status
+            self.status.set('Standby')
         
 #========================================================================================
 #========================================Read Darks======================================
@@ -1043,6 +1060,8 @@ class mygui(tk.Tk):
             
         if common['ldf_flag'] == True:
             common['params'].append(('ldf', float(self.ldf_e.get())))
+            #common['params'].append(('aero_p0', 1.0))
+            #common['params'].append(('aero_p1', 1.0))
 
         # Change to ordered dictionary
         common['params'] = OrderedDict(common['params'])
@@ -1053,6 +1072,10 @@ class mygui(tk.Tk):
 #========================================================================================
 #=================================Read in xsecs and flat=================================
 #========================================================================================
+        
+        # Update status
+        self.status.set('Building Model')
+        mygui.update(self)
 
         # Build filepath to flat spectrum from spectrometer serial number
         if rt_flag == 'post_analysis':
@@ -1249,6 +1272,13 @@ class mygui(tk.Tk):
             gas['O3_errs']  = []
             gas['BrO_amts'] = []
             gas['BrO_errs'] = []
+        
+            # Update status
+            if rt_flag == 'rt_analysis':
+                self.status.set('Acquiring')
+            else:
+                self.status.set('Analysing')
+            mygui.update(self)
 
             # Begin analysis loop
             while True:
@@ -1257,7 +1287,6 @@ class mygui(tk.Tk):
 #========================================================================================
 #======================================Post analysis=====================================
 #========================================================================================                
-                
                 
                 # End loop if finished
                 if settings['stop_flag'] == True:
@@ -1395,8 +1424,8 @@ class mygui(tk.Tk):
                         fit_dict[l] = fit_p[m]
     
                      # Feed fit params into forward
-                    fit = ifit_fwd(grid, *fit_p)
-    
+                    fit = ifit_fwd(grid, *fit_p)                   
+                    
                     # Calculate the residual of the fit
                     if settings['resid_type'] == 'Percentage':
                         resid=np.multiply(np.divide(np.subtract(y_data,fit),y_data), 100)
@@ -1415,7 +1444,9 @@ class mygui(tk.Tk):
                         common['solar_resid'] = np.add(common['solar_resid'],
                                                        np.divide(y_data, fit))
                         resid_count += 1
-                      
+                     
+                    # If update params on, check fit quality. If fit fails or is bad, 
+                    #   reset the first guess parameters
                     if bool(settings['update_params']) == True:
                         if fit_flag == False:
                             common['params'] = initial_params.copy()
@@ -1538,6 +1569,9 @@ class mygui(tk.Tk):
                     
                     # Update graph
                     update_graph(lines, axes, self.canvas, data)
+                    
+                    # Make it look nice
+                    plt.tight_layout()
                 
                 if skip_flag[0] == True:
                     
@@ -1556,9 +1590,13 @@ class mygui(tk.Tk):
                 common['solar_resid'] = np.divide(common['solar_resid'], resid_count)
                 
                 # Save
-                np.savetxt('data_bases/gas data/solar_resid.txt', common['solar_resid'])
+                np.savetxt('data_bases/gas data/solar_resid.txt', 
+                           np.column_stack((grid,common['solar_resid'])))
                 
                 self.print_output('Solar residual spectrum updated')
+                
+            # Update status
+            self.status.set('Standby')
 
 
 

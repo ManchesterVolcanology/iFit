@@ -38,6 +38,9 @@ def make_gauss(interval, fwhm):
     # Create gauss
     gauss = (1/(sigma*np.sqrt(2*np.pi))) * np.exp(-0.5*np.power((np.divide(x, sigma)),2))
     
+    # Normalise
+    gauss = np.divide(gauss, np.sum(gauss))
+    
     return gauss
     
 #========================================================================================

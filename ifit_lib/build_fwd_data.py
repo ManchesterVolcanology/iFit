@@ -7,8 +7,9 @@ Created on Mon May  8 09:07:32 2017
 
 import numpy as np
 from scipy.interpolate import griddata
-from ifit_lib.smooth import smooth
 from ifit_lib.find_nearest import extract_window
+
+from ifit_lib.smooth import smooth
 
 #========================================================================================
 #=====================================build_fwd_data=====================================
@@ -65,17 +66,21 @@ def build_fwd_data(common, settings, self):
     # Import solar reference spectrum
     self.print_output('Importing solar reference spectrum...', add_line = False)
     sol_x, sol_y = np.loadtxt(settings['sol_path'], unpack = True)
-    self.print_output('Solar reference spectrum imported', add_line = False)
+    
+    # Normalise to typical intensity
+    conv_factor = sol_y.max() / 70000
+    sol_y = np.divide(sol_y, conv_factor)
     
     # Smooth and interpolate onto model_grid
     smooth_sol_y = smooth(sol_y, 8)
     sol = griddata(sol_x, smooth_sol_y, model_grid, method = 'cubic')
-    
-    
+    self.print_output('Solar reference spectrum imported', add_line = False)
+     
     # Import solar residual spectrum
     if common['solar_resid_flag'] == 'Remove':
         try:
-            common['solar_resid'] = np.loadtxt(settings['solar_resid_path'])
+            x, common['solar_resid'] = np.loadtxt(settings['solar_resid_path'], 
+                                                  unpack=True)
             
         except FileNotFoundError:
             self.print_output('Solar Residual not found', add_line = False)
@@ -120,7 +125,15 @@ def build_fwd_data(common, settings, self):
     # Interpolate onto the grid
     bro_xsec = griddata(bro[:,0], bro[:,1], model_grid, method = 'cubic')
     self.print_output('BrO cross-section imported')
+    '''
+    ####################################
+    # Import lens transmission spectrum
+    lens_x, lens_y = np.loadtxt('data_bases/Spectrometer/ThorLabs_UV_lens_trans.txt',
+                                unpack=True) 
     
+    common['lens_T'] = griddata(lens_x, lens_y, model_grid, method = 'cubic')
+    ####################################
+    '''
     
     # Add the data to the common dictionary
     common['model_grid']  = model_grid

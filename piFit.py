@@ -101,9 +101,14 @@ class mygui(tk.Tk):
         self.text_box.insert('1.0', 'Welcome to piFit! Written by Ben Esse\n\n')
         
         # Create progress bar
-        self.progress = ttk.Progressbar(text_frame, orient = tk.HORIZONTAL, length=400,
+        self.progress = ttk.Progressbar(text_frame, orient = tk.HORIZONTAL, length=300,
                                         mode = 'determinate')
-        self.progress.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 4)
+        self.progress.grid(row = 0, column = 1, padx = 5, pady = 5, columnspan = 4)
+        
+        # Create status indicator
+        self.status = tk.StringVar(text_frame, value = 'Standby')
+        self.status_e = tk.Label(text_frame, textvariable = self.status)
+        self.status_e.grid(row=0, column=0, padx=5, pady=5, sticky="EW")
         
 #========================================================================================
 #==============================Create quick analysis outputs=============================
@@ -287,27 +292,35 @@ class mygui(tk.Tk):
         c_spec_e.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         # Integration Time
-        int_time_vals = [settings['int_time'],1,2,3,4,5,10,20,30,40,50,100,200,300,400,
+        self.int_time = tk.IntVar(setup_frame2, value = settings['int_time'])
+        int_time_vals = [1,2,3,4,5,10,20,30,40,50,100,200,300,400,
                          500,600,700,800,900,1000]
         int_time_l = tk.Label(setup_frame2, text = 'Int. Time:', font = NORM_FONT)
         int_time_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        self.int_time = tk.Spinbox(setup_frame2, values = int_time_vals, width = 10)
-        self.int_time.grid(row = 1, column = 1, padx = 5, pady = 5)
+        int_time_sb = tk.Spinbox(setup_frame2, textvariable=self.int_time,
+                                   values = int_time_vals, width = 10)
+        int_time_sb.grid(row = 1, column = 1, padx = 5, pady = 5)
+        self.int_time.set(settings['int_time'])
         
         # Coadds
-        coadd_vals=[settings['coadds'],1,2,3,4,5,10,20,30,40,50,100,200,300,400,500,1000]
+        self.coadds = tk.IntVar(setup_frame2, value = settings['coadds'])
+        coadd_vals=[1,2,3,4,5,10,20,30,40,50,100,200,300,400,500,1000]
         coadds_l = tk.Label(setup_frame2, text = 'Coadds:', font = NORM_FONT)
         coadds_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        self.coadds = tk.Spinbox(setup_frame2, values = coadd_vals, width = 10)
-        self.coadds.grid(row = 2, column = 1, padx = 5, pady = 5)
+        coadds_sb = tk.Spinbox(setup_frame2, textvariable = self.coadds, 
+                               values = coadd_vals, width = 10)
+        coadds_sb.grid(row = 2, column = 1, padx = 5, pady = 5)
+        self.coadds.set(settings['coadds'])
         
         # Number of darks to get
-        no_dark_vals = [settings['no_darks'],1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-        no_darks_l = tk.Label(setup_frame2, text = 'No. Darks:', 
-                              font = NORM_FONT)
+        self.no_darks = tk.IntVar(setup_frame2, value = settings['no_darks'])
+        no_dark_vals = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+        no_darks_l = tk.Label(setup_frame2, text = 'No. Darks:', font = NORM_FONT)
         no_darks_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        self.no_darks = tk.Spinbox(setup_frame2, values = no_dark_vals, width = 10)
-        self.no_darks.grid(row = 3, column = 1, padx = 5, pady = 5)
+        no_darks_sb = tk.Spinbox(setup_frame2, textvariable = self.no_darks,
+                                 values = no_dark_vals, width = 10)
+        no_darks_sb.grid(row = 3, column = 1, padx = 5, pady = 5)
+        self.no_darks.set(settings['no_darks'])
         
         # Create button to connect to spectrometer
         connect_spec_b = ttk.Button(setup_frame2, text = 'Connect', width = 10,
@@ -473,6 +486,7 @@ class mygui(tk.Tk):
         poly_n_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
         poly_n_e = tk.Spinbox(param_frame, values = poly_n_vals, width = 10)
         poly_n_e.grid(row = 1, column = 1, padx = 5, pady = 5)
+        self.poly_n.set(settings['poly_n'])
         
         # Spectrometer wavelength shift parameters
         self.shift = tk.DoubleVar(param_frame, value = settings['shift'])
@@ -666,8 +680,8 @@ class mygui(tk.Tk):
         
         try:
             # Update integration time on spectrometer
-            settings['int_time'] = float(self.int_time.get())*1000
-            settings['spec'].integration_time_micros(float(settings['int_time']))
+            settings['int_time'] = float(self.int_time.get())
+            settings['spec'].integration_time_micros(float(settings['int_time'])*1000)
             
             self.print_output('Integration time updated to '+str(settings['int_time']) +\
                               '\nSpectrum number ' + str(settings['loop']))
@@ -680,8 +694,13 @@ class mygui(tk.Tk):
 #========================================================================================
 
     def test_spec(self):
-        x, y, header, read_time = aquire_spectrum(self,
-                                                  settings['spec'], 
+        
+        # Update status
+        self.status.set('Acquiring')
+        mygui.update(self)
+        
+        x, y, header, read_time = aquire_spectrum(self, 
+                                                  settings['spec'],
                                                   settings['int_time'], 
                                                   int(self.coadds.get()))
         
@@ -694,6 +713,9 @@ class mygui(tk.Tk):
         self.ax.autoscale_view() 
         
         self.canvas.draw()
+        
+        # Update status
+        self.status.set('Standby')
 
 #========================================================================================
 #========================================Read Darks======================================
@@ -701,84 +723,93 @@ class mygui(tk.Tk):
 
     def read_darks(self):
         
-        # Update notes
-        self.print_output('Begin reading darks')
+        if tkMessageBox.askyesno('Record Darks', 'Ready to begin measuring darks?'):
         
-        # Reset progress bar
-        self.progress['mode'] = 'determinate'
-        self.progress['value'] = 0
-        
-        # Create zero array to hold dark spectra
-        dark = np.zeros(2048)
-        
-        # Define dark filepath
-        dark_fp = settings['folder'] + 'dark/'
-        
-        # Create the directory  
-        dark_fp = make_directory(dark_fp)
-        
-        # Loop over number of darks to collect
-        dark_n = int(self.no_darks.get())
-        
-        for i in range(dark_n):
-            
-            # Create filename
-            n = str('{num:05d}'.format(num=i))
-            filepath = dark_fp + 'spectrum_' + n + '.txt'
-            
-            # Read spectrometer
-            try:
-                spc = aquire_spectrum(self, settings['spec'], settings['int_time'],
-                                      int(self.coadds.get()))
-            except KeyError:
-                self.print_output('No spectrometer connected')
-                return
-            
-            except SeaBreezeError:
-                self.print_output('Spectrometer disconnected')
-                return 
-            
-            # Unpack spectrum data
-            x, y, header, read_time = spc
-            
-            # Save
-            np.savetxt(filepath, np.column_stack((x,y)), header = header)
-            
-            # Sum up the darks
-            dark = np.add(dark, y)
-            
-            # Update the progress bar
-            prog = ((i+1)/dark_n) * 100
-            self.progress['value'] = prog
-            
-            # Force gui to update
+            # Update status
+            self.status.set('Acquiring darks')
             mygui.update(self)
-        
-        # Divide by number of darks to get average
-        settings['dark_spec'] = np.divide(dark, dark_n)
-        
-        # Display the test spectrum
-        self.line0.set_data(x, settings['dark_spec'])
-        self.line1.set_data(x[0], settings['dark_spec'][0])
-        
-        # Rescale the axes
-        self.ax.relim()
-        self.ax.autoscale_view() 
-        
-        self.canvas.draw()
-        
-        # Add dark to common
-        settings['dark_spec']  = dark
-        
-        # Update notes file
-        self.print_output('Dark updated\n' + \
-                          'Spectrum no: ' + str(settings['loop']) + '\n' + \
-                          'No. darks: ' + str(dark_n) + '\n' + \
-                          'Integration time (ms): ' + str(settings['int_time']) + '\n' +\
-                          'Coadds: ' + str(self.coadds.get()))
-         
-        # Set dark_flag to True
-        settings['rt_dark_flag'] = True
+            
+            # Update notes
+            self.print_output('Begin reading darks')
+            
+            # Reset progress bar
+            self.progress['mode'] = 'determinate'
+            self.progress['value'] = 0
+            
+            # Create zero array to hold dark spectra
+            dark = np.zeros(2048)
+            
+            # Define dark filepath
+            dark_fp = settings['folder'] + 'dark/'
+            
+            # Create the directory  
+            dark_fp = make_directory(dark_fp)
+            
+            # Loop over number of darks to collect
+            dark_n = int(self.no_darks.get())
+            
+            for i in range(dark_n):
+                
+                # Create filename
+                n = str('{num:05d}'.format(num=i))
+                filepath = dark_fp + 'spectrum_' + n + '.txt'
+                
+                # Read spectrometer
+                try:
+                    spc = aquire_spectrum(self, settings['spec'], settings['int_time'],
+                                          int(self.coadds.get()))
+                except KeyError:
+                    self.print_output('No spectrometer connected')
+                    return
+                
+                except SeaBreezeError:
+                    self.print_output('Spectrometer disconnected')
+                    return 
+                
+                # Unpack spectrum data
+                x, y, header, read_time = spc
+                
+                # Save
+                np.savetxt(filepath, np.column_stack((x,y)), header = header)
+                
+                # Sum up the darks
+                dark = np.add(dark, y)
+                
+                # Update the progress bar
+                prog = ((i+1)/dark_n) * 100
+                self.progress['value'] = prog
+                
+                # Force gui to update
+                mygui.update(self)
+            
+            # Divide by number of darks to get average
+            settings['dark_spec'] = np.divide(dark, dark_n)
+            
+            # Display the test spectrum
+            self.line0.set_data(x, settings['dark_spec'])
+            self.line1.set_data(x[0], settings['dark_spec'][0])
+            
+            # Rescale the axes
+            self.ax.relim()
+            self.ax.autoscale_view() 
+            
+            self.canvas.draw()
+            
+            # Add dark to common
+            settings['dark_spec']  = dark
+            
+            # Update notes file
+            self.print_output('Dark updated\n' + \
+                              'Spectrum no: ' + str(settings['loop']) + '\n' + \
+                              'No. darks: ' + str(dark_n) + '\n' + \
+                              'Integration time (ms): ' + str(settings['int_time']) + '\n' +\
+                              'Coadds: ' + str(self.coadds.get()))
+             
+            # Set dark_flag to True
+            settings['rt_dark_flag'] = True
+            
+            # Update status
+            self.status.set('Standby')
         
 #========================================================================================
 #========================================Read Darks======================================
@@ -874,6 +905,10 @@ class mygui(tk.Tk):
 #========================================================================================
 #=================================Read in xsecs and flat=================================
 #========================================================================================
+
+        # Update status
+        self.status.set('Building Model')
+        mygui.update(self)
 
         # Build filepath to flat spectrum from spectrometer serial number
         settings['flat_path'] = 'data_bases/Spectrometer/flat_' + \
@@ -995,6 +1030,10 @@ class mygui(tk.Tk):
             gas['O3_errs']  = []
             gas['BrO_amts'] = []
             gas['BrO_errs'] = []
+        
+            # Update status
+            self.status.set('Acquiring')
+            mygui.update(self)
 
             # Begin analysis loop
             while True:
@@ -1252,6 +1291,9 @@ class mygui(tk.Tk):
                 np.savetxt('data_bases/gas data/solar_resid.txt', common['solar_resid'])
                 
                 self.print_output('Solar residual spectrum updated')
+                
+            # Update status
+            self.status.set('Standby')
 
 
 
