@@ -13,8 +13,8 @@ from seabreeze.cseabreeze.wrapper import SeaBreezeError
 #======================================read_spectro======================================
 #========================================================================================
 
-def aquire_spectrum(self, spec, integration_time_ms, coadds, dk_flag = True, 
-                    nonlin_flag = True, q = None):
+def acquire_spectrum(self, spec, integration_time_ms, coadds, dk_flag = True, 
+                     nonlin_flag = True, q = None):
     
     '''
     Subprocess to read an ocean optics spectrometer

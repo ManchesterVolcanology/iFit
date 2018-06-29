@@ -16,11 +16,8 @@ import glob
 import numpy as np
 from tkinter import ttk
 import tkinter as tk
-from tkinter import filedialog as fd
-import seabreeze.spectrometers as sb
 from queue import Queue
 from threading import Thread
-import datetime
 from seabreeze.cseabreeze.wrapper import SeaBreezeError
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -30,10 +27,11 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from ifit_lib.build_fwd_data import build_fwd_data
 from ifit_lib.read_spectrum import read_spectrum, average_spectra
 from ifit_lib.fit import fit_spec, ifit_fwd
-from ifit_lib.aquire_spectrum import aquire_spectrum
+from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.find_nearest import extract_window
-from ifit_lib.file_control import make_directory
 from ifit_lib.update_graph import update_graph
+from ifit_lib.gui_funcs import adv_settings, fit_toggle, save, spec_fp, dark_fp, stop, \
+                               connect_spec, update_int_time, test_spec, read_darks
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -106,11 +104,12 @@ class mygui(tk.Tk):
         
         # Create button for advanced settings
         adv_set_b = ttk.Button(text_frame, text = 'Adv. Settings', 
-                            command=lambda: adv_settings(self))
+                            command = lambda: adv_settings(self, settings))
         adv_set_b.grid(row = 0, column = 0, padx = 5, pady = 5)
 
         # Create button to save settings
-        save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
+        save_b = ttk.Button(text_frame, text = 'Save Settings', 
+                            command = lambda: save(self, settings))
         save_b.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         # Create a button to exit
@@ -218,22 +217,6 @@ class mygui(tk.Tk):
         
         # Create flag to see if darks have been measured yet
         settings['rt_dark_flag'] = False
-        
-        
-#========================================================================================
-#==================================Create output folder==================================
-#======================================================================================== 
-
-        # Create filepath to directory to hold program outputs
-        rt_results_folder = 'Results/iFit/' + str(datetime.date.today()) + '/ifit_out/'
-       
-        # Create folder
-        settings['rt_folder'] = make_directory(rt_results_folder, overwrite = True)
-        
-        # Create notes file
-        settings['notes_fname'] = settings['rt_folder'] + 'notes.txt'
-        with open(settings['notes_fname'], 'w') as w:
-            w.write('Notes file for iFit\n\n')
         
 #========================================================================================
 #====================================Create plot canvas==================================
@@ -392,7 +375,8 @@ class mygui(tk.Tk):
                                  text = self.spec_ent)
         self.specfp_l.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W', 
                       columnspan = 3)
-        specfp_b = ttk.Button(setup_frame, text="Select Spectra", command = self.spec_fp)
+        specfp_b = ttk.Button(setup_frame, text="Select Spectra", 
+                              command = lambda: spec_fp(self))
         specfp_b.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
         
         # File dialouge for darks
@@ -405,7 +389,8 @@ class mygui(tk.Tk):
                                  text = self.dark_ent)
         self.darkfp_l.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W', 
                       columnspan = 3)
-        darkfp_b = ttk.Button(setup_frame, text = "Select Darks", command = self.dark_fp)
+        darkfp_b = ttk.Button(setup_frame, text = "Select Darks",
+                              command = lambda: dark_fp(self))
         darkfp_b.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
                
 #========================================================================================
@@ -418,7 +403,8 @@ class mygui(tk.Tk):
         start_b.grid(row = 0, column = 0, padx = 40, pady = 5, columnspan = 2)
         
         # Create button to stop
-        stop_b = ttk.Button(button_frame, text = 'Stop', command = self.stop)
+        stop_b = ttk.Button(button_frame, text = 'Stop', 
+                            command = lambda: stop(self, settings))
         stop_b.grid(row = 0, column = 2, padx = 40, pady = 5, columnspan = 2)
         
 
@@ -484,22 +470,23 @@ class mygui(tk.Tk):
         
         # Create button to connect to spectrometer
         connect_spec_b = ttk.Button(setup_frame2, text = 'Connect',
-                                    command = self.connect_spec)
+                                    command = lambda: connect_spec(self, settings))
         connect_spec_b.grid(row = 0, column = 2, padx = 5, pady = 5)
         
         # Create button to update integration time
         update_int_time_b = ttk.Button(setup_frame2, text = 'Update',
-                                       command = self.update_int_time)
+                                       command = lambda: update_int_time(self, settings))
         update_int_time_b.grid(row = 1, column = 2, padx = 5, pady = 5)
         
         # Create button to read a single spectrum
         test_spec_b = ttk.Button(setup_frame2, text = 'Test Spectrum',
-                                 command = self.test_spec)
+                                 command = lambda: test_spec(self, settings, mygui))
         test_spec_b.grid(row = 2, column = 2, padx = 5, pady = 5)
         
         # Create button to read darks
         read_darks_b = ttk.Button(setup_frame2, text = 'Acquire Darks',
-                                  command = self.read_darks)
+                                  command = lambda: read_darks(self, settings, mygui, 
+                                                               self.line2, self.ax1))
         read_darks_b.grid(row = 3, column = 2, padx = 5, pady = 5)
         
 #========================================================================================
@@ -512,13 +499,14 @@ class mygui(tk.Tk):
         start_aq_b.grid(row = 0, column = 0, padx = 40, pady = 5)
         
         # Create button to stop
-        stop_aq_b = ttk.Button(button_frame2, text = 'Stop', command = self.stop)
+        stop_aq_b = ttk.Button(button_frame2, text = 'Stop', 
+                               command = lambda: stop(self, settings))
         stop_aq_b.grid(row = 0, column = 1, padx = 40, pady = 5)
         
         # Create switch to toggle fitting on or off
-        self.toggle_button = tk.Button(button_frame2, text = 'FITTING OFF', 
-                                       command = self.fit_toggle, width = 12, height = 1,
-                                       bg = 'red', font = LARG_FONT)
+        self.toggle_button = tk.Button(button_frame2, text = 'FITTING OFF', width = 12, 
+                                       height = 1, bg = 'red', font = LARG_FONT,
+                                       command = lambda: fit_toggle(self, settings))
         self.toggle_button.grid(row=1, column=0, padx=5, pady=5, columnspan=2)
         
         
@@ -675,107 +663,7 @@ class mygui(tk.Tk):
     # Close program on 'x' button
     def handler(self):
         self.quit()
-
-
-
-
-
-
-#========================================================================================         
-#========================================================================================
-#=====================================Button Functions===================================
-#======================================================================================== 
-#========================================================================================
         
-        
-        
-        
-
-
-#========================================================================================
-#=====================================Filepath Buttons===================================
-#========================================================================================
-   
-    # Function to select spectra to analyse
-    def spec_fp(self):
-            
-        # Open dialouge to get files
-        fpaths = fd.askopenfilenames()
-
-        if fpaths != '':
-            self.spec_fpaths = []
-            for i in fpaths:
-                self.spec_fpaths.append(str(i))
-            
-            # Save output to input 
-            self.spec_ent.set(str(len(self.spec_fpaths)) + ' spectra selected')
-    
-    # Function to select dark spectra
-    def dark_fp(self):
-            
-        # Open dialouge to get files
-        fpaths = fd.askopenfilenames()
-        
-        if fpaths != '':
-            self.dark_fpaths = []
-            for i in fpaths:
-                self.dark_fpaths.append(str(i))
-            
-            # Save output to input
-            self.dark_ent.set(str(len(self.dark_fpaths)) + ' spectra selected')
-             
-#========================================================================================
-#=======================================Save Settings====================================
-#========================================================================================
-    
-    # Function to save setting to the ifit_settings.txt file        
-    def save(self):
-        
-        # Create or overright settings file
-        with open('data_bases/ifit_settings.txt', 'w') as w:
-            
-            # Save each setting from the gui into settings
-            settings['Wave Start']   = str(self.wave_start_e.get())   
-            settings['Wave Stop']    = str(self.wave_stop_e.get())      
-            settings['Spectrometer'] = str(self.spec_name.get())       
-            settings['Spectra Type'] = str(self.spec_type.get())       
-            settings['int_time']     = str(self.int_time.get())         
-            settings['coadds']       = str(self.coadds.get())
-            settings['no_darks']     = str(self.no_darks.get())
-            settings['ILS Width']    = str(self.ils_width_e.get())
-            settings['Gauss Weight'] = str(self.gauss_weight.get())
-            settings['Fit ILS']      = str(self.ils_width_b.get())
-            settings['LDF']          = str(self.ldf_e.get())
-            settings['Fit LDF']      = str(self.ldf_b.get())
-            settings['poly_n']       = str(self.poly_n.get())
-            settings['shift']        = str(self.shift.get())
-            settings['stretch']      = str(self.stretch.get())
-            settings['ring']         = str(self.ring_amt.get())
-            settings['SO2']          = str(self.so2_amt.get())
-            settings['NO2']          = str(self.no2_amt.get())
-            settings['O3']           = str(self.o3_amt.get())
-            settings['BrO']          = str(self.bro_amt.get())
-            
-            # Add all of the settings dictionary
-            for s in settings:
-                w.write(s + ';' + str(settings[s]) + '\n')
-            
-            try:
-                w.write('Spectra Filepaths;' + str(self.spec_fpaths) + '\n')
-            except AttributeError:
-                w.write('Spectra Filepaths; \n') 
-            
-            try:
-                w.write('Dark Filepaths;' + str(self.dark_fpaths))
-            except AttributeError:
-                w.write('Dark Filepaths; ')
-                
-        self.print_output('Settings saved')
-
-#========================================================================================
-#======================================Print Outputs=====================================
-#========================================================================================
-     
     # Function to print text to the output box          
     def print_output(self, text, add_line = True):
         
@@ -801,202 +689,8 @@ class mygui(tk.Tk):
             pass
         
         # Force gui to update
-        mygui.update(self)        
-        
-#========================================================================================
-#=================================Connect to Spectrometer================================
-#========================================================================================
-        
-    # Function to connect to the attached spectrometer
-    def connect_spec(self):
-        
-        # Find connected spectrometers
-        devices = sb.list_devices()
-        
-        # If no devices are connected then set string to show. Else assign first to spec
-        if len(devices) == 0:
-            settings['spec'] = 0
-            settings['Spectrometer'] = 'No devices connected'
-            devices = ['No devices connected']
-        else:
-            try:
-                # Connect to spectrometer
-                settings['spec'] = sb.Spectrometer(devices[0])
-                
-                # Set intial integration time
-                settings['spec'].integration_time_micros(float(self.int_time.get())*1000)
-                
-                # Record serial number in settings
-                settings['Spectrometer'] = str(settings['spec'].serial_number)
-                
-                self.print_output('Spectrometer '+settings['Spectrometer']+' Connected')
-                
-            except SeaBreezeError:
-                self.print_output('Spectrometer already open')
-            
-        # Update text to show spectrometer name
-        self.c_spec.set(settings['Spectrometer'])
-        
-#========================================================================================
-#=================================Connect to Spectrometer================================
-#========================================================================================
+        mygui.update(self)  
 
-    def update_int_time(self):
-        
-        try:
-            # Update integration time on spectrometer
-            settings['int_time'] = float(self.int_time.get())*1000
-            settings['spec'].integration_time_micros(float(settings['int_time']))
-            
-            self.print_output('Integration time updated to '+str(settings['int_time']) +\
-                              '\nSpectrum number ' + str(settings['loop']))
-            
-        except KeyError:
-            self.print_output('No spectrometer conected')
-
-#========================================================================================
-#===============================Read a single test spectrum==============================
-#========================================================================================
-
-    def test_spec(self):
-        
-        # Update status
-        self.status.set('Acquiring')
-        mygui.update(self)
-        
-        x, y, header, read_time = aquire_spectrum(self,
-                                                  settings['spec'], 
-                                                  settings['int_time'], 
-                                                  int(self.coadds.get()))
-        
-        # Display the test spectrum
-        self.line2.set_data(x, y)
-        self.ax1.set_xlim(x.min(), x.max())
-        self.ax1.set_ylim(y.min(), y.max())
-        self.canvas.draw()
-        
-        # Update status
-        self.status.set('Standby')
-
-#========================================================================================
-#========================================Read Darks======================================
-#========================================================================================
-
-    def read_darks(self):
-        
-        if tkMessageBox.askyesno('Record Darks', 'Ready to begin measuring darks?'):
-        
-            # Update status
-            self.status.set('Acquiring darks')
-            mygui.update(self)
-            
-            # Reset progress bar
-            self.progress['mode'] = 'determinate'
-            self.progress['value'] = 0
-            
-            # Create zero array to hold dark spectra
-            dark = np.zeros(2048)
-            
-            # Define dark filepath
-            dark_fp = settings['rt_folder'] + 'dark/'
-            
-            # Create the directory  
-            dark_fp = make_directory(dark_fp)
-            
-            # Loop over number of darks to collect
-            dark_n = int(self.no_darks.get())
-            
-            for i in range(dark_n):
-                
-                # Create filename
-                n = str('{num:05d}'.format(num=i))
-                filepath = dark_fp + 'spectrum_' + n + '.txt'
-                
-                # Read spectrometer
-                try:
-                    spc = aquire_spectrum(self, settings['spec'], settings['int_time'],
-                                          int(self.coadds.get()))
-                except KeyError:
-                    self.print_output('No spectrometer connected')
-                    return
-                
-                except SeaBreezeError:
-                    self.print_output('Spectrometer disconnected')
-                    return 
-                
-                # Unpack spectrum data
-                x, y, header, read_time = spc
-                
-                # Save
-                np.savetxt(filepath, np.column_stack((x,y)), header = header)
-                
-                # Sum up the darks
-                dark = np.add(dark, y)
-                
-                # Update the progress bar
-                prog = ((i+1)/dark_n) * 100
-                self.progress['value'] = prog
-                
-                # Force gui to update
-                mygui.update(self)
-            
-            # Divide by number of darks to get average
-            settings['dark_spec'] = np.divide(dark, dark_n)
-            
-            # Display the dark spectrum
-            lines = [self.line2]
-            axes =  [self.ax1  ]
-            
-            # Build data array to pass to graphing function
-            #                 x data    y data    x limits     y limits
-            data = np.array(([x,        dark,     'auto',      'auto']))
-            
-            # Update graph
-            update_graph(lines, axes, self.canvas, data)
-            
-            # Add dark to common
-            settings['dark_spec']  = dark
-            
-            # Update notes file
-            self.print_output('Dark updated\n' + \
-                              'Spectrum no: ' + str(settings['loop']) + '\n' + \
-                              'No. darks: ' + str(dark_n) + '\n' + \
-                              'Integration time (ms): '+str(settings['int_time'])+'\n'+\
-                              'Coadds: ' + str(self.coadds.get()))
-             
-            # Set dark_flag to True
-            settings['rt_dark_flag'] = True
-            
-            # Update status
-            self.status.set('Standby')
-        
-#========================================================================================
-#========================================Read Darks======================================
-#========================================================================================
-        
-    def stop(self):
-        settings['stop_flag'] = True
-        self.print_output('Loop Stopped\nSpectrum number ' + str(settings['loop']-1))
-        
-#========================================================================================
-#=======================================Toggle fitting===================================
-#========================================================================================
-            
-    # Function to toggle fitting on and off
-    def fit_toggle(self):
-        
-        # Toggle button text and colour
-        if self.toggle_button.config('text')[-1] == 'FITTING ON':
-            self.toggle_button.config(text = 'FITTING OFF')
-            self.toggle_button.config(bg = 'red')
-            self.print_output('Fitting turned off\n' +\
-                              'Spectrum number ' + str(settings['loop']))
-        else:
-            self.toggle_button.config(text = 'FITTING ON')
-            self.toggle_button.config(bg = 'green')
-            self.print_output('Fitting turned on\n' +\
-                              'Spectrum number ' + str(settings['loop']))
-        
 #========================================================================================
 #========================================Begin iFit======================================
 #========================================================================================
@@ -1120,7 +814,7 @@ class mygui(tk.Tk):
 
             # Read a single spectrum to get wavelength data
             try:
-                x, y, header, t = aquire_spectrum(self, settings['spec'], 1, 1)
+                x, y, header, t = acquire_spectrum(self, settings['spec'], 1, 1)
                 read_date, read_time = t.split(' ')
                 
             except KeyError:
@@ -1312,7 +1006,7 @@ class mygui(tk.Tk):
                         now_fit_spec = True
                         
                         # Update progress bar
-                        prog = settings['loop']/len(common['spectra_files']) * 100
+                        prog = (settings['loop']+1)/len(common['spectra_files']) * 100
                         self.progress['value'] = prog
                         
                 
@@ -1329,13 +1023,13 @@ class mygui(tk.Tk):
                     result_queue = Queue()
                     
                     # Create two threads, one to read a spectrum and one to fit
-                    t1 = Thread(target = aquire_spectrum, args = (self,
-                                                                  settings['spec'],
-                                                                  settings['int_time'],
-                                                                  int(self.coadds.get()),
-                                                                  True,
-                                                                  True,
-                                                                  result_queue))
+                    t1 = Thread(target = acquire_spectrum, args=(self,
+                                                                 settings['spec'],
+                                                                 settings['int_time'],
+                                                                 int(self.coadds.get()),
+                                                                 True,
+                                                                 True,
+                                                                 result_queue))
                     
                     t2 = Thread(target = fit_spec, args = (common,
                                                            common['last_spec'],
@@ -1375,7 +1069,7 @@ class mygui(tk.Tk):
                     spec_no = settings['loop']
                     
                     # Update progress bar
-                    prog = settings['loop']
+                    prog = settings['loop'] + 1
                     self.progress['value'] = prog
                     
                     
@@ -1391,7 +1085,7 @@ class mygui(tk.Tk):
                 else:
 
                     # Read spectrum
-                    x, y, header, t = aquire_spectrum(self, settings['spec'], 
+                    x, y, header, t = acquire_spectrum(self, settings['spec'], 
                                                       settings['int_time'],
                                                       int(self.coadds.get()))
                     read_date, read_time = t.split(' ')
@@ -1575,7 +1269,7 @@ class mygui(tk.Tk):
                 
                 if skip_flag[0] == True:
                     
-                    self.print_output(str(skip_flag[1]))
+                    self.print_output('Error reading spectrum:\n' + str(skip_flag[1]))
                                
                 # Add to the count cycle
                 settings['loop'] += 1
@@ -1598,321 +1292,6 @@ class mygui(tk.Tk):
             # Update status
             self.status.set('Standby')
 
-
-
-
-
-
-#========================================================================================
-#========================================================================================
-#====================================Advanced Setings====================================
-#========================================================================================
-#========================================================================================
-
-
-def adv_settings(self):
-    
-    # Make popup window
-    popup = tk.Tk()
-    tk.Tk.wm_title(popup, 'Advanced Settings')
-    
-    # Make updating/closing function
-    def update_settings(settings, close_flag):
-        
-        # Update model settings in common
-        settings['model_resolution'] = float(model_res_e.get())
-        settings['dark_flag']        = dark_b.get()
-        settings['flat_flag']        = flat_b.get()
-        settings['update_params']    = update_b.get()
-        settings['solar_resid_flag'] = resid_b.get()
-        settings['good_fit_bound']   = float(fit_bound_e.get())
-        
-        # Update data base settings in common
-        settings['sol_path']         = sol_path_e.get()
-        settings['ring_path']        = ring_path_e.get()
-        settings['so2_path']         = so2_path_e.get()
-        settings['no2_path']         = no2_path_e.get()
-        settings['o3_path']          = o3_path_e.get()
-        settings['bro_path']         = bro_path_e.get()
-        settings['solar_resid_path'] = solar_resid_path_e.get()
-        
-        # Update graph settings in common
-        settings['Show Graphs']      = graph_b.get()
-        settings['Show Error Bars']  = err_b.get()
-        settings['scroll_flag']      = scroll_b.get()
-        settings['scroll_spec_no']   = int(spec_no_e.get())
-        settings['resid_type']       = resid_type.get()
-        settings['analysis_gas']     = gas.get()
-        
-        # Update graph
-        if settings['resid_type'] == 'Percentage':
-            self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
-        if settings['resid_type'] == 'Absolute':
-            self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
-        if settings['resid_type'] == 'Spec/Fit':
-            self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
-            
-        self.ax3.set_ylabel(settings['analysis_gas'] + ' Transmittance', fontsize = 10)
-        
-        self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
-            
-        self.canvas.draw()
-        
-        # Close the window
-        if close_flag == True:
-            popup.destroy()
-        
-    # Make function to select filepaths
-    def update_fp(entry):
-        
-        # Open dialouge to get files
-        fpath = fd.askopenfilenames()
-        
-        entry.set(str(fpath[0]))   
-
-#========================================================================================
-#======================================Make frames=======================================
-#========================================================================================
- 
-    # Create frames for diferent sections for post analysis and buttons
-    model_frame = tk.LabelFrame(popup, text = 'Model Settings', font = LARG_FONT)
-    model_frame.grid(row=0, column=0, padx = 10, pady = 10, sticky="NW")
-    
-    datab_frame = tk.LabelFrame(popup, text='Data Base Settings', font = LARG_FONT)
-    datab_frame.grid(row=0, column=1, padx = 10, pady = 10, sticky="NW", rowspan=2)
-    
-    graph_frame = tk.LabelFrame(popup, text='Graph Settings', font = LARG_FONT)
-    graph_frame.grid(row=1, column=0, padx = 10, pady = 10, sticky="NW")
-    
-    button_frame = ttk.Frame(popup)
-    button_frame.grid(row=2, column=0, padx = 10, pady = 10, sticky="EW", columnspan = 2)
-
-    # Button to apply changes and close
-    b1 = ttk.Button(button_frame, text='Ok', command=lambda: update_settings(settings, 
-                                                                             True))
-    b1.grid(row = 0, column = 0, padx = 100, pady = 5, sticky = "EW")
-    
-    # Button to just apply changes
-    b2 = ttk.Button(button_frame, text='Apply', command=lambda: update_settings(settings,
-                                                                                False))
-    b2.grid(row = 0, column = 1, padx = 100, pady = 5, sticky = "EW")
-    
-    # Buttong to cancel
-    b3 = ttk.Button(button_frame, text='Cancel', command=lambda: popup.destroy())
-    b3.grid(row = 0, column = 2, padx = 100, pady = 5, sticky = "EW")
-
-#========================================================================================
-#=====================================Model Settings=====================================
-#========================================================================================
-
-    # Create row number counter
-    row_n = 0
-    
-    # Set resolution of model grid
-    popup.model_res = tk.DoubleVar(model_frame, value = settings['model_resolution'])
-    model_res_l = tk.Label(model_frame, text = 'Model Grid spacing:', font = NORM_FONT)
-    model_res_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    model_res_e = ttk.Entry(model_frame, textvariable = popup.model_res)
-    model_res_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Control whether or not to remove dark spectra
-    dark_b = tk.IntVar(model_frame, value = settings['dark_flag'])
-    dark_l = tk.Label(model_frame, text = 'Remove Dark Spectra?', font = NORM_FONT)
-    dark_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    dark_c = ttk.Checkbutton(model_frame, variable = dark_b)
-    dark_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Control whether or not to remove flat spectra
-    flat_b = tk.IntVar(model_frame, value = settings['flat_flag'])
-    flat_l = tk.Label(model_frame, text = 'Remove Flat Spectra?', font = NORM_FONT)
-    flat_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    flat_c = ttk.Checkbutton(model_frame, variable = flat_b)
-    flat_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Control whether or not to remove, form or ignore the solar residual spectrum
-    resid_options = [settings['solar_resid_flag'],
-                     'Ignore',
-                     'Generate',
-                     'Remove']
-    resid_b = tk.StringVar(model_frame, value = settings['solar_resid_flag'])
-    resid_l = tk.Label(model_frame, text = 'Solar residual:', font = NORM_FONT)
-    resid_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    resid_c = ttk.OptionMenu(model_frame, resid_b, *resid_options)
-    resid_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Control whether or not to update fit parameter guesses with the last fit values
-    update_b = tk.StringVar(model_frame, value = settings['update_params'])
-    update_l = tk.Label(model_frame, text = 'Auto-update fit parameters?', font = NORM_FONT)
-    update_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    update_c = ttk.Checkbutton(model_frame, variable = update_b)
-    update_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Control bound of goodness of fit
-    popup.fit_bound = tk.DoubleVar(model_frame, value = settings['good_fit_bound'])
-    fit_bound_l = tk.Label(model_frame, text = 'Good Fit Bound (%):', font = NORM_FONT)
-    fit_bound_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    fit_bound_e = ttk.Entry(model_frame, textvariable = popup.fit_bound)
-    fit_bound_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-#========================================================================================
-#==================================Data base file paths==================================
-#========================================================================================
-     
-    # Create row number counter
-    row_n = 0
-    
-    # Solar spectrum
-    popup.sol_path = tk.StringVar(datab_frame, value = settings['sol_path'])
-    sol_path_l = tk.Label(datab_frame, text = 'Solar spectrum:', font = NORM_FONT)
-    sol_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    sol_path_e = ttk.Entry(datab_frame, text=popup.sol_path, font=NORM_FONT, width=40)
-    sol_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    sol_path_b = ttk.Button(datab_frame, text = "Select", 
-                            command = lambda: update_fp(popup.sol_path))
-    sol_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1
-    
-    # Ring spectrum
-    popup.ring_path = tk.StringVar(datab_frame, value = settings['ring_path'])
-    ring_path_l = tk.Label(datab_frame, text = 'Ring Spectrum:', font = NORM_FONT)
-    ring_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    ring_path_e = ttk.Entry(datab_frame, textvariable=popup.ring_path, font=NORM_FONT, 
-                            width=40)
-    ring_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    ring_path_b = ttk.Button(datab_frame, text = "Select", 
-                             command = lambda: update_fp(popup.ring_path))
-    ring_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1
-    
-    # SO2 xsec
-    popup.so2_path = tk.StringVar(datab_frame, value = settings['so2_path'])
-    so2_path_l = tk.Label(datab_frame, text = 'SO2 xsec:', font = NORM_FONT)
-    so2_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    so2_path_e = ttk.Entry(datab_frame, textvariable = popup.so2_path, font = NORM_FONT,
-                           width = 40)
-    so2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    so2_path_b = ttk.Button(datab_frame, text = "Select", 
-                            command = lambda: update_fp(popup.so2_path))
-    so2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1
-    
-    # NO2 xsec
-    popup.no2_path = tk.StringVar(datab_frame, value = settings['no2_path'])
-    no2_path_l = tk.Label(datab_frame, text = 'NO2 xsec:', font = NORM_FONT)
-    no2_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    no2_path_e = ttk.Entry(datab_frame, textvariable = popup.no2_path, font = NORM_FONT,
-                           width = 40)
-    no2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    no2_path_b = ttk.Button(datab_frame, text = "Select", 
-                            command = lambda: update_fp(popup.no2_path))
-    no2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1
-    
-    # O3 xsec
-    popup.o3_path = tk.StringVar(datab_frame, value = settings['o3_path'])
-    o3_path_l = tk.Label(datab_frame, text = 'O3 xsec:', font = NORM_FONT)
-    o3_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    o3_path_e = ttk.Entry(datab_frame, textvariable = popup.o3_path, font = NORM_FONT,
-                          width = 40)
-    o3_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    o3_path_b = ttk.Button(datab_frame, text = "Select", 
-                           command = lambda: update_fp(popup.o3_path))
-    o3_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1
-    
-    # Bro xsec
-    popup.bro_path = tk.StringVar(datab_frame, value = settings['bro_path'])
-    bro_path_l = tk.Label(datab_frame, text = 'BrO xsec:', font = NORM_FONT)
-    bro_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    bro_path_e = ttk.Entry(datab_frame, textvariable = popup.bro_path, font = NORM_FONT,
-                           width = 40)
-    bro_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
-    bro_path_b = ttk.Button(datab_frame, text = "Select", 
-                            command = lambda: update_fp(popup.bro_path))
-    bro_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1
-    
-    # Solar residual
-    popup.solar_resid_path = tk.StringVar(datab_frame,value=settings['solar_resid_path'])
-    solar_resid_path_l = tk.Label(datab_frame, text = 'Solar Residual:', font=NORM_FONT)
-    solar_resid_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    solar_resid_path_e = ttk.Entry(datab_frame, textvariable = popup.solar_resid_path,
-                                   font = NORM_FONT, width = 40)
-    solar_resid_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
-    solar_resid_path_b = ttk.Button(datab_frame, text = "Select", 
-                                    command = lambda: update_fp(popup.solar_resid_path))
-    solar_resid_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1    
-    
-#========================================================================================
-#====================================Graph Settings======================================
-#========================================================================================
-
-
-    # Create row number counter
-    row_n = 0
-    
-    # Control graph display settings
-    graph_b = tk.IntVar(graph_frame, value = settings['Show Graphs'])
-    graph_l = tk.Label(graph_frame, text = 'Show Graphs?', font = NORM_FONT)
-    graph_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    graph_c = ttk.Checkbutton(graph_frame, variable = graph_b)
-    graph_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Turn on/off error bars
-    err_b = tk.IntVar(graph_frame, value = settings['Show Error Bars'])
-    err_l = tk.Label(graph_frame, text = 'Show Error Bars?', font = NORM_FONT)
-    err_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    err_c = ttk.Checkbutton(graph_frame, variable = err_b)
-    err_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Select which gas to analyse
-    gas_options = [settings['analysis_gas'],
-                   'SO2',
-                   'O3',
-                   'BrO']
-    gas = tk.StringVar(graph_frame, value = settings['scroll_flag'])
-    gas_l = tk.Label(graph_frame, text = 'Gas to analyse:', font = NORM_FONT)
-    gas_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    gas_c = ttk.OptionMenu(graph_frame, gas, *gas_options)
-    gas_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Turn on/off graph scrolling
-    scroll_b = tk.IntVar(graph_frame, value = settings['scroll_flag'])
-    scroll_l = tk.Label(graph_frame, text = 'Scroll Graph?', font = NORM_FONT)
-    scroll_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    scroll_c = ttk.Checkbutton(graph_frame, variable = scroll_b)
-    scroll_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Set number of spectra to display on graph
-    popup.spec_no = tk.IntVar(graph_frame, value = settings['scroll_spec_no'])
-    spec_no_l = tk.Label(graph_frame, text = 'No. Spectra to display', font = NORM_FONT)
-    spec_no_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    spec_no_e = ttk.Entry(graph_frame, textvariable = popup.spec_no, font = NORM_FONT)
-    spec_no_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    
-    # Set format of residual
-    resid_options = [settings['resid_type'],
-                     'Absolute',
-                     'Percentage',
-                     'Spec/Fit']
-    resid_type = tk.StringVar(graph_frame, value = settings['resid_type'])
-    resid_type_l = tk.Label(graph_frame, text = 'Residual Display', font = NORM_FONT)
-    resid_type_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    resid_type_m = ttk.OptionMenu(graph_frame, resid_type, *resid_options)
-    resid_type_m.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
     
 # Run the App!
 if __name__ == '__main__':    
