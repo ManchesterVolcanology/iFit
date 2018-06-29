@@ -30,8 +30,8 @@ from ifit_lib.fit import fit_spec, ifit_fwd
 from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.find_nearest import extract_window
 from ifit_lib.file_control import make_directory
-from ifit_lib.gui_funcs import adv_settings, fit_toggle, save, spec_fp, dark_fp, stop, \
-                               connect_spec, update_int_time, test_spec, read_darks
+from ifit_lib.gui_funcs import adv_settings, fit_toggle, stop, connect_spec, test_spec, \
+                               update_int_time, read_darks
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -134,12 +134,12 @@ class mygui(tk.Tk):
 
         # Create button for advanced settings
         adv_set_b = ttk.Button(quick_frame, text = 'Adv. Settings', width = 15, 
-                            command=lambda: adv_settings(self, settings))
+                            command=lambda: adv_settings(self, settings, 'piFit'))
         adv_set_b.grid(row = 0, column = 2, padx = 5, pady = 5)
 
         # Create button to save settings
         save_b = ttk.Button(quick_frame, text = 'Save Settings', width = 15,
-                            command = lambda: save(self, settings))
+                            command = self.save)
         save_b.grid(row = 1, column = 2, padx = 5, pady = 5)
         
 #========================================================================================
@@ -230,7 +230,14 @@ class mygui(tk.Tk):
         
 #========================================================================================
 #====================================Create plot canvas==================================
-#========================================================================================        
+#========================================================================================    
+        
+        # Create graph label dictionary
+        self.graph_labels = {'Spectrum':   ['Wavelength (nm)', 'Intensity (arb)'], 
+                             'Fit':        ['Wavelength (nm)', 'Intensity (arb)'],
+                             'Residual':   ['Wavelength (nm)', 'Residual'],
+                             'Absorbance': ['Wavelength (nm)', 'Absorbance'],
+                             'Gas amount': ['Spectrum Number', 'Amount (ppm.m)']}    
                     
         # Create figure to hold the graphs
         plt.rcParams.update({'font.size': 8} )
@@ -240,8 +247,8 @@ class mygui(tk.Tk):
         self.ax = self.fig.add_subplot(111)
         
         # Set axis labels
-        self.ax.set_ylabel('SO2 (ppm.m)')
-        self.ax.set_xlabel('Spectrum Number')
+        self.ax.set_xlabel(self.graph_labels[settings['graph_view']][0])
+        self.ax.set_ylabel(self.graph_labels[settings['graph_view']][1])
         
         # SO2 time series
         self.line0, = self.ax.plot(0, 0, lw = 1.5)
@@ -381,13 +388,6 @@ class mygui(tk.Tk):
                          'Residual',
                          'Absorbance',
                          'Gas amount']
-        
-        # Create graph label dictionary
-        self.graph_labels = {'Spectrum':   ['Wavelength (nm)', 'Intensity (arb)'], 
-                             'Fit':        ['Wavelength (nm)', 'Intensity (arb)'],
-                             'Residual':   ['Wavelength (nm)', 'Residual'],
-                             'Absorbance': ['Wavelength (nm)', 'Absorbance'],
-                             'Gas amount': ['Spectrum Number', 'Amount (ppm.m)']}
                 
         self.graph_view = tk.StringVar(button_frame2, value = settings['graph_view'])
         graph_view_l = tk.Label(button_frame2, text = 'Graph View:', font = NORM_FONT)
@@ -1039,6 +1039,43 @@ class mygui(tk.Tk):
                 
             # Update status
             self.status.set('Standby')
+            
+#========================================================================================
+#=======================================Save Settings====================================
+#========================================================================================
+    
+    # Function to save setting to the ifit_settings.txt file        
+    def save(self):
+        
+        # Create or overright settings file
+        with open('data_bases/pifit_settings.txt', 'w') as w:
+            
+            # Save each setting from the gui into settings
+            settings['Wave Start']   = str(self.wave_start_e.get())   
+            settings['Wave Stop']    = str(self.wave_stop_e.get())      
+            settings['int_time']     = str(self.int_time.get())         
+            settings['coadds']       = str(self.coadds.get())
+            settings['no_darks']     = str(self.no_darks.get())
+            settings['ILS Width']    = str(self.ils_width_e.get())
+            settings['Gauss Weight'] = str(self.gauss_weight.get())
+            settings['Fit ILS']      = str(self.ils_width_b.get())
+            settings['LDF']          = str(self.ldf_e.get())
+            settings['Fit LDF']      = str(self.ldf_b.get())
+            settings['poly_n']       = str(self.poly_n.get())
+            settings['shift']        = str(self.shift.get())
+            settings['stretch']      = str(self.stretch.get())
+            settings['ring']         = str(self.ring_amt.get())
+            settings['SO2']          = str(self.so2_amt.get())
+            settings['NO2']          = str(self.no2_amt.get())
+            settings['O3']           = str(self.o3_amt.get())
+            settings['BrO']          = str(self.bro_amt.get())
+            settings['graph_view']   = str(self.graph_view.get())
+            
+            # Add all of the settings dictionary
+            for s in settings:
+                w.write(s + ';' + str(settings[s]) + '\n')
+                
+        self.print_output('Settings saved')
     
 # Run the App!
 if __name__ == '__main__':    

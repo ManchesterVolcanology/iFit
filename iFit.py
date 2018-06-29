@@ -30,7 +30,7 @@ from ifit_lib.fit import fit_spec, ifit_fwd
 from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.find_nearest import extract_window
 from ifit_lib.update_graph import update_graph
-from ifit_lib.gui_funcs import adv_settings, fit_toggle, save, spec_fp, dark_fp, stop, \
+from ifit_lib.gui_funcs import adv_settings, fit_toggle, spec_fp, dark_fp, stop, \
                                connect_spec, update_int_time, test_spec, read_darks
 
 # Define some fonts to use in the program
@@ -104,12 +104,11 @@ class mygui(tk.Tk):
         
         # Create button for advanced settings
         adv_set_b = ttk.Button(text_frame, text = 'Adv. Settings', 
-                            command = lambda: adv_settings(self, settings))
+                            command = lambda: adv_settings(self, settings, 'iFit'))
         adv_set_b.grid(row = 0, column = 0, padx = 5, pady = 5)
 
         # Create button to save settings
-        save_b = ttk.Button(text_frame, text = 'Save Settings', 
-                            command = lambda: save(self, settings))
+        save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
         save_b.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         # Create a button to exit
@@ -1291,6 +1290,54 @@ class mygui(tk.Tk):
                 
             # Update status
             self.status.set('Standby')
+            
+#========================================================================================
+#=======================================Save Settings====================================
+#========================================================================================
+    
+    # Function to save setting to the ifit_settings.txt file        
+    def save(self):
+        
+        # Create or overright settings file
+        with open('data_bases/ifit_settings.txt', 'w') as w:
+            
+            # Save each setting from the gui into settings
+            settings['Wave Start']   = str(self.wave_start_e.get())   
+            settings['Wave Stop']    = str(self.wave_stop_e.get())      
+            settings['Spectrometer'] = str(self.spec_name.get())       
+            settings['Spectra Type'] = str(self.spec_type.get())       
+            settings['int_time']     = str(self.int_time.get())         
+            settings['coadds']       = str(self.coadds.get())
+            settings['no_darks']     = str(self.no_darks.get())
+            settings['ILS Width']    = str(self.ils_width_e.get())
+            settings['Gauss Weight'] = str(self.gauss_weight.get())
+            settings['Fit ILS']      = str(self.ils_width_b.get())
+            settings['LDF']          = str(self.ldf_e.get())
+            settings['Fit LDF']      = str(self.ldf_b.get())
+            settings['poly_n']       = str(self.poly_n.get())
+            settings['shift']        = str(self.shift.get())
+            settings['stretch']      = str(self.stretch.get())
+            settings['ring']         = str(self.ring_amt.get())
+            settings['SO2']          = str(self.so2_amt.get())
+            settings['NO2']          = str(self.no2_amt.get())
+            settings['O3']           = str(self.o3_amt.get())
+            settings['BrO']          = str(self.bro_amt.get())
+            
+            # Add all of the settings dictionary
+            for s in settings:
+                w.write(s + ';' + str(settings[s]) + '\n')
+            
+            try:
+                w.write('Spectra Filepaths;' + str(self.spec_fpaths) + '\n')
+            except AttributeError:
+                w.write('Spectra Filepaths; \n') 
+            
+            try:
+                w.write('Dark Filepaths;' + str(self.dark_fpaths))
+            except AttributeError:
+                w.write('Dark Filepaths; ')
+                
+        self.print_output('Settings saved')
 
     
 # Run the App!
