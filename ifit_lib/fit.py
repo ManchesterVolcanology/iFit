@@ -14,8 +14,8 @@ def fit_spec(common, y, grid, q = None):
     
     '''
     Function to fit measured spectrum using a full forward model including a solar 
-    spectrum background polynomial, ring effect, shift, stretch, and gas amts for so2, 
-    no2, o3, bro
+    spectrum background polynomial, ring effect, wavelength shift and stretch, and gas
+    amounts for so2, no2, o3, bro
     
     INPUTS:
     -------
@@ -27,8 +27,8 @@ def fit_spec(common, y, grid, q = None):
     
     OUTPUTS:
     --------
-    results:     resulting optimised fit parameters
-    cov:         covarience matrix
+    popt:        resulting optimised fit parameters
+    pcov:        covarience matrix
     y:           processed spectral intensity data (after extracting the desired window 
                    and correction for dark, flat and stray light)
     fitted_flag: boolian variable to tell the main program if the fit was achieved
@@ -36,13 +36,13 @@ def fit_spec(common, y, grid, q = None):
     '''  
     
     # Unpack the inital fit parameters
-    params = np.ones(len(common['params']))
-    i = 0
+    fit_params = []
     
     for key, val in common['params'].items():
-        params[i] = val
-        i += 1
- 
+       
+        if val[1] == 'Fit':
+            fit_params.append(val[0])
+            
     # Cretae a copy of common for forward model to access
     global com
     com = common
@@ -72,10 +72,10 @@ def fit_spec(common, y, grid, q = None):
     # Appempt to fit!
     try:
         # Fit
-        results, cov = curve_fit(ifit_fwd, grid, y, p0 = params, sigma = sigma)
+        popt, pcov = curve_fit(ifit_fwd, grid, y, p0 = fit_params, sigma = sigma)
 
         # Calculate transmittance spectra
-        ifit_fwd(grid, *results, calc_trans_flag = True)
+        fit = ifit_fwd(grid, *popt, calc_trans_flag = True)
         
         # Form transmittance spectra
         gas_T['SO2_tran'] = y / com['F_no_so2']
@@ -90,8 +90,8 @@ def fit_spec(common, y, grid, q = None):
     
     # If fit fails, report and carry on
     except RuntimeError:
-        results = np.zeros(len(params))
-        cov = np.zeros((len(params),len(params)))
+        popt = np.zeros(len(fit_params))
+        pcov = np.zeros((len(fit_params),len(fit_params)))
         
         # Form transmittance spectra
         gas_T['SO2_tran'] = np.zeros(len(grid))
@@ -103,20 +103,30 @@ def fit_spec(common, y, grid, q = None):
         
         fitted_flag = False
 
+    # Unpack fit results
+    fit_dict  = {}
+    m = 0
+    for key, val in common['params'].items():
+        if val[1] == 'Fit':
+            fit_dict[key] = popt[m]
+            m+=1
+
     # Generate a dictionary of errors
     # NOTE this is just variation in the fitting params, this does not include 
     #  systematic errors!
     err_dict = {}
-
-    for m, l in enumerate(common['params'].keys()):
-        err_dict[l] = np.sqrt(np.diag(cov))[m]
+    m = 0
+    for key, val in common['params'].items():
+        if val[1] == 'Fit':
+            err_dict[key] = np.sqrt(np.diag(pcov))[m]
+            m+=1
     
     # Return results, either to a queue if threaded, or as an array if not
     if q == None:                     
-        return results, err_dict, y, gas_T, fitted_flag
+        return fit_dict, err_dict, y, fit, gas_T, fitted_flag
     
     else:
-        output = results, err_dict, y, gas_T, fitted_flag
+        output = fit_dict, err_dict, y, fit, gas_T, fitted_flag
         q.put(('fit', output))
 
 
@@ -124,74 +134,53 @@ def fit_spec(common, y, grid, q = None):
 #=========================================ifit_fwd=======================================
 #========================================================================================
 
-def ifit_fwd(grid, *args, calc_trans_flag = False):
+def ifit_fwd(grid, *fit_params, calc_trans_flag = False):
     
     '''
     INPUTS:
     -------
-    grid:  measurement wavelength grid
-    *args: parameters used for fitting. These are n polynomial parameters, wavelength 
-             shift and stretch, ring amount and gas amounts for SO2, NO2, O3 and Bro.
-             Also optionally the ils width and ldf
+    grid:            measurement wavelength grid
+    *args:           forward model state vector used for fitting.
+    calc_trans_flag: flag whether or not to calculate transmission spectra. Not required 
+                      for fitting, but helpful for analysis of fit quality
 
     OUTPUTS:
     --------
     F: Fitted spectrum interpolated onto the  spectrometer wavelength grid             
     '''
 
-     # Unpack polynomialparameters
-    p = np.zeros(com['poly_n'])
+    # Unpack params
+    p = {}
+    i = 0
+
+    for key, val in com['params'].items():
+           
+        if val[1] == 'Fit':
+            p[key] = fit_params[i]
+            i += 1
+            
+        if val[1] == 'Fix':
+            p[key] = val[0]
+            
+        if val[1] == 'N/A':
+            p[key] = 0
+            
+    # Unpack polynomial parameters
+    poly_coefs = np.zeros(com['poly_n'])
     for i in range(com['poly_n']):
-        p[i] = (args[i])
-
-    # Unpack rest
-    i += 1
-    shift = args[i]
-    i += 1
-    stretch = args[i]
-    i += 1
-    ring_amt = args[i]
-    i += 1
-    so2_amt = args[i]
-    i += 1
-    no2_amt = args[i]
-    i += 1
-    o3_amt = args[i]
-    i += 1
-    bro_amt = args[i]
-
-    # Unpack optional parameters
-    if com['ils_flag'] == True:
-        i += 1
-        ils_width = args[i]
-        
-    else:
-        ils_width = com['ils_width']
-    
-    if com['ldf_flag'] == True:
-        i += 1
-        ldf = args[i]
-        #i += 1
-        #aero_p0 = args[i]
-        #i += 1
-        #aero_p1 = args[i]
-        
-    else:
-        ldf = com['ldf']
-        #aero_p0 = 1
-        #aero_p1 = 0
+        poly_coefs[i] = (fit_params[i])
 
     # Construct background polynomial
-    bg_poly = make_poly(com['model_grid'], p)
+    bg_poly = make_poly(com['model_grid'], poly_coefs)
     
     # Build gas transmittance spectra
-    so2_T = np.exp(-(np.multiply(com['so2_xsec'], so2_amt)))
-    no2_T = np.exp(-(np.multiply(com['no2_xsec'], no2_amt)))
-    o3_T  = np.exp(-(np.multiply(com['o3_xsec'],  o3_amt )))
-    bro_T = np.exp(-(np.multiply(com['bro_xsec'], bro_amt)))
+    so2_T = np.exp(-(np.multiply(com['so2_xsec'], p['so2_amt'])))
+    no2_T = np.exp(-(np.multiply(com['no2_xsec'], p['no2_amt'])))
+    o3_T  = np.exp(-(np.multiply(com['o3_xsec'],  p['o3_amt'])))
+    bro_T = np.exp(-(np.multiply(com['bro_xsec'], p['bro_amt'])))
     
     # Calculate ring effect
-    ring_T = np.multiply(com['sol'], np.multiply(com['ring'], ring_amt))
+    ring_T = np.multiply(com['sol'], np.multiply(com['ring'], p['ring_amt']))
     sol_T = np.add(com['sol'], ring_T)
 
     
@@ -202,33 +191,27 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
     
     # Include plume gasses and areosol
     raw_F = np.multiply(np.multiply(bg_spec, bro_T), so2_T)
-    #aero_poly = make_poly(com['model_grid'], [1, aero_p1])
-    plume_F = raw_F#np.multiply(raw_F, aero_poly)
-
-    
-    # If SO2 below 50 ppm.m, set ldf to 0
-    if so2_amt < 1.2315e17:
-        ldf = 0
+    plume_F = raw_F
     
     # Calc light dilution effect
-    light_d = np.multiply(bg_spec, ldf)
+    light_d = np.multiply(bg_spec, p['ldf'])
     
     # Combine with normal spectrum
-    plume_F = np.multiply(plume_F, 1-ldf)
+    plume_F = np.multiply(plume_F, 1-p['ldf'])
     raw_F = np.add(plume_F, light_d)
     
 
     # Convolve high res raw_F with ILS
-    ils = make_ils(ils_width, (com['model_grid'][1] - com['model_grid'][0]),
+    ils = make_ils(p['ils_width'], (com['model_grid'][1] - com['model_grid'][0]),
                    com['ils_gauss_weight'])
     F_conv = np.convolve(raw_F, ils, 'same')
 
     
     # Apply shift and stretch to the model_grid
-    shift_model_grid = np.add(com['model_grid'], shift)
+    shift_model_grid = np.add(com['model_grid'], p['shift'])
     line = np.subtract(com['model_grid'], min(com['model_grid']))
     line = np.divide(line, max(line))
-    shift_model_grid = np.add(shift_model_grid, np.multiply(line, stretch))
+    shift_model_grid = np.add(shift_model_grid, np.multiply(line, p['stretch']))
     
     # Interpolate onto measurement wavelength grid
     F = griddata(shift_model_grid, F_conv, grid, method = 'linear')
@@ -249,9 +232,9 @@ def ifit_fwd(grid, *args, calc_trans_flag = False):
         raw_F_no_bro = np.multiply(raw_F_no_bro, o3_T)
         
         # Add light dilution
-        raw_F_no_so2 = np.add(np.multiply(raw_F_no_so2, 1 - ldf), light_d)
-        raw_F_no_o3  = np.add(np.multiply(raw_F_no_o3, 1 - ldf),  light_d)
-        raw_F_no_bro = np.add(np.multiply(raw_F_no_bro, 1 - ldf), light_d)
+        raw_F_no_so2 = np.add(np.multiply(raw_F_no_so2, 1 - p['ldf']), light_d)
+        raw_F_no_o3  = np.add(np.multiply(raw_F_no_o3,  1 - p['ldf']), light_d)
+        raw_F_no_bro = np.add(np.multiply(raw_F_no_bro, 1 - p['ldf']), light_d)
         
         # Convolve with the ils
         F_conv_no_so2 = np.convolve(raw_F_no_so2, ils, 'same')

@@ -1,6 +1,6 @@
 Wave Start;306
 Wave Stop;318
-ILS Width;0.6
+ILS Width;0.66
 Gauss Weight;1.0
 Fit ILS;False
 LDF;0.0

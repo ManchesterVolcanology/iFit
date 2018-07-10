@@ -39,54 +39,6 @@ def fit_toggle(self, settings):
                           'Spectrum number ' + str(settings['loop']))
 
 #========================================================================================
-#=======================================Save Settings====================================
-#========================================================================================
-    
-# Function to save setting to the ifit_settings.txt file        
-def save(self, settings):
-    
-    # Create or overright settings file
-    with open('data_bases/ifit_settings.txt', 'w') as w:
-        
-        # Save each setting from the gui into settings
-        settings['Wave Start']   = str(self.wave_start_e.get())   
-        settings['Wave Stop']    = str(self.wave_stop_e.get())      
-        settings['Spectrometer'] = str(self.spec_name.get())       
-        settings['Spectra Type'] = str(self.spec_type.get())       
-        settings['int_time']     = str(self.int_time.get())         
-        settings['coadds']       = str(self.coadds.get())
-        settings['no_darks']     = str(self.no_darks.get())
-        settings['ILS Width']    = str(self.ils_width_e.get())
-        settings['Gauss Weight'] = str(self.gauss_weight.get())
-        settings['Fit ILS']      = str(self.ils_width_b.get())
-        settings['LDF']          = str(self.ldf_e.get())
-        settings['Fit LDF']      = str(self.ldf_b.get())
-        settings['poly_n']       = str(self.poly_n.get())
-        settings['shift']        = str(self.shift.get())
-        settings['stretch']      = str(self.stretch.get())
-        settings['ring']         = str(self.ring_amt.get())
-        settings['SO2']          = str(self.so2_amt.get())
-        settings['NO2']          = str(self.no2_amt.get())
-        settings['O3']           = str(self.o3_amt.get())
-        settings['BrO']          = str(self.bro_amt.get())
-        
-        # Add all of the settings dictionary
-        for s in settings:
-            w.write(s + ';' + str(settings[s]) + '\n')
-        
-        try:
-            w.write('Spectra Filepaths;' + str(self.spec_fpaths) + '\n')
-        except AttributeError:
-            w.write('Spectra Filepaths; \n') 
-        
-        try:
-            w.write('Dark Filepaths;' + str(self.dark_fpaths))
-        except AttributeError:
-            w.write('Dark Filepaths; ')
-            
-    self.print_output('Settings saved')
-
-#========================================================================================
 #=================================Connect to Spectrometer================================
 #========================================================================================
         
@@ -118,10 +70,10 @@ def connect_spec(self, settings):
             results_folder = 'Results/iFit/'+str(datetime.date.today())+'/ifit_out/'
            
             # Create folder
-            settings['folder'] = make_directory(results_folder, overwrite = True)
+            settings['rt_folder'] = make_directory(results_folder, overwrite = True)
             
             # Create notes file
-            settings['notes_fname'] = settings['folder'] + 'notes.txt'
+            settings['notes_fname'] = settings['rt_folder'] + 'notes.txt'
             with open(settings['notes_fname'], 'w') as w:
                 w.write('Notes file for iFit\n\n')
     
@@ -185,7 +137,7 @@ def update_int_time(self, settings):
 #===============================Read a single test spectrum==============================
 #========================================================================================
 
-def test_spec(self, settings, mygui):
+def test_spec(self, settings, mygui, line, ax):
     
     # Update status
     self.status.set('Acquiring')
@@ -197,9 +149,9 @@ def test_spec(self, settings, mygui):
                                                int(self.coadds.get()))
     
     # Display the test spectrum
-    self.line2.set_data(x, y)
-    self.ax1.set_xlim(x.min(), x.max())
-    self.ax1.set_ylim(y.min(), y.max())
+    line.set_data(x, y)
+    ax.set_xlim(x.min(), x.max())
+    ax.set_ylim(y.min(), y.max())
     self.canvas.draw()
     
     # Update status
@@ -268,21 +220,18 @@ def read_darks(self, settings, mygui, line, ax):
             mygui.update(self)
         
         # Divide by number of darks to get average
-        settings['dark_spec'] = np.divide(dark, dark_n)
-        
+        self.dark_spec = np.divide(dark, dark_n)
+
         # Display the dark spectrum
         lines = [line]
         axes =  [ax]
         
         # Build data array to pass to graphing function
-        #                 x data    y data    x limits     y limits
-        data = np.array(([x,        dark,     'auto',      'auto']))
+        #                 x data    y data          x limits     y limits
+        data = np.array(([x,        self.dark_spec, 'auto',      'auto']))
         
         # Update graph
         update_graph(lines, axes, self.canvas, data)
-        
-        # Add dark to common
-        settings['dark_spec']  = dark
         
         # Update notes file
         self.print_output('Dark updated\n' + \
@@ -314,7 +263,7 @@ NORM_FONT = ('Verdana', 8)
 MED_FONT  = ('Veranda', 11)
 LARG_FONT = ('Verdana', 12, 'bold')
 
-def adv_settings(self, settings):
+def adv_settings(self, settings, version):
     
     # Make popup window
     popup = tk.Tk()
@@ -342,25 +291,26 @@ def adv_settings(self, settings):
         
         # Update graph settings in common
         settings['Show Graphs']      = graph_b.get()
-        settings['Show Error Bars']  = err_b.get()
+        #settings['Show Error Bars']  = err_b.get()
         settings['scroll_flag']      = scroll_b.get()
         settings['scroll_spec_no']   = int(spec_no_e.get())
         settings['resid_type']       = resid_type.get()
         settings['analysis_gas']     = gas.get()
         
-        # Update graph
-        if settings['resid_type'] == 'Percentage':
-            self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
-        if settings['resid_type'] == 'Absolute':
-            self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
-        if settings['resid_type'] == 'Spec/Fit':
-            self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
+        if version == 'iFit':
+            # Update graph
+            if settings['resid_type'] == 'Percentage':
+                self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
+            if settings['resid_type'] == 'Absolute':
+                self.ax2.set_ylabel('Fit residual (Abs)', fontsize=10)
+            if settings['resid_type'] == 'Spec/Fit':
+                self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
+                
+            self.ax3.set_ylabel(settings['analysis_gas'] + ' Absorbance', fontsize=10)
             
-        self.ax3.set_ylabel(settings['analysis_gas'] + ' Transmittance', fontsize = 10)
-        
-        self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
-            
-        self.canvas.draw()
+            self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
+                
+            self.canvas.draw()
         
         # Close the window
         if close_flag == True:
@@ -569,7 +519,7 @@ def adv_settings(self, settings):
     graph_c = ttk.Checkbutton(graph_frame, variable = graph_b)
     graph_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
-    
+    '''
     # Turn on/off error bars
     err_b = tk.IntVar(graph_frame, value = settings['Show Error Bars'])
     err_l = tk.Label(graph_frame, text = 'Show Error Bars?', font = NORM_FONT)
@@ -577,6 +527,7 @@ def adv_settings(self, settings):
     err_c = ttk.Checkbutton(graph_frame, variable = err_b)
     err_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
+    '''
     
     # Select which gas to analyse
     gas_options = [settings['analysis_gas'],

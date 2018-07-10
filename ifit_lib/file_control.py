@@ -12,8 +12,6 @@ from glob import glob
 #=====================================make_directory=====================================
 #========================================================================================
 
-
-
 def make_directory(fpath, overwrite = False):
     
     '''
@@ -61,3 +59,35 @@ def make_directory(fpath, overwrite = False):
             i += 1
     
     return new_fpath
+
+#========================================================================================
+#=====================================make_directory=====================================
+#========================================================================================
+
+def make_csv_file(fname, common):
+    
+    '''
+    Function used to build a new file directory, automatically changing the filepath to
+    avoid overwriting existing data
+    
+    INPUTS
+    ------
+    fpath: desired file path to the directory
+    '''
+    
+    # Open excel file and write header line
+    with open(fname, 'w') as writer:
+        
+        # Write header line
+        #writer.write('File,Number,Date,Time,so2 (ppm.m),so2 error,')
+        writer.write('File,Number,Date,Time,')
+        
+        for i in common['params'].keys():
+            writer.write(i + ',' + i + '_e,')
+            
+        # Add column for fit info
+        writer.write('Fit Quality\n')
+            
+        # Write other fit info
+        #writer.write('Fit window: ' + str(common['wave_start']) + ' - ' + \
+        #             str(common['wave_stop']) + ' nm\n')
