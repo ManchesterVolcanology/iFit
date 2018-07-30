@@ -1133,7 +1133,8 @@ class mygui(tk.Tk):
                         common['solar_resid'] = np.add(common['solar_resid'],
                                                        np.divide(y_data, fit))
                         resid_count += 1
-                     
+                    if bool(settings['update_params']) == True:
+                        print('mark')
                     # Check fit quality and update first guess params if required
                     if fit_flag == False:
                         fit_msg = 'Failed'

@@ -383,7 +383,7 @@ def adv_settings(self, settings, version):
     row_n += 1
     
     # Control whether or not to remove dark spectra
-    dark_b = tk.IntVar(model_frame, value = settings['dark_flag'])
+    dark_b = tk.BooleanVar(model_frame, value = settings['dark_flag'])
     dark_l = tk.Label(model_frame, text = 'Remove Dark Spectra?', font = NORM_FONT)
     dark_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     dark_c = ttk.Checkbutton(model_frame, variable = dark_b)
@@ -391,7 +391,7 @@ def adv_settings(self, settings, version):
     row_n += 1
     
     # Control whether or not to remove flat spectra
-    flat_b = tk.IntVar(model_frame, value = settings['flat_flag'])
+    flat_b = tk.BooleanVar(model_frame, value = settings['flat_flag'])
     flat_l = tk.Label(model_frame, text = 'Remove Flat Spectra?', font = NORM_FONT)
     flat_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     flat_c = ttk.Checkbutton(model_frame, variable = flat_b)
@@ -411,7 +411,7 @@ def adv_settings(self, settings, version):
     row_n += 1
     
     # Control whether or not to update fit parameter guesses with the last fit values
-    update_b = tk.StringVar(model_frame, value = settings['update_params'])
+    update_b = tk.BooleanVar(model_frame, value = settings['update_params'])
     update_l = tk.Label(model_frame, text = 'Auto-update fit parameters?', font = NORM_FONT)
     update_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     update_c = ttk.Checkbutton(model_frame, variable = update_b)
