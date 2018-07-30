@@ -56,7 +56,7 @@ class mygui(tk.Tk):
         
         # Add a title and icon
         tk.Tk.wm_title(self, 'calc_flux 2.0')
-        tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+        tk.Tk.iconbitmap(self, default = 'data_bases/calc_flux_icon.ico')
 
         # Create control Frame
         cont_frame = ttk.Frame(self, relief = 'groove')
@@ -64,7 +64,7 @@ class mygui(tk.Tk):
         
         # Create frame to hold graphs
         graph_frame = ttk.Frame(self, relief = 'groove')
-        graph_frame.grid(row=1, column=1, padx=10, pady=0, rowspan=10, sticky="N")
+        graph_frame.grid(row=1, column=1, padx=10, pady=10, rowspan=10, sticky="N")
         graph_frame.columnconfigure(index=0, weight=1)
         graph_frame.rowconfigure(index = 0, weight = 1)
         
@@ -179,7 +179,7 @@ class mygui(tk.Tk):
         
         # Add matplotlib toolbar above the plot canvas
         toolbar_frame = tk.Frame(self, bg = 'black')  
-        toolbar_frame.grid(row=0,column=1, sticky = 'NW', padx = 6)                             
+        toolbar_frame.grid(row=0,column=1, sticky = 'NW', padx = 10, pady = 10)                             
         toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
         toolbar.update()
         
@@ -420,8 +420,8 @@ class mygui(tk.Tk):
 
             # Load required data into arrays
             txt_time    = data['Time'] 
-            txt_so2_amt = data['so2 (ppm.m)']
-            txt_so2_err = data['so2 error']
+            txt_so2_amt = data['so2_amt']/2.463e15
+            txt_so2_err = data['so2_amt_e']/2.463e15
             
         except KeyError:
             self.text_output('ERROR: Wrong iFit file format')
@@ -789,15 +789,21 @@ def make_graph(d):
     # Create the canvas to hold the graph in the GUI
     canvas = FigureCanvasTkAgg(fig, popup)
     canvas.show()
-    canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady = 10, columnspan = 2)
+    canvas.get_tk_widget().grid(row=1, column=0, padx=10, pady = 10, columnspan = 2)
+    
+    # Add matplotlib toolbar above the plot canvas
+    toolbar_frame = tk.Frame(popup, bg = 'black')  
+    toolbar_frame.grid(row=0,column=0, sticky = 'NW', padx = 6, columnspan=2)                             
+    toolbar = NavigationToolbar2TkAgg(canvas, toolbar_frame)
+    toolbar.update()
     
     # Create a button to save 
     save_b = ttk.Button(popup, text="Save", command = lambda: save(fig, d))
-    save_b.grid(row = 1, column = 0, padx = 5, pady = 5)
+    save_b.grid(row = 2, column = 0, padx = 5, pady = 5)
     
     # Create a button to exit
     cancel_b = ttk.Button(popup, text = 'Cancel', command = popup.destroy)
-    cancel_b.grid(row = 1, column = 1, padx = 5, pady = 5)
+    cancel_b.grid(row = 2, column = 1, padx = 5, pady = 5)
 
 # Run the App!     
 mygui().mainloop()

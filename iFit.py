@@ -26,9 +26,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 
 from ifit_lib.build_fwd_data import build_fwd_data
 from ifit_lib.read_spectrum import read_spectrum, average_spectra
-from ifit_lib.fit import fit_spec, ifit_fwd
+from ifit_lib.fit import fit_spec
 from ifit_lib.acquire_spectrum import acquire_spectrum
-from ifit_lib.find_nearest import extract_window
 from ifit_lib.update_graph import update_graph
 from ifit_lib.file_control import make_csv_file
 from ifit_lib.gui_funcs import adv_settings, fit_toggle, spec_fp, dark_fp, stop, \
@@ -60,7 +59,7 @@ class mygui(tk.Tk):
         ttk.Style().configure('TButton', width = 20, height = 20, relief="flat") 
         
         # Add a title and icon
-        tk.Tk.wm_title(self, 'iFit-2-2')
+        tk.Tk.wm_title(self, 'iFit-2-3')
         tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         
         # Create notebook to hold different frames
@@ -123,12 +122,12 @@ class mygui(tk.Tk):
         # Create progress bar
         self.progress = ttk.Progressbar(quick_frame, orient = tk.HORIZONTAL, length=350,
                                         mode = 'determinate')
-        self.progress.grid(row = 0, column = 1, padx = 5, pady = 5, columnspan = 3)
+        self.progress.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 4)
         
         # Create status indicator
         self.status = tk.StringVar(quick_frame, value = 'Standby')
         self.status_e = tk.Label(quick_frame, textvariable = self.status)
-        self.status_e.grid(row=0, column=0, padx=5, pady=5, sticky="EW")
+        self.status_e.grid(row=0, column=4, padx=5, pady=5, sticky="EW")
         
         # Create ouput for last so2 amount
         self.last_so2_amt = tk.StringVar(self, value = '-')
@@ -139,9 +138,9 @@ class mygui(tk.Tk):
         
         # Create ouput for last so2 error
         self.last_so2_err = tk.StringVar(self, value = '-')
-        last_so2_err_l = tk.Label(quick_frame, text = 'Last error:', 
+        last_so2_err_l = tk.Label(quick_frame, text = '+/-', 
                                   font = NORM_FONT)
-        last_so2_err_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
+        last_so2_err_l.grid(row = 1, column = 2, pady = 5, sticky = 'W')
         last_so2_err_e = tk.Label(quick_frame, textvariable = self.last_so2_err)
         last_so2_err_e.grid(row = 1, column = 3, padx = 5, pady = 5, sticky = 'W')
         
@@ -205,7 +204,7 @@ class mygui(tk.Tk):
             settings['Fit no2']           = 'Fit'
             settings['Fit o3']            = 'Fit'
             settings['Fit bro']           = 'Fit'
-            settings['model_resolution']  = 0.02
+            settings['model_res']         = 0.02
             settings['sol_path']          = 'data_bases/gas data/sao2010.txt'
             settings['ring_path']         = 'data_bases/gas data/ring.dat'
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
@@ -444,10 +443,10 @@ class mygui(tk.Tk):
 #========================================================================================
         
         # Create label to display the spectrometer name
-        self.c_spec = tk.StringVar(setup_frame2, value = 'None connected')
+        self.c_spec = tk.StringVar(setup_frame2, value = 'Not Connected')
         c_spec_l = ttk.Label(setup_frame2, text="Device: ", font = NORM_FONT)
         c_spec_l.grid(row=0, column=0, pady=5, padx=5, sticky='W')
-        c_spec_e = ttk.Entry(setup_frame2, textvariable = self.c_spec)
+        c_spec_e = ttk.Label(setup_frame2, textvariable = self.c_spec)
         c_spec_e.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         # Integration Time
@@ -550,19 +549,19 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # Create entry for start and stop wavelengths
+        fit_range_l = tk.Label(model_frame, text = 'Fit Range:', font = NORM_FONT)
+        fit_range_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+        
         self.wave_start = tk.DoubleVar(model_frame, value = settings['Wave Start'])
-        self.wave_start_l = tk.Label(model_frame, text = 'Wave Start:', font = NORM_FONT)
-        self.wave_start_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        self.wave_start_e = ttk.Entry(model_frame, textvariable = self.wave_start,
+        wave_start_e = ttk.Entry(model_frame, textvariable = self.wave_start,
                                       width = 12)
-        self.wave_start_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+        wave_start_e.grid(row = 0, column = 1, padx = 5, pady = 5)
         
         self.wave_stop = tk.DoubleVar(model_frame, value = settings['Wave Stop'])
-        self.wave_stop_l = tk.Label(model_frame, text = 'Wave Stop:', font = NORM_FONT)
-        self.wave_stop_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
-        self.wave_stop_e = ttk.Entry(model_frame, textvariable = self.wave_stop, 
-                                     width = 12)
-        self.wave_stop_e.grid(row = 0, column = 3, padx = 5, pady = 5)
+        wave_stop_l = tk.Label(model_frame, text = 'Wave Stop:', font = NORM_FONT)
+        wave_stop_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
+        wave_stop_e = ttk.Entry(model_frame, textvariable = self.wave_stop, width = 12)
+        wave_stop_e.grid(row = 0, column = 3, padx = 5, pady = 5)
         
         # Create array of fitting options
         fit_options = ['', 'Fit', 'Fix', 'N/A']
@@ -604,7 +603,7 @@ class mygui(tk.Tk):
         
         # Polynomial coefficents
         self.poly_n = tk.DoubleVar(self, value = settings['poly_n'])
-        poly_n_vals = [1,2,3,4,5,6,7,8,9,10]
+        poly_n_vals = [0,1,2,3,4,5,6,7,8,9,10]
         poly_n_l = tk.Label(param_frame, text = 'Poly Order:', font = NORM_FONT)
         poly_n_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
         poly_n_e = tk.Spinbox(param_frame, values = poly_n_vals, width = 12,
@@ -743,15 +742,15 @@ class mygui(tk.Tk):
         # Turn off stopping flag
         settings['stop_flag'] = False
  
-        # Create flag to skip an analyis
+        # Create flag to skip an analyis in case of spectrum read error
         skip_flag = [False, 'No error']
        
         # Create common dictionary
         common = {}
         
         # Populate common with other data from the GUI
-        common['wave_start']       = float(self.wave_start_e.get())
-        common['wave_stop']        = float(self.wave_stop_e.get())
+        common['wave_start']       = float(self.wave_start.get())
+        common['wave_stop']        = float(self.wave_stop.get())
         common['poly_n']           = int(self.poly_n.get()) + 1
         common['ils_width']        = float(self.ils_width.get())
         common['ils_gauss_weight'] = float(self.gauss_weight.get())
@@ -762,6 +761,8 @@ class mygui(tk.Tk):
         common['dark_flag']        = int(settings['dark_flag'])
         common['flat_flag']        = int(settings['flat_flag'])
         common['solar_resid_flag'] = settings['solar_resid_flag']
+        
+        common['meas_shift_flag'] = True
 
         # Turn of dark flag if in real time and no darks have been taken
         if rt_flag == 'rt_analysis' and settings['rt_dark_flag'] == False:
@@ -773,27 +774,24 @@ class mygui(tk.Tk):
 #========================================================================================
         
         # Create parameter array
-        params = OrderedDict()
+        common['params'] = OrderedDict()
 
         for i in range(common['poly_n']):
-            params['p'+str(i)] = [1.0, 'Fit']
+            common['params']['p'+str(i)] = [1.0, 'Fit']
             
         # Add other parameters
-        params['shift']     = [float(self.shift.get())   , self.shift_c.get()]
-        params['stretch']   = [float(self.stretch.get()) , self.stretch_c.get()]
-        params['ring_amt']  = [float(self.ring_amt.get()), self.ring_c.get()]
-        params['so2_amt']   = [float(self.so2_amt.get()) , self.so2_c.get()]
-        params['no2_amt']   = [float(self.no2_amt.get()) , self.no2_c.get()]
-        params['o3_amt']    = [float(self.o3_amt.get())  , self.o3_c.get()]
-        params['bro_amt']   = [float(self.bro_amt.get()) , self.bro_c.get()]
-        params['ils_width'] = [self.ils_width.get()      , self.ils_width_c.get()]
-        params['ldf']       = [self.ldf.get()            , self.ldf_c.get()]
+        common['params']['shift']     = [float(self.shift.get()), self.shift_c.get()]
+        common['params']['stretch']   = [float(self.stretch.get()), self.stretch_c.get()]
+        common['params']['ring_amt']  = [float(self.ring_amt.get()), self.ring_c.get()]
+        common['params']['so2_amt']   = [float(self.so2_amt.get()), self.so2_c.get()]
+        common['params']['no2_amt']   = [float(self.no2_amt.get()), self.no2_c.get()]
+        common['params']['o3_amt']    = [float(self.o3_amt.get()), self.o3_c.get()]
+        common['params']['bro_amt']   = [float(self.bro_amt.get()), self.bro_c.get()]
+        common['params']['ils_width'] = [self.ils_width.get(), self.ils_width_c.get()]
+        common['params']['ldf']       = [self.ldf.get(), self.ldf_c.get()]
         
         # Create empty last spec
         common['last_spec'] = np.array([0])
-
-        # Add to common
-        common['params'] = params
         
         # Save initial guess parameters
         initial_params = common['params'].copy()
@@ -850,7 +848,7 @@ class mygui(tk.Tk):
             # Read a single spectrum to get wavelength data
             try:
                 x, y, header, t = acquire_spectrum(self, settings['spec'], 1, 1)
-                read_date, read_time = t.split(' ')
+                read_date, read_time = t.split()
                 
             except KeyError:
                 self.print_output('No spectrometer connected')
@@ -861,14 +859,15 @@ class mygui(tk.Tk):
                 return 
             
         # Find indices of desired wavelength window and add to common
-        grid,common['ind1'],common['ind2'] = extract_window(x, common['wave_start'],
-                                                            common['wave_stop'])
+        common['fit_idx'] = np.where(np.logical_and(common['wave_start'] <= x, 
+                                                    x <= common['wave_stop']))
+        grid = x[common['fit_idx']]
         
         # Find stray light window
-        stray_grid, common['stray_i1'], common['stray_i2'] = extract_window(x, 280, 290)
+        common['stray_idx'] = np.where(np.logical_and(280 <= x, x <= 290))
         
         # If no stray light pixels available, turn off the flag
-        if common['stray_i1'] == common['stray_i2']:
+        if len(common['stray_idx'][0]) == 0:
             common['stray_flag'] = False     
         else:
             common['stray_flag'] = True
@@ -1021,8 +1020,6 @@ class mygui(tk.Tk):
                         
                 
                 # Read spectrum from spectrometer and fit
-               # self.print_output(rt_flag, self.toggle_button.config('text')[-1], 
-                #                  )
                 elif rt_flag=='rt_analysis' and self.toggle_button.config('text')[-1]==\
                 'FITTING ON' and common['last_spec'].all() != 0:
 
@@ -1085,8 +1082,7 @@ class mygui(tk.Tk):
                 
 #========================================================================================
 #====================================Just read spectrum==================================
-#========================================================================================                
-                
+#========================================================================================              
                 
                 # Read spectrum from spectrometer but do not fit
                 else:
@@ -1138,37 +1134,33 @@ class mygui(tk.Tk):
                                                        np.divide(y_data, fit))
                         resid_count += 1
                      
-                    # If update params on, check fit quality. If fit fails or is bad, 
-                    #   reset the first guess parameters
-                    if bool(settings['update_params']) == True:
-                        if fit_flag == False:
+                    # Check fit quality and update first guess params if required
+                    if fit_flag == False:
+                        fit_msg = 'Failed'
+                        if settings['update_params'] == True:
                             common['params'] = initial_params.copy()
-                            self.print_output('Fitting for spectrum ' + str(spec_no) + \
+                            self.print_output('Fitting for spectrum '+str(spec_no)+\
                                               ' failed, resetting parameters')
-                            fit_msg = 'Failed'
-                           
-                        elif max_resid > float(settings['good_fit_bound'])/100:
-                            common['params'] = initial_params.copy()
-                            self.print_output('Fitting for spectrum ' + str(spec_no) + \
-                                              ' bad, resetting parameters')
-                            fit_msg = 'Bad'
-                       
-                        else:
                             
+                    elif max_resid > float(settings['good_fit_bound'])/100:
+                        fit_msg = 'Bad'
+                        if settings['update_params'] == True:
+                            common['params'] = initial_params.copy()
+                            self.print_output('Fitting for spectrum '+str(spec_no)+\
+                                              ' bad, resetting parameters')
+                            
+                    else:
+                        fit_msg = 'Good'
+                        if settings['update_params'] == True:
                             # Update first guesses with last fitted params
                             for key, val in fit_dict.items():
                                 common['params'][key][0] = val
-                            fit_msg = 'Good'
     
                     # Write results to excel file, starting with spectrum info
                     writer.write(str(fname)          + ',' + \
                                  str(spec_no)        + ',' + \
                                  str(str(read_date)) + ',' + \
-                                 str(str(read_time)))
-                    
-                    # Print so2 amount and error in ppm.m for ease
-                    #writer.write(',' + str(fit_dict['so2_amt']/2.463e15) + ',' + \
-                    #             str(err_dict['so2_amt']/2.463e15))            
+                                 str(str(read_time)))          
         
                     # Print fit results and error for each parameter          
                     for key, val in common['params'].items():
@@ -1185,6 +1177,7 @@ class mygui(tk.Tk):
                 
                     # Add values to array for plotting
                     spec_nos.append(spec_no)
+                    
                     if common['params']['so2_amt'][1] == 'Fit':
                         gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
                         gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
@@ -1194,6 +1187,26 @@ class mygui(tk.Tk):
                     if common['params']['bro_amt'][1] == 'Fit':
                         gas['BrO_amts'].append(fit_dict['bro_amt']/2.463e15)
                         gas['BrO_errs'].append(err_dict['bro_amt']/2.463e15)
+                        
+                    if common['params']['so2_amt'][1] == 'Fix':
+                        gas['SO2_amts'].append(common['params']['so2_amt'][0]/2.463e15)
+                        gas['SO2_errs'].append(0)
+                    if common['params']['o3_amt'][1] == 'Fix':
+                        gas['O3_amts'].append(common['params']['o3_amt'][0]/2.463e15)
+                        gas['O3_errs'].append(0)
+                    if common['params']['bro_amt'][1] == 'Fix':
+                        gas['BrO_amts'].append(common['params']['bro_amt'][0]/2.463e15)
+                        gas['BrO_errs'].append(0)
+                        
+                    if common['params']['so2_amt'][1] == 'N/A':
+                        gas['SO2_amts'].append(0)
+                        gas['SO2_errs'].append(0)
+                    if common['params']['o3_amt'][1] == 'N/A':
+                        gas['O3_amts'].append(0)
+                        gas['O3_errs'].append(0)
+                    if common['params']['bro_amt'][1] == 'N/A':
+                        gas['BrO_amts'].append(0)
+                        gas['BrO_errs'].append(0)
                     
                     # Update quick analysis with values
                     last_amt="{0:0.2f}".format(gas[settings['analysis_gas']+'_amts'][-1])
@@ -1311,8 +1324,8 @@ class mygui(tk.Tk):
         with open('data_bases/ifit_settings.txt', 'w') as w:
             
             # Save each setting from the gui into settings
-            settings['Wave Start']   = str(self.wave_start_e.get())   
-            settings['Wave Stop']    = str(self.wave_stop_e.get())      
+            settings['Wave Start']   = str(self.wave_start.get())   
+            settings['Wave Stop']    = str(self.wave_stop.get())      
             settings['Spectrometer'] = str(self.spec_name.get())       
             settings['Spectra Type'] = str(self.spec_type.get())       
             settings['int_time']     = str(self.int_time.get())         

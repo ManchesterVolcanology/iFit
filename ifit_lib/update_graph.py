@@ -35,11 +35,11 @@ def update_graph(lines, axes, canvas, new_data):
         # Update data points on the graph
         lines[i].set_xdata(xdata[i])
         lines[i].set_ydata(ydata[i])
-        
+
         # Rescale the axes
         axes[i].relim()
         axes[i].autoscale_view()     
-        
+
         try:
             # If auto, pad by 10% of range      
             if xlims[i] == 'auto':

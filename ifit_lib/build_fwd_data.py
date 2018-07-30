@@ -7,9 +7,8 @@ Created on Mon May  8 09:07:32 2017
 
 import numpy as np
 from scipy.interpolate import griddata
-from ifit_lib.find_nearest import extract_window
 
-from ifit_lib.smooth import smooth
+#from ifit_lib.smooth import smooth
 
 #========================================================================================
 #=====================================build_fwd_data=====================================
@@ -51,11 +50,12 @@ def build_fwd_data(common, settings, self):
         return y1
     
     # Build model grid, a high res grid on which the forward model is build. It extends
-    #  2 nm beyond the measurement grid and has a spacing controlled by the user
-    spacing = 1/float(settings['model_resolution'])
-    npts = ((common['wave_stop'] + 3) - (common['wave_start'] - 3)) * spacing
-    model_grid = np.linspace(common['wave_start'] - 3, common['wave_stop'] + 3, 
-                             num = npts + 1)
+    #  3 nm beyond the measurement grid and has a spacing controlled by the user
+    model_grid = np.arange(start = common['wave_start'] - 3, 
+                           stop = common['wave_stop'] + 3 + float(settings['model_res']), 
+                           step = float(settings['model_res']))
+    
+    common['model_grid']  = model_grid
     
     # Try importing flat spectrum. If not found set to 1
     if common['flat_flag'] == True:
@@ -63,8 +63,9 @@ def build_fwd_data(common, settings, self):
         try:
             # Import flat spectrum and extract window of interest
             flat_grid, flat = np.loadtxt(settings['flat_path'] , unpack = True)
-            x,i1,i2 = extract_window(flat_grid,common['wave_start'],common['wave_stop'])
-            common['flat'] = flat[i1:i2]
+            flat_idx = np.where(np.logical_and(common['wave_start'] <= flat_grid, 
+                                               flat_grid <= common['wave_stop']))
+            common['flat'] = flat[flat_idx]
             
             self.print_output('Flat spectrum imported', add_line = False)
             
@@ -82,8 +83,8 @@ def build_fwd_data(common, settings, self):
     sol_y = np.divide(sol_y, conv_factor)
     
     # Smooth and interpolate onto model_grid
-    smooth_sol_y = smooth(sol_y, 8)
-    sol = interpolate(sol_x, smooth_sol_y, model_grid, method = 'cubic')
+    #sol_y = smooth(sol_y, 8)
+    common['sol'] = interpolate(sol_x, sol_y, model_grid, method = 'cubic')
         
     self.print_output('Solar reference spectrum imported', add_line = False)
      
@@ -100,7 +101,7 @@ def build_fwd_data(common, settings, self):
     # Import ring spectrum and interpolate onto the model_grid
     self.print_output('Importing ring spectrum...', add_line = False)
     ring_x, ring_y = np.loadtxt(settings['ring_path'], unpack = True)
-    ring = interpolate(ring_x, ring_y, model_grid, method = 'cubic')
+    common['ring'] = interpolate(ring_x, ring_y, model_grid, method = 'cubic')
     self.print_output('Ring spectrum imported', add_line = False)
     
     self.print_output('Importing gas cross-sections...', add_line = False)
@@ -108,19 +109,22 @@ def build_fwd_data(common, settings, self):
     
     # Import SO2 data
     so2_xsec = np.loadtxt(settings['so2_path'], skiprows=1)
-    so2_xsec = interpolate(so2_xsec[:,0], so2_xsec[:,1], model_grid, method = 'cubic')
+    common['so2_xsec'] = interpolate(so2_xsec[:,0], so2_xsec[:,1], model_grid, 
+                                     method = 'cubic')
     self.print_output('SO2 cross-section imported', add_line = False)
     
     
     # Import NO2 data
     no2_xsec = np.loadtxt(settings['no2_path'], skiprows=43)
-    no2_xsec = interpolate(no2_xsec[:,0], no2_xsec[:,2], model_grid, method = 'cubic')
+    common['no2_xsec'] = interpolate(no2_xsec[:,0], no2_xsec[:,2], model_grid,
+                                     method = 'cubic')
     self.print_output('NO2 cross-section imported', add_line = False)
     
     
     # Import O3 data
     o3_xsec = np.loadtxt(settings['o3_path'], skiprows=41)
-    o3_xsec = interpolate(o3_xsec[:,0], o3_xsec[:,1], model_grid, method = 'cubic')
+    common['o3_xsec'] = interpolate(o3_xsec[:,0], o3_xsec[:,1], model_grid, 
+                                    method = 'cubic')
     self.print_output('O3 cross-section imported', add_line = False)
     
     
@@ -134,16 +138,8 @@ def build_fwd_data(common, settings, self):
     bro = bro[::-1]
     
     # Interpolate onto the grid
-    bro_xsec = interpolate(bro[:,0], bro[:,1], model_grid, method = 'cubic')
+    common['bro_xsec'] = interpolate(bro[:,0], bro[:,1], model_grid, 
+                                     method = 'cubic')
     self.print_output('BrO cross-section imported')
-    
-    # Add the data to the common dictionary
-    common['model_grid']  = model_grid
-    common['sol']         = sol
-    common['ring']        = ring
-    common['so2_xsec']    = so2_xsec
-    common['no2_xsec']    = no2_xsec
-    common['o3_xsec']     = o3_xsec
-    common['bro_xsec']    = bro_xsec
     
     return common

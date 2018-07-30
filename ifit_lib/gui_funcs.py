@@ -51,8 +51,8 @@ def connect_spec(self, settings):
     # If no devices are connected then set string to show. Else assign first to spec
     if len(devices) == 0:
         settings['spec'] = 0
-        settings['Spectrometer'] = 'No devices connected'
-        devices = ['No devices connected']
+        settings['Spectrometer'] = 'No devices found'
+        devices = ['No devices found']
     else:
         try:
             # Connect to spectrometer
@@ -167,11 +167,11 @@ def read_darks(self, settings, mygui, line, ax):
     
         # Update status
         self.status.set('Acquiring darks')
-        mygui.update(self)
         
         # Reset progress bar
         self.progress['mode'] = 'determinate'
         self.progress['value'] = 0
+        mygui.update(self)
         
         # Create zero array to hold dark spectra
         dark = np.zeros(2048)
@@ -326,8 +326,20 @@ def adv_settings(self, settings, version):
 
 #========================================================================================
 #======================================Make frames=======================================
-#========================================================================================
- 
+#========================================================================================        
+        
+    # Create notebook to hold different frames
+    nb = ttk.Notebook(popup)
+    model_frame = ttk.Frame(nb)
+    datab_frame = ttk.Frame(nb)
+    graph_frame = ttk.Frame(nb)
+    
+    nb.add(model_frame, text = 'Model Settings')
+    nb.add(graph_frame, text = 'Graph Settings')
+    nb.add(datab_frame, text = 'Data Base Settings')
+    
+    nb.grid(row = 0, column=0, padx=10, pady=10, sticky = 'NW', columnspan = 10)
+    '''
     # Create frames for diferent sections for post analysis and buttons
     model_frame = tk.LabelFrame(popup, text = 'Model Settings', font = LARG_FONT)
     model_frame.grid(row=0, column=0, padx = 10, pady = 10, sticky="NW")
@@ -337,23 +349,23 @@ def adv_settings(self, settings, version):
     
     graph_frame = tk.LabelFrame(popup, text='Graph Settings', font = LARG_FONT)
     graph_frame.grid(row=1, column=0, padx = 10, pady = 10, sticky="NW")
-    
+    '''
     button_frame = ttk.Frame(popup)
-    button_frame.grid(row=2, column=0, padx = 10, pady = 10, sticky="EW", columnspan = 2)
+    button_frame.grid(row=1, column=0, padx = 10, pady = 10, sticky="EW")
 
     # Button to apply changes and close
     b1 = ttk.Button(button_frame, text='Ok', command=lambda: update_settings(settings, 
                                                                              True))
-    b1.grid(row = 0, column = 0, padx = 100, pady = 5, sticky = "EW")
+    b1.grid(row = 0, column = 0, padx = 40, pady = 5, sticky = "EW")
     
     # Button to just apply changes
     b2 = ttk.Button(button_frame, text='Apply', command=lambda: update_settings(settings,
                                                                                 False))
-    b2.grid(row = 0, column = 1, padx = 100, pady = 5, sticky = "EW")
+    b2.grid(row = 0, column = 1, padx = 40, pady = 5, sticky = "EW")
     
     # Buttong to cancel
     b3 = ttk.Button(button_frame, text='Cancel', command=lambda: popup.destroy())
-    b3.grid(row = 0, column = 2, padx = 100, pady = 5, sticky = "EW")
+    b3.grid(row = 0, column = 2, padx = 40, pady = 5, sticky = "EW")
 
 #========================================================================================
 #=====================================Model Settings=====================================
@@ -363,7 +375,7 @@ def adv_settings(self, settings, version):
     row_n = 0
     
     # Set resolution of model grid
-    popup.model_res = tk.DoubleVar(model_frame, value = settings['model_resolution'])
+    popup.model_res = tk.DoubleVar(model_frame, value = settings['model_res'])
     model_res_l = tk.Label(model_frame, text = 'Model Grid spacing:', font = NORM_FONT)
     model_res_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     model_res_e = ttk.Entry(model_frame, textvariable = popup.model_res)
@@ -427,7 +439,7 @@ def adv_settings(self, settings, version):
     sol_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     sol_path_e = ttk.Entry(datab_frame, text=popup.sol_path, font=NORM_FONT, width=40)
     sol_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    sol_path_b = ttk.Button(datab_frame, text = "Select", 
+    sol_path_b = ttk.Button(datab_frame, text = "Update", 
                             command = lambda: update_fp(popup.sol_path))
     sol_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -439,7 +451,7 @@ def adv_settings(self, settings, version):
     ring_path_e = ttk.Entry(datab_frame, textvariable=popup.ring_path, font=NORM_FONT, 
                             width=40)
     ring_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    ring_path_b = ttk.Button(datab_frame, text = "Select", 
+    ring_path_b = ttk.Button(datab_frame, text = "Update", 
                              command = lambda: update_fp(popup.ring_path))
     ring_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -451,7 +463,7 @@ def adv_settings(self, settings, version):
     so2_path_e = ttk.Entry(datab_frame, textvariable = popup.so2_path, font = NORM_FONT,
                            width = 40)
     so2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    so2_path_b = ttk.Button(datab_frame, text = "Select", 
+    so2_path_b = ttk.Button(datab_frame, text = "Update", 
                             command = lambda: update_fp(popup.so2_path))
     so2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -463,7 +475,7 @@ def adv_settings(self, settings, version):
     no2_path_e = ttk.Entry(datab_frame, textvariable = popup.no2_path, font = NORM_FONT,
                            width = 40)
     no2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    no2_path_b = ttk.Button(datab_frame, text = "Select", 
+    no2_path_b = ttk.Button(datab_frame, text = "Update", 
                             command = lambda: update_fp(popup.no2_path))
     no2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -475,7 +487,7 @@ def adv_settings(self, settings, version):
     o3_path_e = ttk.Entry(datab_frame, textvariable = popup.o3_path, font = NORM_FONT,
                           width = 40)
     o3_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    o3_path_b = ttk.Button(datab_frame, text = "Select", 
+    o3_path_b = ttk.Button(datab_frame, text = "Update", 
                            command = lambda: update_fp(popup.o3_path))
     o3_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -487,7 +499,7 @@ def adv_settings(self, settings, version):
     bro_path_e = ttk.Entry(datab_frame, textvariable = popup.bro_path, font = NORM_FONT,
                            width = 40)
     bro_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
-    bro_path_b = ttk.Button(datab_frame, text = "Select", 
+    bro_path_b = ttk.Button(datab_frame, text = "Update", 
                             command = lambda: update_fp(popup.bro_path))
     bro_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -499,7 +511,7 @@ def adv_settings(self, settings, version):
     solar_resid_path_e = ttk.Entry(datab_frame, textvariable = popup.solar_resid_path,
                                    font = NORM_FONT, width = 40)
     solar_resid_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
-    solar_resid_path_b = ttk.Button(datab_frame, text = "Select", 
+    solar_resid_path_b = ttk.Button(datab_frame, text = "Update", 
                                     command = lambda: update_fp(popup.solar_resid_path))
     solar_resid_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1    

@@ -34,7 +34,7 @@ Fit so2;Fit
 Fit no2;Fit
 Fit o3;Fit
 Fit bro;N/A
-model_resolution;0.02
+model_res;0.02
 sol_path;data_bases/gas data/sao2010.txt
 ring_path;data_bases/gas data/ring.dat
 so2_path;data_bases/gas data/SO2_293K.dat

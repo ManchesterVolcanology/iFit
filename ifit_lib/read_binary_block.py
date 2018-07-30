@@ -23,13 +23,14 @@ def read_binary_block(fpath):
     OUTPUTS
     -------
     error:      an error code, 0 if all is OK, 1 if an error was produced
-    wavelength: aray of wavelengths
-    header:     header parameters
-    info_block: information assosiated with each spectrum
-    spec_block: the measured spectra
+    wavelength: array of wavelength calculated from the calibration coefficients
+    header:     header parameters: Vbatt, Vpanel, IBatt, Temp.
+    info_block: spectra info: spec no, hours, minutes, seconds, motor position
+    spec_block: array of the measured spectra for the scan block
     
     Written by Ben Esse, June 2018
     '''
+    
     try:
         # Get spec details
         scanner, spec_name, int_val, c1, c2, c3 = get_spec_details(fpath)
@@ -157,7 +158,8 @@ def get_spec_details(fpath):
               'enic': ['I2J5769', 296.6937822, 0.047945548, -4.89043e-6,  -1.77072e-10 ],
               'eili': ['I2J5774', 296.2133877, 0.048868629, -5.55088e-6,  3.97945E-11  ],
               'emil': ['I2J5768', 295.9804618, 0.049231176, -5.52944e-6,  -6.98636E-12 ],
-              'even': ['I2J5775', 296.2851694, 0.04864757,  -5.17264e-6,  -0.106506e-10]}
+              'even': ['I2J5775', 296.2851694, 0.04864757,  -5.17264e-6,  -0.106506e-10],
+              'etst': ['I2J5770', 295.1845975, 0.049603817, -5.54717e-6,  -3.531373-11 ]}
     
     # Get just filename
     fname = fpath.split('/')[-1]
@@ -169,8 +171,3 @@ def get_spec_details(fpath):
     spec_name, intercept, c1, c2, c3 = params[scanner]
     
     return scanner, spec_name, intercept, c1, c2, c3
-
-fpath = 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/UV spectra/FLAME Scan test/calib_060802ENIC/060802_070234_enic_2_2.txt'
-
-
-err, wavelength, header, info_block, spec_block = read_binary_block(fpath)

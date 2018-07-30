@@ -18,6 +18,28 @@ from pandas import read_csv as read_csv
 
 def read_spectrum(fname, spec_type='iFit'):
     
+    '''
+    Function to read spectra and extract information, depending on the file format
+    
+    INPUTS
+    ------
+    fname:     String, Path to spectrum file
+    spec_type: String, format of spectrum file. Choices: iFit, Master.Scope, Jai Spec,
+               Spectrasuite, GSJ.
+               
+    OUTPUTS
+    -------
+    x:        Numpy array; spectrum wavelength data
+    y:        Numpy array; spectrum intensity data
+    date:     Datetime date; date of measurement
+    time:     Datetime time; time of measurement
+    spec_no:  Float; spectrum number, used for display and recording results
+    read_err: Tuple; error message to flag if reading the spectrum fails. Has the format:
+              (Boolian, Message), where Boolian = False for no error and True if an error
+              occurs. Message is 'No error' for no error, and the error message if an
+              error occurs.
+    '''
+    
     try:
         
         if spec_type == 'iFit':

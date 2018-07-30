@@ -5,6 +5,7 @@ from scipy.optimize import curve_fit
 from ifit_lib.make_ils import make_ils
 from ifit_lib.smooth import smooth
 from ifit_lib.make_poly import make_poly
+from ifit_lib.get_shift import get_shift
 
 #========================================================================================
 #=========================================fit_spec=======================================
@@ -20,7 +21,7 @@ def fit_spec(common, y, grid, q = None):
     INPUTS:
     -------
     common: common dictionary of parameters and variables passed from the main program to 
-              subroutines
+            subroutines
     y:      intensity data from the measured spectrum 
     grid:   measurement wavelength grid over which the fit occurs
     q:      Queue to which to add the output if threaded (default = None)
@@ -53,29 +54,29 @@ def fit_spec(common, y, grid, q = None):
     
     # Remove stray light
     if common['stray_flag'] == True:
-        y = np.subtract(y, np.average(y[common['stray_i1']:common['stray_i2']]))
-    
-    # Find weighting from noise in spectrum
-    sigma = np.divide(y, smooth(y, 3))
+        y = np.subtract(y, np.average(y[common['stray_idx']]))
     
     # Cut desired wavelength window
-    y = y[common['ind1']:common['ind2']]
-    sigma = sigma[common['ind1']:common['ind2']]
+    y = y[common['fit_idx']]
 
     # Divide by flat spectrum
     if common['flat_flag'] == True:
         y = np.divide(y, common['flat'])
+        
+    # Pre-calculate shift
+    #if common['meas_shift_flag'] == True:
+        #common['params']['shift'][0] = get_shift(grid, y, common)
 
-    # Create dict to hold gas trans data
+    # Create dictionary to hold gas trans data
     gas_T = {}
     
     # Appempt to fit!
     try:
         # Fit
-        popt, pcov = curve_fit(ifit_fwd, grid, y, p0 = fit_params, sigma = sigma)
+        popt, pcov = curve_fit(ifit_fwd_model, grid, y, p0 = fit_params)
 
         # Calculate transmittance spectra
-        fit = ifit_fwd(grid, *popt, calc_trans_flag = True)
+        fit = ifit_fwd_model(grid, *popt, calc_trans_flag = True)
         
         # Form transmittance spectra
         gas_T['SO2_tran'] = y / com['F_no_so2']
@@ -93,10 +94,12 @@ def fit_spec(common, y, grid, q = None):
         popt = np.zeros(len(fit_params))
         pcov = np.zeros((len(fit_params),len(fit_params)))
         
+        fit = np.zeros(len(grid))
+        
         # Form transmittance spectra
-        gas_T['SO2_tran'] = np.zeros(len(grid))
-        gas_T['O3_tran']  = np.zeros(len(grid))
-        gas_T['BrO_tran'] = np.zeros(len(grid))
+        gas_T['SO2_tran']  = np.zeros(len(grid))
+        gas_T['O3_tran']   = np.zeros(len(grid))
+        gas_T['BrO_tran']  = np.zeros(len(grid))
         gas_T['SO2_spec']  = np.zeros(len(grid))
         gas_T['O3_spec']   = np.zeros(len(grid))
         gas_T['BrO_spec']  = np.zeros(len(grid))
@@ -112,8 +115,7 @@ def fit_spec(common, y, grid, q = None):
             m+=1
 
     # Generate a dictionary of errors
-    # NOTE this is just variation in the fitting params, this does not include 
-    #  systematic errors!
+    # NOTE this is covarience in fitting params and does not include systematic errors!
     err_dict = {}
     m = 0
     for key, val in common['params'].items():
@@ -134,15 +136,17 @@ def fit_spec(common, y, grid, q = None):
 #=========================================ifit_fwd=======================================
 #========================================================================================
 
-def ifit_fwd(grid, *fit_params, calc_trans_flag = False):
+def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
     
     '''
+    iFit forward model to fit measured UV sky spectra
+    
     INPUTS:
     -------
     grid:            measurement wavelength grid
-    *args:           forward model state vector used for fitting.
+    *args:           forward model state vector 
     calc_trans_flag: flag whether or not to calculate transmission spectra. Not required 
-                      for fitting, but helpful for analysis of fit quality
+                     for fitting, but helpful for analysis of fit quality
 
     OUTPUTS:
     --------
@@ -209,8 +213,7 @@ def ifit_fwd(grid, *fit_params, calc_trans_flag = False):
     
     # Apply shift and stretch to the model_grid
     shift_model_grid = np.add(com['model_grid'], p['shift'])
-    line = np.subtract(com['model_grid'], min(com['model_grid']))
-    line = np.divide(line, max(line))
+    line = np.linspace(0, 1, num = len(shift_model_grid))
     shift_model_grid = np.add(shift_model_grid, np.multiply(line, p['stretch']))
     
     # Interpolate onto measurement wavelength grid

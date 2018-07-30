@@ -26,9 +26,9 @@ from collections import OrderedDict
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from ifit_lib.build_fwd_data import build_fwd_data
-from ifit_lib.fit import fit_spec, ifit_fwd
+from ifit_lib.fit import fit_spec
 from ifit_lib.acquire_spectrum import acquire_spectrum
-from ifit_lib.find_nearest import extract_window
+from ifit_lib.update_graph import update_graph
 from ifit_lib.file_control import make_directory, make_csv_file
 from ifit_lib.gui_funcs import adv_settings, fit_toggle, stop, connect_spec, test_spec, \
                                update_int_time, read_darks
@@ -719,18 +719,18 @@ class mygui(tk.Tk):
             return 
             
         # Find indices of desired wavelength window and add to common
-        grid,common['ind1'],common['ind2'] = extract_window(x, common['wave_start'],
-                                                            common['wave_stop'])
+        common['fit_idx'] = np.where(np.logical_and(common['wave_start'] <= x, 
+                                                    x <= common['wave_stop']))
+        grid = x[common['fit_idx']]
         
         # Find stray light window
-        stray_grid, common['stray_i1'], common['stray_i2'] = extract_window(x, 280, 290)
-        
-        # Create flag to control whether stray light is removed
-        common['stray_flag'] = True
+        common['stray_idx'] = np.where(np.logical_and(280 <= x, x <= 290))
         
         # If no stray light pixels available, turn off the flag
-        if common['stray_i1'] == common['stray_i2']:
-            common['stray_flag'] = False 
+        if len(common['stray_idx'][0]) == 0:
+            common['stray_flag'] = False     
+        else:
+            common['stray_flag'] = True
             
         # If forming solar residual create empty array and counter
         if common['solar_resid_flag'] == 'Generate':
@@ -1003,22 +1003,32 @@ class mygui(tk.Tk):
                         graph_view = self.graph_view.get()
                         
                         if graph_view == 'Spectrum':
+                            x_graph_data = x
+                            y_graph_data = y
                             self.line0.set_data(x, y)
                             self.line1.set_data(x[0], y[0])
                             
                         if graph_view == 'Fit':
+                            x_graph_data = grid
+                            y_graph_data = y_data
                             self.line0.set_data(grid, y_data)
                             self.line1.set_data(grid, fit)
                             
                         if graph_view == 'Residual':
+                            x_graph_data = grid
+                            y_graph_data = resid
                             self.line0.set_data(grid, resid)
                             self.line1.set_data(grid[0], resid[0])
                             
                         if graph_view == 'Absorbance':
+                            x_graph_data = grid
+                            y_graph_data = y
                             self.line0.set_data(grid, gas_tran)
                             self.line1.set_data(grid, gas_spec)
                             
                         if graph_view == 'Gas amount':
+                            x_graph_data = x
+                            y_graph_data = y
                             self.line0.set_data(spec_nos, gas_amts)
                             self.line1.set_data(spec_nos[0], gas_amts[0])
                              
@@ -1028,6 +1038,13 @@ class mygui(tk.Tk):
                         # Just display the spectrum
                         self.line0.set_data(x, y)
                         self.line1.set_data(x[0], y[0])
+                        
+                    # Build data array to pass to graphing function
+                    #                 x data    y data    x limits     y limits
+                    data = np.array(([x,        y,        'auto',      'auto']))
+                    
+                    # Update graph
+                    update_graph([line], [axis], self.canvas, data)
                     
                     # Rescale the axes
                     self.ax.relim()
