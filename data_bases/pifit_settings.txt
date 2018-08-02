@@ -1,44 +1,44 @@
-Wave Start;305
-Wave Stop;318
+wave_start;305.0
+wave_stop;318
 int_time;100
 coadds;10
 no_darks;10
-ILS Width;0.52
-Gauss Weight;1.0
+ils_width;0.52
+gauss_weight;1.0
 Fit ILS;Fix
-LDF;0.0
+ldf;0.0
 Fit LDF;N/A
-dark_flag;1
-flat_flag;1
-calc_shift_flag;True
-get_ils_flag;True
-update_params;1
-good_fit_bound;10
-Show Graphs;1
+dark_flag;True
+flat_flag;True
+update_params;True
+good_fit_bound;10.0
+Show Graphs;True
 Show Error Bars;0
 analysis_gas;SO2
-scroll_flag;1
+scroll_flag;True
 scroll_spec_no;200
 resid_type;Spec/Fit
 solar_resid_flag;Ignore
-poly_n;4.0
+calc_shift_flag;False
+get_ils_flag;True
+poly_n;3
 shift;-0.2
 stretch;0.05
-ring;1.0
-SO2;1e+16
-NO2;1e+17
-O3;1e+19
-BrO;100000000000000.0
+ring_amt;1.0
+so2_amt;1e+16
+no2_amt;1e+17
+o3_amt;1e+19
+bro_amt;1000000000000000.0
 Fit shift;Fit
-Fit stretch;N/A
+Fit stretch;Fit
 Fit ring;Fit
 Fit so2;Fit
 Fit no2;Fit
 Fit o3;Fit
-Fit bro;N/A
+Fit bro;Fit
 model_res;0.02
 sol_path;data_bases/gas data/sao2010.txt
-ring_path;data_bases/gas data/ring.dat
+ring_path;data_bases/gas data/qdoas_ring.dat
 so2_path;data_bases/gas data/SO2_293K.dat
 no2_path;data_bases/gas data/No2_223l.dat
 o3_path;data_bases/gas data/O3_293K.dat
@@ -48,5 +48,6 @@ graph_view;Spectrum
 loop;0
 create_out_flag;True
 rt_dark_flag;False
-folder;Results/iFit/2018-07-10/ifit_out/
-notes_fname;Results/iFit/2018-07-10/ifit_out/notes.txt
+folder;Results/iFit/2018-08-02/ifit_out/
+notes_fname;Results/iFit/2018-08-02/ifit_out/notes.txt
+model_resolution;0.02

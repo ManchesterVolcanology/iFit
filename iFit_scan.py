@@ -123,34 +123,34 @@ class mygui(tk.Tk):
    
         except FileNotFoundError:
             self.print_output('No settings file found, reverting to origional')
-            settings['Wave Start']        = 305
-            settings['Wave Stop']         = 318
-            settings['ILS Width']         = 0.52
-            settings['Gauss Weight']      = 1.0
+            settings['wave_start']        = 305
+            settings['wave_stop']         = 318
+            settings['ils_width']         = 0.52
+            settings['gauss_weight']      = 1.0
             settings['Fit ILS']           = 'Fix'
-            settings['LDF']               = 0.0
+            settings['ldf']               = 0.0
             settings['Fit LDF']           = 'N/A'
-            settings['dark_flag']         = 1
-            settings['flat_flag']         = 1
-            settings['update_params']     = 1
+            settings['dark_flag']         = True
+            settings['flat_flag']         = True
+            settings['update_params']     = True
             settings['good_fit_bound']    = 10
-            settings['Show Graphs']       = 1
+            settings['Show Graphs']       = True
             settings['Show Error Bars']   = 0
             settings['analysis_gas']      = 'SO2'
-            settings['scroll_flag']       = 1
+            settings['scroll_flag']       = True
             settings['scroll_spec_no']    = 200
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
-            settings['calc_shift_flag']   = True
+            settings['calc_shift_flag']   = False
             settings['get_ils_flag']      = True
             settings['poly_n']            = 3
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
-            settings['ring']              = 1.0
-            settings['SO2']               = 1e+16
-            settings['NO2']               = 1e+17
-            settings['O3']                = 1e+19
-            settings['BrO']               = 1e+15
+            settings['ring_amt']          = 1.0
+            settings['so2_amt']           = 1e+16
+            settings['no2_amt']           = 1e+17
+            settings['o3_amt']            = 1e+19
+            settings['bro_amt']           = 1e+15
             settings['Fit shift']         = 'Fit'
             settings['Fit stretch']       = 'Fit'
             settings['Fit ring']          = 'Fit'
@@ -160,7 +160,7 @@ class mygui(tk.Tk):
             settings['Fit bro']           = 'Fit'
             settings['model_res']         = 0.02
             settings['sol_path']          = 'data_bases/gas data/sao2010.txt'
-            settings['ring_path']         = 'data_bases/gas data/ring.dat'
+            settings['ring_path']         = 'data_bases/gas data/qdoas_ring.dat'
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
             settings['o3_path']           = 'data_bases/gas data/O3_293K.dat'
@@ -285,146 +285,6 @@ class mygui(tk.Tk):
                       columnspan = 3)
         scanfp_b = ttk.Button(model_frame, text="Select Scans", command = self.scan_fp)
         scanfp_b.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-
-#========================================================================================
-#=======================================Model Setup======================================
-#========================================================================================
-
-       # Create entry for start and stop wavelengths
-        fit_range_l = tk.Label(model_frame, text = 'Fit Range:', font = NORM_FONT)
-        fit_range_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        
-        self.wave_start = tk.DoubleVar(model_frame, value = settings['Wave Start'])
-        wave_start_e = ttk.Entry(model_frame, textvariable = self.wave_start,
-                                      width = 12)
-        wave_start_e.grid(row = 1, column = 1, padx = 5, pady = 5)
-        
-        self.wave_stop = tk.DoubleVar(model_frame, value = settings['Wave Stop'])
-        wave_stop_l = tk.Label(model_frame, text = 'Wave Stop:', font = NORM_FONT)
-        wave_stop_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
-        wave_stop_e = ttk.Entry(model_frame, textvariable = self.wave_stop, width = 12)
-        wave_stop_e.grid(row = 1, column = 3, padx = 5, pady = 5)
-        
-        # Create array of fitting options
-        fit_options = ['', 'Fit', 'Fix', 'N/A']
-        
-        # Instrument lineshape width
-        self.ils_width = tk.DoubleVar(model_frame, value = settings['ILS Width'])
-        ils_width_l = tk.Label(model_frame, text = 'ILS Width:', font = NORM_FONT)
-        ils_width_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        ils_width_e = ttk.Entry(model_frame, textvariable = self.ils_width, width = 12)
-        ils_width_e.grid(row = 2, column = 1, padx = 5, pady = 5)
-        self.ils_width_c = tk.StringVar(model_frame, value = settings['Fit ILS'])
-        ils_fit_options = [settings['Fit ILS'], 'Fit', 'Fix']
-        ils_width_c = ttk.OptionMenu(model_frame, self.ils_width_c, *ils_fit_options)
-        ils_width_c.grid(row = 2, column = 2, padx = 5, pady = 5)
-        
-        # ILS Gaussian weighting
-        self.gauss_weight = tk.DoubleVar(model_frame, value = settings['Gauss Weight'])
-        gauss_weight_l = tk.Label(model_frame, text = 'ILS Gauss\nWeight:', 
-                                  font = NORM_FONT)
-        gauss_weight_l.grid(row = 2, column = 3, padx = 5, pady = 5, sticky = 'W')
-        gauss_weight_e = ttk.Entry(model_frame, textvariable = self.gauss_weight,
-                                   width = 12)
-        gauss_weight_e.grid(row = 2, column = 4, padx = 5, pady = 5)
-        
-        # Light dilution factor
-        self.ldf = tk.DoubleVar(model_frame, value = settings['LDF'])
-        ldf_l = tk.Label(model_frame, text = 'LDF:', font = NORM_FONT)
-        ldf_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        ldf_e = ttk.Entry(model_frame, textvariable = self.ldf, width = 12)
-        ldf_e.grid(row = 3, column = 1, padx = 5, pady = 5)
-        self.ldf_c = tk.StringVar(model_frame, value = settings['Fit LDF'])
-        fit_options[0] = settings['Fit LDF']
-        ils_width_c = ttk.OptionMenu(model_frame, self.ldf_c, *fit_options)
-        ils_width_c.grid(row = 3, column = 2, padx = 5, pady = 5)
-
-#========================================================================================
-#================================Set initial fit parameters==============================
-#========================================================================================
-        
-        # Polynomial coefficents
-        self.poly_n = tk.DoubleVar(self, value = settings['poly_n'])
-        poly_n_vals = [0,1,2,3,4,5,6,7,8,9,10]
-        poly_n_l = tk.Label(param_frame, text = 'Poly Order:', font = NORM_FONT)
-        poly_n_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        poly_n_e = tk.Spinbox(param_frame, values = poly_n_vals, width = 12,
-                              textvariable = self.poly_n)
-        poly_n_e.grid(row = 1, column = 1, padx = 5, pady = 5)
-        self.poly_n.set(settings['poly_n'])
-
-        # Spectrometer wavelength shift parameters
-        self.shift = tk.DoubleVar(param_frame, value = settings['shift'])
-        shift_l = tk.Label(param_frame, text = 'Shift:', font = NORM_FONT)
-        shift_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        shift_e = ttk.Entry(param_frame, textvariable = self.shift, width = 12)
-        shift_e.grid(row = 2, column = 1, padx = 5, pady = 5)
-        self.shift_c = tk.StringVar(param_frame, value = settings['Fit shift'])
-        fit_options[0] = settings['Fit shift']
-        shift_c = ttk.OptionMenu(param_frame, self.shift_c, *fit_options)
-        shift_c.grid(row = 2, column = 2, padx = 5, pady = 5)
-        
-        self.stretch = tk.DoubleVar(param_frame, value = settings['stretch'])
-        stretch_l = tk.Label(param_frame, text = 'Stretch:', font = NORM_FONT)
-        stretch_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        stretch_e = ttk.Entry(param_frame, textvariable = self.stretch, width = 12)
-        stretch_e.grid(row = 3, column = 1, padx = 5, pady = 5)
-        self.stretch_c = tk.StringVar(param_frame, value = settings['Fit stretch'])
-        fit_options[0] = settings['Fit stretch']
-        stretch_c = ttk.OptionMenu(param_frame, self.stretch_c, *fit_options)
-        stretch_c.grid(row = 3, column = 2, padx = 5, pady = 5)
-        
-        # Ring effect
-        self.ring_amt = tk.DoubleVar(param_frame, value = settings['ring'])
-        ring_amt_l = tk.Label(param_frame, text = 'Ring:', font = NORM_FONT)
-        ring_amt_l.grid(row = 4, column = 0, padx = 5, pady = 5, sticky = 'W')
-        ring_amt_e = ttk.Entry(param_frame, textvariable = self.ring_amt, width = 12)
-        ring_amt_e.grid(row = 4, column = 1, padx = 5, pady = 5)
-        self.ring_c = tk.StringVar(param_frame, value = settings['Fit ring'])
-        fit_options[0] = settings['Fit ring']
-        ring_c = ttk.OptionMenu(param_frame, self.ring_c, *fit_options)
-        ring_c.grid(row = 4, column = 2, padx = 5, pady = 5)
-        
-        # Gas amounts
-        self.so2_amt = tk.DoubleVar(param_frame, value = settings['SO2'])
-        so2_amt_l = tk.Label(param_frame, text = 'SO2:', font = NORM_FONT)
-        so2_amt_l.grid(row = 1, column = 3, padx = 5, pady = 5, sticky = 'W')
-        so2_amt_e = ttk.Entry(param_frame, textvariable = self.so2_amt, width = 12)
-        so2_amt_e.grid(row = 1, column = 4, padx = 5, pady = 5)
-        self.so2_c = tk.StringVar(param_frame, value = settings['Fit so2'])
-        fit_options[0] = settings['Fit so2']
-        so2_c = ttk.OptionMenu(param_frame, self.so2_c, *fit_options)
-        so2_c.grid(row = 1, column = 5, padx = 5, pady = 5)
-        
-        self.no2_amt = tk.DoubleVar(param_frame, value = settings['NO2'])
-        no2_amt_l = tk.Label(param_frame, text = 'NO2:', font = NORM_FONT)
-        no2_amt_l.grid(row = 2, column = 3, padx = 5, pady = 5, sticky = 'W')
-        no2_amt_e = ttk.Entry(param_frame, textvariable = self.no2_amt, width = 12)
-        no2_amt_e.grid(row = 2, column = 4, padx = 5, pady = 5)
-        self.no2_c = tk.StringVar(param_frame, value = settings['Fit no2'])
-        fit_options[0] = settings['Fit no2']
-        no2_c = ttk.OptionMenu(param_frame, self.no2_c, *fit_options)
-        no2_c.grid(row = 2, column = 5, padx = 5, pady = 5)
-        
-        self.o3_amt = tk.DoubleVar(param_frame, value = settings['O3'])
-        o3_amt_l = tk.Label(param_frame, text = 'O3:', font = NORM_FONT)
-        o3_amt_l.grid(row = 3, column = 3, padx = 5, pady = 5, sticky = 'W')
-        o3_amt_e = ttk.Entry(param_frame, textvariable = self.o3_amt, width = 12)
-        o3_amt_e.grid(row = 3, column = 4, padx = 5, pady = 5)
-        self.o3_c = tk.StringVar(param_frame, value = settings['Fit o3'])
-        fit_options[0] = settings['Fit o3']
-        o3_c = ttk.OptionMenu(param_frame, self.o3_c, *fit_options)
-        o3_c.grid(row = 3, column = 5, padx = 5, pady = 5)
-       
-        self.bro_amt = tk.DoubleVar(param_frame, value = settings['BrO'])
-        bro_amt_l = tk.Label(param_frame, text = 'BrO:', font = NORM_FONT)
-        bro_amt_l.grid(row = 4, column = 3, padx = 5, pady = 5, sticky = 'W')
-        bro_amt_e = ttk.Entry(param_frame, textvariable = self.bro_amt, width = 12)
-        bro_amt_e.grid(row = 4, column = 4, padx = 5, pady = 5)
-        self.bro_c = tk.StringVar(param_frame, value = settings['Fit bro'])
-        fit_options[0] = settings['Fit bro']
-        bro_c = ttk.OptionMenu(param_frame, self.bro_c, *fit_options)
-        bro_c.grid(row = 4, column = 5, padx = 5, pady = 5)
         
 #========================================================================================
 #==============================Create quick analysis outputs=============================
@@ -532,30 +392,6 @@ class mygui(tk.Tk):
         # Create or overright settings file
         with open('data_bases/ifit_scan_settings.txt', 'w') as w:
             
-            # Save each setting from the gui into settings
-            settings['Wave Start']   = str(self.wave_start.get())   
-            settings['Wave Stop']    = str(self.wave_stop.get()) 
-            settings['ILS Width']    = str(self.ils_width.get())
-            settings['Gauss Weight'] = str(self.gauss_weight.get())
-            settings['Fit ILS']      = str(self.ils_width_c.get())
-            settings['LDF']          = str(self.ldf.get())
-            settings['Fit LDF']      = str(self.ldf_c.get())
-            settings['poly_n']       = str(self.poly_n.get())
-            settings['shift']        = str(self.shift.get())
-            settings['stretch']      = str(self.stretch.get())
-            settings['ring']         = str(self.ring_amt.get())
-            settings['SO2']          = str(self.so2_amt.get())
-            settings['NO2']          = str(self.no2_amt.get())
-            settings['O3']           = str(self.o3_amt.get())
-            settings['BrO']          = str(self.bro_amt.get())
-            settings['Fit shift']    = str(self.shift_c.get())
-            settings['Fit stretch']  = str(self.stretch_c.get())
-            settings['Fit ring']     = str(self.ring_c.get())
-            settings['Fit so2']      = str(self.so2_c.get())
-            settings['Fit no2']      = str(self.no2_c.get())
-            settings['Fit o3']       = str(self.o3_c.get())
-            settings['Fit bro']      = str(self.bro_c.get())
-            
             # Add all of the settings dictionary
             for s in settings:
                 w.write(s + ';' + str(settings[s]) + '\n')
@@ -581,44 +417,44 @@ class mygui(tk.Tk):
         common = {}
         
         # Populate common with other data from the GUI
-        common['wave_start']       = float(self.wave_start.get())
-        common['wave_stop']        = float(self.wave_stop.get())
-        common['poly_n']           = int(self.poly_n.get()) + 1
-        common['ils_width']        = float(self.ils_width.get())
-        common['ils_gauss_weight'] = float(self.gauss_weight.get())
-        common['ldf']              = float(self.ldf.get())
-        common['scan_files']       = self.scan_fpaths
+        common['wave_start']       = float(settings['wave_start'])
+        common['wave_stop']        = float(settings['wave_stop'])
+        common['poly_n']           = int(settings['poly_n']) + 1
+        common['ils_width']        = float(settings['ils_width'])
+        common['gauss_weight']     = float(settings['gauss_weight'])
+        common['ldf']              = float(settings['ldf'])
         common['dark_flag']        = bool(settings['dark_flag'])
         common['flat_flag']        = bool(settings['flat_flag'])
-        common['solar_resid_flag'] = settings['solar_resid_flag']
+        common['solar_resid_flag'] = str(settings['solar_resid_flag'])
         common['calc_shift_flag']  = bool(settings['calc_shift_flag'])
 
 #========================================================================================
 #================================Build parameter dictionary==============================
 #========================================================================================
         
-         # Create parameter array
-        params = OrderedDict()
+        # Create parameter array
+        common['params'] = OrderedDict()
 
         for i in range(common['poly_n']):
-            params['p'+str(i)] = [1.0, 'Fit']
+            common['params']['p'+str(i)] = [1.0, 'Fit']
             
         # Add other parameters
-        params['shift']     = [float(self.shift.get())   , self.shift_c.get()]
-        params['stretch']   = [float(self.stretch.get()) , self.stretch_c.get()]
-        params['ring_amt']  = [float(self.ring_amt.get()), self.ring_c.get()]
-        params['so2_amt']   = [float(self.so2_amt.get()) , self.so2_c.get()]
-        params['no2_amt']   = [float(self.no2_amt.get()) , self.no2_c.get()]
-        params['o3_amt']    = [float(self.o3_amt.get())  , self.o3_c.get()]
-        params['bro_amt']   = [float(self.bro_amt.get()) , self.bro_c.get()]
-        params['ils_width'] = [self.ils_width.get()      , self.ils_width_c.get()]
-        params['ldf']       = [self.ldf.get()            , self.ldf_c.get()]
+        common['params']['shift']     = [settings['shift'],     settings['Fit shift']   ]
+        common['params']['stretch']   = [settings['stretch'],   settings['Fit stretch'] ]
+        common['params']['ring_amt']  = [settings['ring_amt'],  settings['Fit ring']    ]
+        common['params']['so2_amt']   = [settings['so2_amt'],   settings['Fit so2']     ]
+        common['params']['no2_amt']   = [settings['no2_amt'],   settings['Fit no2']     ]
+        common['params']['o3_amt']    = [settings['o3_amt'],    settings['Fit o3']      ]
+        common['params']['bro_amt']   = [settings['bro_amt'],   settings['Fit bro']     ]
+        common['params']['ils_width'] = [settings['ils_width'], settings['Fit ILS']     ]
+        common['params']['ldf']       = [settings['ldf'],       settings['Fit LDF']     ]
         
+        # Make sure first guesses are floats
+        for key, val in common['params'].items():
+            common['params'][key][0] = float(common['params'][key][0])
+                                
         # Create empty last spec
         common['last_spec'] = np.array([0])
-
-        # Add to common
-        common['params'] = params
         
         # Save initial guess parameters
         initial_params = common['params'].copy()
@@ -627,11 +463,15 @@ class mygui(tk.Tk):
 #========================Read test spectrum to get wavelength grid=======================
 #========================================================================================
         
+        # Get filepaths to scan files
+        scan_files = self.scan_fpaths
+        
         # Read in first scan in array
-        err,x,header,info_block,spec_block = read_binary_block(common['scan_files'][0])
+        err,x,header,info_block,spec_block = read_binary_block(scan_files[0])
         
          # Find indices of desired wavelength window and add to common
-        common['fit_idx'] = np.where(np.logical_and(common['wave_start']<=x, x<=common['wave_stop']))
+        common['fit_idx'] = np.where(np.logical_and(common['wave_start'] <= x,
+                                                    x <= common['wave_stop']))
         grid = x[common['fit_idx']]
         
         # Find stray light window
@@ -666,7 +506,7 @@ class mygui(tk.Tk):
         settings['loop'] = 1
         
         # Get date
-        meas_date = common['scan_files'][0].split('/')[-1][:6]
+        meas_date = scan_files[0].split('/')[-1][:6]
 
         # Create filepath to directory to hold program outputs
         results_folder = 'Results/iFit_scan/' + str(meas_date) + '/'
@@ -680,13 +520,13 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # Initiate loop counter display
-        msg = '1 / ' + str(len(common['scan_files']))
+        msg = '1 / ' + str(len(scan_files))
         self.scan_count.set(msg)
 
         # Output initiation message
         self.print_output('Loop Started\nSpectrum number ' + str(settings['loop']))
 
-        for fpath in common['scan_files']:
+        for fpath in scan_files:
             
             # Create empty arrays to hold the loop number and so2_amt values
             gas = {}
@@ -732,10 +572,11 @@ class mygui(tk.Tk):
     
                         # Load spectrum
                         y = spec_block[:,n]
-    
+
                         # Fit the spectrum
-                        fit_dict, err_dict, y_data, fit, gas_T, fit_flag = fit_spec(common, [x, y], grid)
-                            
+                        fit_data = fit_spec(common, [x, y], grid)
+                        fit_dict, err_dict, y_data, fit,gas_T, fit_flag = fit_data    
+                        
                         # Unpack spec no, timestamp and motor position
                         spec_no = str(info_block[0][n])
                         timestamp = str(int(info_block[1][n])) + ':' + \
@@ -888,7 +729,7 @@ class mygui(tk.Tk):
                 self.print_output('Error in file ' + str(settings['loop']))  
            
             # Update loop counter display
-            msg = str(settings['loop']) + ' / ' + str(len(common['scan_files']))
+            msg = str(settings['loop']) + ' / ' + str(len(scan_files))
             self.scan_count.set(msg)
                      
             # Add to the count cycle

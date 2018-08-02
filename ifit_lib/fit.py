@@ -38,7 +38,7 @@ def fit_spec(common, spectrum, grid, q = None):
     # Cretae a copy of common for forward model to access
     global com
     com = common
-    
+
     # Unpack spectrum
     x, y = spectrum
     
@@ -74,7 +74,7 @@ def fit_spec(common, spectrum, grid, q = None):
        
         if val[1] == 'Fit':
             fit_params.append(val[0])
-
+    
     # Create dictionary to hold gas trans data
     gas_T = {}
     
@@ -191,6 +191,7 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
     o3_T  = np.exp(-(np.multiply(com['o3_xsec'],  p['o3_amt'])))
     bro_T = np.exp(-(np.multiply(com['bro_xsec'], p['bro_amt'])))
     
+    
     # Calculate ring effect
     ring_T = np.multiply(com['sol'], np.multiply(com['ring'], p['ring_amt']))
     sol_T = np.add(com['sol'], ring_T)
@@ -215,7 +216,7 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
 
     # Convolve high res raw_F with ILS
     ils = make_ils(p['ils_width'], (com['model_grid'][1] - com['model_grid'][0]),
-                   com['ils_gauss_weight'])
+                   com['gauss_weight'])
     F_conv = np.convolve(raw_F, ils, 'same')
 
     

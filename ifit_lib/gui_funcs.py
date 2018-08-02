@@ -272,17 +272,37 @@ def adv_settings(self, settings, version):
     # Make updating/closing function
     def update_settings(settings, close_flag):
         
-        # Update model settings in common
+        # Update model settings
+        settings['wave_start']       = float(popup.wave_start.get())
         settings['model_resolution'] = float(model_res_e.get())
-        settings['dark_flag']        = dark_b.get()
-        settings['flat_flag']        = flat_b.get()
-        settings['solar_resid_flag'] = resid_b.get()
-        settings['calc_shift_flag']  = calc_shift_b.get()
-        settings['get_ils_flag']     = get_ils_b.get()
-        settings['update_params']    = update_b.get()
+        settings['dark_flag']        = popup.dark_b.get()
+        settings['flat_flag']        = popup.flat_b.get()
+        settings['solar_resid_flag'] = popup.resid_b.get()
+        settings['calc_shift_flag']  = popup.calc_shift_b.get()
+        settings['get_ils_flag']     = popup.get_ils_b.get()
+        settings['update_params']    = popup.update_b.get()
         settings['good_fit_bound']   = float(fit_bound_e.get())
         
-        # Update data base settings in common
+        # Update parameter settings
+        settings['poly_n']           = popup.poly_n.get()
+        settings['ils_width']        = popup.ils_width.get()
+        settings['shift']            = popup.shift.get()
+        settings['stretch']          = popup.stretch.get()
+        settings['ring_amt']         = popup.ring_amt.get()
+        settings['so2_amt']          = popup.so2_amt.get()
+        settings['no2_amt']          = popup.no2_amt.get()
+        settings['o3_amt']           = popup.o3_amt.get()
+        settings['bro_amt']          = popup.bro_amt.get()
+        
+        settings['Fit shift']        = popup.shift_c.get()
+        settings['Fit stretch']      = popup.stretch_c.get()
+        settings['Fit ring']         = popup.ring_amt_c.get()
+        settings['Fit so2']          = popup.so2_amt_c.get()
+        settings['Fit no2']          = popup.no2_amt_c.get()
+        settings['Fit o3']           = popup.o3_amt_c.get()
+        settings['Fit bro']          = popup.bro_amt_c.get()
+        
+        # Update data base settings
         settings['sol_path']         = sol_path_e.get()
         settings['ring_path']        = ring_path_e.get()
         settings['so2_path']         = so2_path_e.get()
@@ -291,9 +311,8 @@ def adv_settings(self, settings, version):
         settings['bro_path']         = bro_path_e.get()
         settings['solar_resid_path'] = solar_resid_path_e.get()
         
-        # Update graph settings in common
+        # Update graph settings
         settings['Show Graphs']      = graph_b.get()
-        #settings['Show Error Bars']  = err_b.get()
         settings['scroll_flag']      = scroll_b.get()
         settings['scroll_spec_no']   = int(spec_no_e.get())
         settings['resid_type']       = resid_type.get()
@@ -313,6 +332,9 @@ def adv_settings(self, settings, version):
             self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
                 
             self.canvas.draw()
+        
+        # Print message to confirm settings have been updated
+        self.print_output('Settings updated')
         
         # Close the window
         if close_flag == True:
@@ -336,67 +358,79 @@ def adv_settings(self, settings, version):
     datab_frame = ttk.Frame(nb)
     graph_frame = ttk.Frame(nb)
     
+    # Add the frames to the notebook
     nb.add(model_frame, text = 'Model Settings')
     nb.add(graph_frame, text = 'Graph Settings')
     nb.add(datab_frame, text = 'Data Base Settings')
     
+    # Add the notebook to the window
     nb.grid(row = 0, column=0, padx=10, pady=10, sticky = 'NW', columnspan = 10)
-    '''
-    # Create frames for diferent sections for post analysis and buttons
-    model_frame = tk.LabelFrame(popup, text = 'Model Settings', font = LARG_FONT)
-    model_frame.grid(row=0, column=0, padx = 10, pady = 10, sticky="NW")
-    
-    datab_frame = tk.LabelFrame(popup, text='Data Base Settings', font = LARG_FONT)
-    datab_frame.grid(row=0, column=1, padx = 10, pady = 10, sticky="NW", rowspan=2)
-    
-    graph_frame = tk.LabelFrame(popup, text='Graph Settings', font = LARG_FONT)
-    graph_frame.grid(row=1, column=0, padx = 10, pady = 10, sticky="NW")
-    '''
+
+    # Add aditional frame for the buttons
     button_frame = ttk.Frame(popup)
     button_frame.grid(row=1, column=0, padx = 10, pady = 10, sticky="EW")
 
     # Button to apply changes and close
     b1 = ttk.Button(button_frame, text='Ok', command=lambda: update_settings(settings, 
                                                                              True))
-    b1.grid(row = 0, column = 0, padx = 40, pady = 5, sticky = "EW")
+    b1.grid(row = 0, column = 0, padx = 90, pady = 5, sticky = "EW")
     
     # Button to just apply changes
     b2 = ttk.Button(button_frame, text='Apply', command=lambda: update_settings(settings,
                                                                                 False))
-    b2.grid(row = 0, column = 1, padx = 40, pady = 5, sticky = "EW")
+    b2.grid(row = 0, column = 1, padx = 90, pady = 5, sticky = "EW")
     
     # Buttong to cancel
     b3 = ttk.Button(button_frame, text='Cancel', command=lambda: popup.destroy())
-    b3.grid(row = 0, column = 2, padx = 40, pady = 5, sticky = "EW")
+    b3.grid(row = 0, column = 2, padx = 90, pady = 5, sticky = "EW")
 
 #========================================================================================
 #=====================================Model Settings=====================================
 #========================================================================================
 
+#======================================Model Setup=======================================
+
     # Create row number counter
     row_n = 0
     
+    # Create entry for start and stop wavelengths
+    fit_range_l = tk.Label(model_frame, text = 'Fit Range:', font = NORM_FONT)
+    fit_range_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'E')
+    
+    popup.wave_start = tk.DoubleVar(model_frame, value = settings['wave_start'])
+    wave_start_e = ttk.Entry(model_frame, textvariable = popup.wave_start,
+                                  width = 12)
+    wave_start_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
+    
+    popup.wave_stop = tk.DoubleVar(model_frame, value = settings['wave_stop'])
+    wave_stop_l = tk.Label(model_frame, text = 'to:', font = NORM_FONT)
+    wave_stop_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'E')
+    wave_stop_e = ttk.Entry(model_frame, textvariable = popup.wave_stop, width = 12)
+    wave_stop_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1
+    
     # Set resolution of model grid
     popup.model_res = tk.DoubleVar(model_frame, value = settings['model_res'])
-    model_res_l = tk.Label(model_frame, text = 'Model Grid spacing:', font = NORM_FONT)
-    model_res_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    model_res_e = ttk.Entry(model_frame, textvariable = popup.model_res)
+    model_res_l = tk.Label(model_frame, text='Model Grid\nSpacing (nm):', font=NORM_FONT)
+    model_res_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'E')
+    model_res_e = ttk.Entry(model_frame, textvariable = popup.model_res, width = 12)
     model_res_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
     # Control whether or not to remove dark spectra
-    dark_b = tk.BooleanVar(model_frame, value = settings['dark_flag'])
-    dark_l = tk.Label(model_frame, text = 'Remove Dark Spectra?', font = NORM_FONT)
-    dark_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    dark_c = ttk.Checkbutton(model_frame, variable = dark_b)
+    popup.dark_b = tk.BooleanVar(model_frame, value = settings['dark_flag'])
+    dark_l = tk.Label(model_frame, text = 'Remove Dark\nSpectrum?', font = NORM_FONT)
+    dark_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'E')
+    dark_c = ttk.Checkbutton(model_frame, variable = popup.dark_b)
     dark_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
     # Control whether or not to remove flat spectra
-    flat_b = tk.BooleanVar(model_frame, value = settings['flat_flag'])
-    flat_l = tk.Label(model_frame, text = 'Remove Flat Spectra?', font = NORM_FONT)
-    flat_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    flat_c = ttk.Checkbutton(model_frame, variable = flat_b)
+    popup.flat_b = tk.BooleanVar(model_frame, value = settings['flat_flag'])
+    flat_l = tk.Label(model_frame, text = 'Remove Flat\nSpectrum?', font = NORM_FONT)
+    flat_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'E')
+    flat_c = ttk.Checkbutton(model_frame, variable = popup.flat_b)
     flat_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
@@ -405,44 +439,212 @@ def adv_settings(self, settings, version):
                      'Ignore',
                      'Generate',
                      'Remove']
-    resid_b = tk.StringVar(model_frame, value = settings['solar_resid_flag'])
-    resid_l = tk.Label(model_frame, text = 'Solar residual:', font = NORM_FONT)
-    resid_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    resid_c = ttk.OptionMenu(model_frame, resid_b, *resid_options)
+    popup.resid_b = tk.StringVar(model_frame, value = settings['solar_resid_flag'])
+    resid_l = tk.Label(model_frame, text = 'Solar\nresidual:', font = NORM_FONT)
+    resid_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'E')
+    resid_c = ttk.OptionMenu(model_frame, popup.resid_b, *resid_options)
     resid_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
-    # Control whether or not to pre-calculate the wavelength shift
-    calc_shift_b = tk.BooleanVar(model_frame, value = settings['calc_shift_flag'])
-    calc_shift_l = tk.Label(model_frame, text = 'Pre-calculate shift?', font = NORM_FONT)
-    calc_shift_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    calc_shift_c = ttk.Checkbutton(model_frame, variable = calc_shift_b)
-    calc_shift_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1   
-    
-    # Control whether or not to pre-calculate the wavelength shift
-    get_ils_b = tk.BooleanVar(model_frame, value = settings['get_ils_flag'])
-    get_ils_l = tk.Label(model_frame, text = 'Use ILS from file?', font = NORM_FONT)
-    get_ils_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    get_ils_c = ttk.Checkbutton(model_frame, variable = get_ils_b)
-    get_ils_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1 
-    
     # Control whether or not to update fit parameter guesses with the last fit values
-    update_b = tk.BooleanVar(model_frame, value = settings['update_params'])
-    update_l = tk.Label(model_frame, text='Auto-update fit parameters?', font=NORM_FONT)
-    update_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    update_c = ttk.Checkbutton(model_frame, variable = update_b)
+    popup.update_b = tk.BooleanVar(model_frame, value = settings['update_params'])
+    update_l = tk.Label(model_frame, text='Auto-update\nfit parameters?', font=NORM_FONT)
+    update_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'E')
+    update_c = ttk.Checkbutton(model_frame, variable = popup.update_b)
     update_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
     # Control bound of goodness of fit
     popup.fit_bound = tk.DoubleVar(model_frame, value = settings['good_fit_bound'])
-    fit_bound_l = tk.Label(model_frame, text = 'Good Fit Bound (%):', font = NORM_FONT)
-    fit_bound_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    fit_bound_e = ttk.Entry(model_frame, textvariable = popup.fit_bound)
+    fit_bound_l = tk.Label(model_frame, text = 'Good Fit\nBound (%):', font = NORM_FONT)
+    fit_bound_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'E')
+    fit_bound_e = ttk.Entry(model_frame, textvariable = popup.fit_bound, width = 12)
     fit_bound_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
+    
+    # Create separator
+    sep = ttk.Separator(model_frame, orient='vertical')
+    sep.grid(column=2, row = 0, rowspan=8, sticky='ns', padx=10, pady=5)
+
+#=======================================Parameters=======================================
+    
+    # Reset row counter
+    row_n = 0
+    
+    # Create array of fitting options
+    fit_options = ['', 'Fit', 'Fix', 'N/A']
+    
+    # Gas Amounts
+    popup.so2_amt = tk.DoubleVar(model_frame, value = settings['so2_amt'])
+    so2_amt_l = tk.Label(model_frame, text = 'SO2:', font = NORM_FONT)
+    so2_amt_l.grid(row = row_n, column = 3, padx = 5, pady = 5, sticky = 'W')
+    so2_amt_e = ttk.Entry(model_frame, textvariable = popup.so2_amt, width = 12)
+    so2_amt_e.grid(row = row_n, column = 4, padx = 5, pady = 5)
+    popup.so2_amt_c = tk.StringVar(model_frame, value = settings['Fit so2'])
+    fit_options[0] = settings['Fit so2']
+    so2_c = ttk.OptionMenu(model_frame, popup.so2_amt_c, *fit_options)
+    so2_c.grid(row = row_n, column = 5, padx = 5, pady = 5)
+    row_n += 1
+    
+    popup.no2_amt = tk.DoubleVar(model_frame, value = settings['no2_amt'])
+    no2_amt_l = tk.Label(model_frame, text = 'NO2:', font = NORM_FONT)
+    no2_amt_l.grid(row = row_n, column = 3, padx = 5, pady = 5, sticky = 'W')
+    no2_amt_e = ttk.Entry(model_frame, textvariable = popup.no2_amt, width = 12)
+    no2_amt_e.grid(row = row_n, column = 4, padx = 5, pady = 5)
+    popup.no2_amt_c = tk.StringVar(model_frame, value = settings['Fit no2'])
+    fit_options[0] = settings['Fit no2']
+    no2_c = ttk.OptionMenu(model_frame, popup.no2_amt_c, *fit_options)
+    no2_c.grid(row = row_n, column = 5, padx = 5, pady = 5)
+    row_n += 1
+    
+    popup.o3_amt = tk.DoubleVar(model_frame, value = settings['o3_amt'])
+    o3_amt_l = tk.Label(model_frame, text = 'O3:', font = NORM_FONT)
+    o3_amt_l.grid(row = row_n, column = 3, padx = 5, pady = 5, sticky = 'W')
+    o3_amt_e = ttk.Entry(model_frame, textvariable = popup.o3_amt, width = 12)
+    o3_amt_e.grid(row = row_n, column = 4, padx = 5, pady = 5)
+    popup.o3_amt_c = tk.StringVar(model_frame, value = settings['Fit o3'])
+    fit_options[0] = settings['Fit o3']
+    o3_c = ttk.OptionMenu(model_frame, popup.o3_amt_c, *fit_options)
+    o3_c.grid(row = row_n, column = 5, padx = 5, pady = 5)
+    row_n += 1
+   
+    popup.bro_amt = tk.DoubleVar(model_frame, value = settings['bro_amt'])
+    bro_amt_l = tk.Label(model_frame, text = 'BrO:', font = NORM_FONT)
+    bro_amt_l.grid(row = row_n, column = 3, padx = 5, pady = 5, sticky = 'W')
+    bro_amt_e = ttk.Entry(model_frame, textvariable = popup.bro_amt, width = 12)
+    bro_amt_e.grid(row = row_n, column = 4, padx = 5, pady = 5)
+    popup.bro_amt_c = tk.StringVar(model_frame, value = settings['Fit bro'])
+    fit_options[0] = settings['Fit bro']
+    bro_c = ttk.OptionMenu(model_frame, popup.bro_amt_c, *fit_options)
+    bro_c.grid(row = row_n, column = 5, padx = 5, pady = 5) 
+    row_n += 1
+
+    # Spectrometer wavelength shift
+    popup.shift = tk.DoubleVar(model_frame, value = settings['shift'])
+    shift_l = tk.Label(model_frame, text = 'Shift:', font = NORM_FONT)
+    shift_l.grid(row = row_n, column = 3, padx = 5, pady = 5, sticky = 'W')
+    shift_e = ttk.Entry(model_frame, textvariable = popup.shift, width = 12)
+    shift_e.grid(row = row_n, column = 4, padx = 5, pady = 5)
+    popup.shift_c = tk.StringVar(model_frame, value = settings['Fit shift'])
+    fit_options[0] = settings['Fit shift']
+    shift_c = ttk.OptionMenu(model_frame, popup.shift_c, *fit_options)
+    shift_c.grid(row = row_n, column = 5, padx = 5, pady = 5)
+    
+    # When shift is pre-calculated, deactivate input
+    popup.calc_shift_b = tk.BooleanVar(model_frame, value = settings['calc_shift_flag'])
+    def shift_activate_check():
+        if popup.calc_shift_b.get() == 0:
+            shift_e.config(state='normal')
+        elif popup.calc_shift_b.get() == 1:
+            shift_e.config(state='disabled')
+    shift_activate_check()
+    
+    # Control whether or not to pre-calculate the wavelength shift
+    calc_shift_l = tk.Label(model_frame, text = 'Pre-calc\nshift?', font = NORM_FONT)
+    calc_shift_l.grid(row = row_n, column = 6, padx = 5, pady = 5, sticky = 'E')
+    calc_shift_c = ttk.Checkbutton(model_frame, variable = popup.calc_shift_b, 
+                                command = shift_activate_check)
+    calc_shift_c.grid(row = row_n, column = 7, padx = 5, pady = 5)
+    row_n += 1 
+    
+    # Spectrometer ILS width
+    popup.ils_width = tk.DoubleVar(model_frame, value = settings['ils_width'])
+    ils_width_l = tk.Label(model_frame, text = 'ILS\nWidth:', font = NORM_FONT)
+    ils_width_l.grid(row = row_n, column = 3, padx = 5, pady = 5, sticky = 'W')
+    ils_width_e = ttk.Entry(model_frame, textvariable = popup.ils_width, width = 12)
+    ils_width_e.grid(row = row_n, column = 4, padx = 5, pady = 5)
+    popup.ils_width_c = tk.StringVar(model_frame, value = settings['Fit ILS'])
+    ils_fit_options = [settings['Fit ILS'], 'Fit', 'Fix']
+    ils_width_c = ttk.OptionMenu(model_frame, popup.ils_width_c, *ils_fit_options)
+    ils_width_c.grid(row = row_n, column = 5, padx = 5, pady = 5)
+    
+    # When ILS width is read in, deactivate input    
+    popup.get_ils_b = tk.BooleanVar(model_frame, value = settings['get_ils_flag'])
+    def ils_activate_check():
+        if popup.get_ils_b.get() == 0:
+            ils_width_e.config(state='normal')
+        elif popup.get_ils_b.get() == 1:
+            ils_width_e.config(state='disabled')
+    ils_activate_check()
+    
+    # Control whether or not to read the ILS width from the file
+    get_ils_l = tk.Label(model_frame, text = 'Use ILS\nfrom file?', font = NORM_FONT)
+    get_ils_l.grid(row = row_n, column = 6, padx = 5, pady = 5, sticky = 'W')
+    get_ils_c = ttk.Checkbutton(model_frame, variable = popup.get_ils_b, 
+                                command = ils_activate_check)
+    get_ils_c.grid(row = row_n, column = 7, padx = 5, pady = 5)
+    row_n += 1 
+        
+    # ILS Gaussian weighting
+    popup.gauss_weight = tk.DoubleVar(model_frame, value = settings['gauss_weight'])
+    gauss_weight_l = tk.Label(model_frame, text = 'ILS Gauss\nWeight:', 
+                              font = NORM_FONT)
+    gauss_weight_l.grid(row = row_n, column = 3, padx = 5, pady = 5, sticky = 'W')
+    gauss_weight_e = ttk.Entry(model_frame, textvariable = popup.gauss_weight,
+                               width = 12)
+    gauss_weight_e.grid(row = row_n, column = 4, padx = 5, pady = 5)
+    row_n += 1 
+    
+    # Light dilution factor
+    popup.ldf = tk.DoubleVar(model_frame, value = settings['ldf'])
+    ldf_l = tk.Label(model_frame, text = 'LDF:', font = NORM_FONT)
+    ldf_l.grid(row = row_n, column = 3, padx = 5, pady = 5, sticky = 'W')
+    ldf_e = ttk.Entry(model_frame, textvariable = popup.ldf, width = 12)
+    ldf_e.grid(row = row_n, column = 4, padx = 5, pady = 5)
+    popup.ldf_c = tk.StringVar(model_frame, value = settings['Fit LDF'])
+    fit_options[0] = settings['Fit LDF']
+    ils_width_c = ttk.OptionMenu(model_frame, popup.ldf_c, *fit_options)
+    ils_width_c.grid(row = row_n, column = 5, padx = 5, pady = 5)
+    row_n += 1 
+    
+    # Create separator
+    sep = ttk.Separator(model_frame, orient='vertical')
+    sep.grid(column=6, row = 0, rowspan=4, sticky='ns', padx=10, pady=5)
+    
+#=======================================New Column=======================================
+    
+    # Reset row counter
+    row_n = 0
+    
+    # Polynomial coefficents
+    popup.poly_n = tk.IntVar(model_frame, value = int(settings['poly_n']))
+    poly_n_vals = [0,1,2,3,4,5,6,7,8,9,10]
+    poly_n_l = tk.Label(model_frame, text = 'Poly\nOrder:', font = NORM_FONT)
+    poly_n_l.grid(row = row_n, column = 7, padx = 5, pady = 5, sticky = 'W')
+    poly_n_e = tk.Spinbox(model_frame, values = poly_n_vals, width = 12,
+                          textvariable = popup.poly_n)
+    poly_n_e.grid(row = row_n, column = 8, padx = 5, pady = 5)
+    popup.poly_n.set(settings['poly_n'])
+    row_n += 1
+    
+    # Spectrometer wavelength stretch
+    popup.stretch = tk.DoubleVar(model_frame, value = settings['stretch'])
+    stretch_l = tk.Label(model_frame, text = 'Stretch:', font = NORM_FONT)
+    stretch_l.grid(row = row_n, column = 7, padx = 5, pady = 5, sticky = 'W')
+    stretch_e = ttk.Entry(model_frame, textvariable = popup.stretch, width = 12)
+    stretch_e.grid(row = row_n, column = 8, padx = 5, pady = 5)
+    popup.stretch_c = tk.StringVar(model_frame, value = settings['Fit stretch'])
+    fit_options[0] = settings['Fit stretch']
+    stretch_c = ttk.OptionMenu(model_frame, popup.stretch_c, *fit_options)
+    stretch_c.grid(row = row_n, column = 9, padx = 5, pady = 5)
+    row_n += 1
+    
+    # Ring effect
+    popup.ring_amt = tk.DoubleVar(model_frame, value = settings['ring_amt'])
+    ring_amt_l = tk.Label(model_frame, text = 'Ring:', font = NORM_FONT)
+    ring_amt_l.grid(row = row_n, column = 7, padx = 5, pady = 5, sticky = 'W')
+    ring_amt_e = ttk.Entry(model_frame, textvariable = popup.ring_amt, width = 12)
+    ring_amt_e.grid(row = row_n, column = 8, padx = 5, pady = 5)
+    popup.ring_amt_c = tk.StringVar(model_frame, value = settings['Fit ring'])
+    fit_options[0] = settings['Fit ring']
+    ring_c = ttk.OptionMenu(model_frame, popup.ring_amt_c, *fit_options)
+    ring_c.grid(row = row_n, column = 9, padx = 5, pady = 5)
+    row_n += 1
+    
+    
+    
+    
+    
     
 #========================================================================================
 #==================================Data base file paths==================================
@@ -549,15 +751,6 @@ def adv_settings(self, settings, version):
     graph_c = ttk.Checkbutton(graph_frame, variable = graph_b)
     graph_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
-    '''
-    # Turn on/off error bars
-    err_b = tk.IntVar(graph_frame, value = settings['Show Error Bars'])
-    err_l = tk.Label(graph_frame, text = 'Show Error Bars?', font = NORM_FONT)
-    err_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    err_c = ttk.Checkbutton(graph_frame, variable = err_b)
-    err_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    row_n += 1
-    '''
     
     # Select which gas to analyse
     gas_options = [settings['analysis_gas'],
