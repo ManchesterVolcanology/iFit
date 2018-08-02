@@ -3,7 +3,6 @@ from scipy.interpolate import griddata
 from scipy.optimize import curve_fit
 
 from ifit_lib.make_ils import make_ils
-from ifit_lib.smooth import smooth
 from ifit_lib.make_poly import make_poly
 from ifit_lib.get_shift import get_shift
 
@@ -11,7 +10,7 @@ from ifit_lib.get_shift import get_shift
 #=========================================fit_spec=======================================
 #========================================================================================
 
-def fit_spec(common, y, grid, q = None):
+def fit_spec(common, spectrum, grid, q = None):
     
     '''
     Function to fit measured spectrum using a full forward model including a solar 
@@ -20,11 +19,11 @@ def fit_spec(common, y, grid, q = None):
     
     INPUTS:
     -------
-    common: common dictionary of parameters and variables passed from the main program to 
-            subroutines
-    y:      intensity data from the measured spectrum 
-    grid:   measurement wavelength grid over which the fit occurs
-    q:      Queue to which to add the output if threaded (default = None)
+    common:   common dictionary of parameters and variables passed from the main program
+              to subroutines
+    spectrum: array, 2D; intensity data from the measured spectrum 
+    grid:     measurement wavelength grid over which the fit occurs
+    q:        Queue to which to add the output if threaded (default = None)
     
     OUTPUTS:
     --------
@@ -34,19 +33,24 @@ def fit_spec(common, y, grid, q = None):
                    and correction for dark, flat and stray light)
     fitted_flag: boolian variable to tell the main program if the fit was achieved
 
-    '''  
-    
-    # Unpack the inital fit parameters
-    fit_params = []
-    
-    for key, val in common['params'].items():
-       
-        if val[1] == 'Fit':
-            fit_params.append(val[0])
+    ''' 
             
     # Cretae a copy of common for forward model to access
     global com
     com = common
+    
+    # Unpack spectrum
+    x, y = spectrum
+    
+    # Pre-calculate shift
+    if common['calc_shift_flag'] == True:
+        
+        # Find first guess for the shift
+        shift, err = get_shift(x, y, common) 
+        
+        # If sensible, update shift value
+        if err == 0:
+            common['params']['shift'][0] = shift 
 
     # Remove the dark spectrum from the measured spectrum
     if common['dark_flag'] == True:
@@ -63,9 +67,13 @@ def fit_spec(common, y, grid, q = None):
     if common['flat_flag'] == True:
         y = np.divide(y, common['flat'])
         
-    # Pre-calculate shift
-    #if common['meas_shift_flag'] == True:
-        #common['params']['shift'][0] = get_shift(grid, y, common)
+    # Unpack the inital fit parameters
+    fit_params = []
+    
+    for key, val in common['params'].items():
+       
+        if val[1] == 'Fit':
+            fit_params.append(val[0])
 
     # Create dictionary to hold gas trans data
     gas_T = {}

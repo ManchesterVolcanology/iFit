@@ -10,6 +10,8 @@ LDF;0.0
 Fit LDF;N/A
 dark_flag;1
 flat_flag;1
+calc_shift_flag;True
+get_ils_flag;True
 update_params;1
 good_fit_bound;10
 Show Graphs;1

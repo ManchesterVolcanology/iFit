@@ -185,6 +185,7 @@ class mygui(tk.Tk):
             settings['scroll_spec_no']    = 200
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
+            settings['calc_shift_flag']   = True
             settings['poly_n']            = 4
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
@@ -634,13 +635,14 @@ class mygui(tk.Tk):
         # Populate common with other data from the GUI
         common['wave_start']       = float(self.wave_start_e.get())
         common['wave_stop']        = float(self.wave_stop_e.get())
-        common['poly_n']           = int(self.poly_n.get()) + 1
+        common['poly_n']           = int(self.poly_n.get())
         common['ils_width']        = float(self.ils_width.get())
         common['ils_gauss_weight'] = float(self.gauss_weight.get())
         common['ldf']              = float(self.ldf.get())
-        common['dark_flag']        = int(settings['dark_flag'])
-        common['flat_flag']        = int(settings['flat_flag'])
+        common['dark_flag']        = bool(settings['dark_flag'])
+        common['flat_flag']        = bool(settings['flat_flag'])
         common['solar_resid_flag'] = settings['solar_resid_flag']
+        common['calc_shift_flag']  = bool(settings['calc_shift_flag'])
 
         # Turn of dark flag if in real time and no darks have been taken
         if settings['rt_dark_flag'] == False:
@@ -654,7 +656,7 @@ class mygui(tk.Tk):
         # Create parameter array
         params = OrderedDict()
 
-        for i in range(common['poly_n']):
+        for i in range(common['poly_n'] + 1):
             params['p'+str(i)] = [1.0, 'Fit']
             
         # Add other parameters
@@ -685,9 +687,8 @@ class mygui(tk.Tk):
         self.status.set('Building Model')
         mygui.update(self)
 
-        # Build filepath to flat spectrum from spectrometer serial number
-        settings['flat_path'] = 'data_bases/Spectrometer/flat_' + \
-                                 str(self.c_spec.get()) + '.txt'
+        # Get spectrometer serial number to get flat and ILS
+        common['spec_name'] = str(self.c_spec.get())
         
         # Load fitting data files
         common = build_fwd_data(common, settings, self)
@@ -820,7 +821,7 @@ class mygui(tk.Tk):
                                                                  result_queue))
                     
                     t2 = Thread(target = fit_spec, args = (common,
-                                                           common['last_spec'],
+                                                           [x, common['last_spec']],
                                                            grid,
                                                            result_queue))
                     

@@ -276,8 +276,10 @@ def adv_settings(self, settings, version):
         settings['model_resolution'] = float(model_res_e.get())
         settings['dark_flag']        = dark_b.get()
         settings['flat_flag']        = flat_b.get()
-        settings['update_params']    = update_b.get()
         settings['solar_resid_flag'] = resid_b.get()
+        settings['calc_shift_flag']  = calc_shift_b.get()
+        settings['get_ils_flag']     = get_ils_b.get()
+        settings['update_params']    = update_b.get()
         settings['good_fit_bound']   = float(fit_bound_e.get())
         
         # Update data base settings in common
@@ -410,9 +412,25 @@ def adv_settings(self, settings, version):
     resid_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
     
+    # Control whether or not to pre-calculate the wavelength shift
+    calc_shift_b = tk.BooleanVar(model_frame, value = settings['calc_shift_flag'])
+    calc_shift_l = tk.Label(model_frame, text = 'Pre-calculate shift?', font = NORM_FONT)
+    calc_shift_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    calc_shift_c = ttk.Checkbutton(model_frame, variable = calc_shift_b)
+    calc_shift_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1   
+    
+    # Control whether or not to pre-calculate the wavelength shift
+    get_ils_b = tk.BooleanVar(model_frame, value = settings['get_ils_flag'])
+    get_ils_l = tk.Label(model_frame, text = 'Use ILS from file?', font = NORM_FONT)
+    get_ils_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    get_ils_c = ttk.Checkbutton(model_frame, variable = get_ils_b)
+    get_ils_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1 
+    
     # Control whether or not to update fit parameter guesses with the last fit values
     update_b = tk.BooleanVar(model_frame, value = settings['update_params'])
-    update_l = tk.Label(model_frame, text = 'Auto-update fit parameters?', font = NORM_FONT)
+    update_l = tk.Label(model_frame, text='Auto-update fit parameters?', font=NORM_FONT)
     update_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     update_c = ttk.Checkbutton(model_frame, variable = update_b)
     update_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
@@ -525,7 +543,7 @@ def adv_settings(self, settings, version):
     row_n = 0
     
     # Control graph display settings
-    graph_b = tk.IntVar(graph_frame, value = settings['Show Graphs'])
+    graph_b = tk.BooleanVar(graph_frame, value = settings['Show Graphs'])
     graph_l = tk.Label(graph_frame, text = 'Show Graphs?', font = NORM_FONT)
     graph_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     graph_c = ttk.Checkbutton(graph_frame, variable = graph_b)
@@ -554,7 +572,7 @@ def adv_settings(self, settings, version):
     row_n += 1
     
     # Turn on/off graph scrolling
-    scroll_b = tk.IntVar(graph_frame, value = settings['scroll_flag'])
+    scroll_b = tk.BooleanVar(graph_frame, value = settings['scroll_flag'])
     scroll_l = tk.Label(graph_frame, text = 'Scroll Graph?', font = NORM_FONT)
     scroll_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     scroll_c = ttk.Checkbutton(graph_frame, variable = scroll_b)

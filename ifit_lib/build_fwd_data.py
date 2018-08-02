@@ -55,14 +55,15 @@ def build_fwd_data(common, settings, self):
                            stop = common['wave_stop'] + 3 + float(settings['model_res']), 
                            step = float(settings['model_res']))
     
-    common['model_grid']  = model_grid
+    common['model_grid'] = model_grid
     
     # Try importing flat spectrum. If not found set to 1
     if common['flat_flag'] == True:
         self.print_output('Importing flat spectrum', add_line = False)
         try:
             # Import flat spectrum and extract window of interest
-            flat_grid, flat = np.loadtxt(settings['flat_path'] , unpack = True)
+            flat_path = 'data_bases/Spectrometer/flat_' + common['spec_name'] + '.txt'
+            flat_grid, flat = np.loadtxt(flat_path , unpack = True)
             flat_idx = np.where(np.logical_and(common['wave_start'] <= flat_grid, 
                                                flat_grid <= common['wave_stop']))
             common['flat'] = flat[flat_idx]
@@ -73,6 +74,18 @@ def build_fwd_data(common, settings, self):
             self.print_output('No flat spectrum found', add_line = False)
             common['flat_flag'] = False    
     
+    # Try importing ils. If not found set to 1
+    if bool(settings['get_ils_flag']) == True:
+        self.print_output('Importing ILS width', add_line = False)
+        try:
+            # Import ils width
+            ils_path = 'data_bases/Spectrometer/ils_' + common['spec_name'] + '.txt'
+            common['params']['ils_width'][0] = np.loadtxt(ils_path)
+            
+            self.print_output('ILS width imported', add_line = False)
+            
+        except FileNotFoundError:
+            self.print_output('No ILS file found', add_line = False)  
     
     # Import solar reference spectrum
     self.print_output('Importing solar reference spectrum...', add_line = False)

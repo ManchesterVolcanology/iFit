@@ -141,6 +141,8 @@ class mygui(tk.Tk):
             settings['scroll_spec_no']    = 200
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
+            settings['calc_shift_flag']   = True
+            settings['get_ils_flag']      = True
             settings['poly_n']            = 3
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
@@ -589,6 +591,7 @@ class mygui(tk.Tk):
         common['dark_flag']        = bool(settings['dark_flag'])
         common['flat_flag']        = bool(settings['flat_flag'])
         common['solar_resid_flag'] = settings['solar_resid_flag']
+        common['calc_shift_flag']  = bool(settings['calc_shift_flag'])
 
 #========================================================================================
 #================================Build parameter dictionary==============================
@@ -649,8 +652,8 @@ class mygui(tk.Tk):
 #=================================Read in xsecs and flat=================================
 #========================================================================================
 
-        # Build filepath to flat spectrum from spectrometer serial number
-        settings['flat_path'] = 'data_bases/Spectrometer/flat_I2J5046.txt'
+        # Get spectrometer serial number to get flat and ILS
+        common['spec_name'] = 'I2J5046'#str(self.spec_name.get())
         
         # Load fitting data files
         common = build_fwd_data(common, settings, self)
@@ -731,7 +734,7 @@ class mygui(tk.Tk):
                         y = spec_block[:,n]
     
                         # Fit the spectrum
-                        fit_dict, err_dict, y_data, fit, gas_T, fit_flag = fit_spec(common, y, grid)
+                        fit_dict, err_dict, y_data, fit, gas_T, fit_flag = fit_spec(common, [x, y], grid)
                             
                         # Unpack spec no, timestamp and motor position
                         spec_no = str(info_block[0][n])

@@ -162,7 +162,14 @@ class mygui(tk.Tk):
                 # Unpack and save to dictionary
                 for i in data:
                     name, val = i.strip().split(';')
-                    settings[name] = val
+                    
+                    # Check if boolian
+                    if val == 'True':
+                        settings[name] = True
+                    elif val == 'False':
+                        settings[name] = False
+                    else:
+                        settings[name] = val
    
         except FileNotFoundError:
             self.print_output('No settings file found, reverting to origional')
@@ -178,17 +185,19 @@ class mygui(tk.Tk):
             settings['Fit ILS']           = 'Fix'
             settings['LDF']               = 0.0
             settings['Fit LDF']           = 'N/A'
-            settings['dark_flag']         = 1
-            settings['flat_flag']         = 1
-            settings['update_params']     = 1
+            settings['dark_flag']         = True
+            settings['flat_flag']         = True
+            settings['update_params']     = True
             settings['good_fit_bound']    = 10
-            settings['Show Graphs']       = 1
+            settings['Show Graphs']       = True
             settings['Show Error Bars']   = 0
             settings['analysis_gas']      = 'SO2'
-            settings['scroll_flag']       = 1
+            settings['scroll_flag']       = True
             settings['scroll_spec_no']    = 200
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
+            settings['calc_shift_flag']   = False
+            settings['get_ils_flag']      = True
             settings['poly_n']            = 3
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
@@ -348,6 +357,7 @@ class mygui(tk.Tk):
         # Create entry to select spectra type
         spec_options = [settings['Spectra Type'],
                         'iFit',
+                        'Master.Scope',
                         'Jai Spec',
                         'Spectrasuite',
                         'GSJ']
@@ -757,12 +767,10 @@ class mygui(tk.Tk):
         common['ldf']              = float(self.ldf.get())
         common['spectra_files']    = self.spec_fpaths
         common['dark_files']       = self.dark_fpaths
-        common['spec_name']        = self.spec_name.get()
-        common['dark_flag']        = int(settings['dark_flag'])
-        common['flat_flag']        = int(settings['flat_flag'])
+        common['dark_flag']        = bool(settings['dark_flag'])
+        common['flat_flag']        = bool(settings['flat_flag'])
         common['solar_resid_flag'] = settings['solar_resid_flag']
-        
-        common['meas_shift_flag'] = True
+        common['calc_shift_flag']  = bool(settings['calc_shift_flag'])
 
         # Turn of dark flag if in real time and no darks have been taken
         if rt_flag == 'rt_analysis' and settings['rt_dark_flag'] == False:
@@ -804,13 +812,11 @@ class mygui(tk.Tk):
         self.status.set('Building Model')
         mygui.update(self)
 
-        # Build filepath to flat spectrum from spectrometer serial number
+        # Get spectrometer serial number to get flat and ILS
         if rt_flag == 'post_analysis':
-            settings['flat_path'] = 'data_bases/Spectrometer/flat_' + \
-                                     str(self.spec_name.get())+'.txt'
+            common['spec_name'] = str(self.spec_name.get())
         else:
-            settings['flat_path'] = 'data_bases/Spectrometer/flat_' + \
-                                     str(self.c_spec.get())+'.txt'
+            common['spec_name'] = str(self.c_spec.get())
         
         # Load fitting data files
         common = build_fwd_data(common, settings, self)
@@ -1004,7 +1010,7 @@ class mygui(tk.Tk):
                     if skip_flag[0] == False:
                     
                         # Fit
-                        results = fit_spec(common, y, grid)
+                        results = fit_spec(common, [x, y], grid)
                         fit_dict, err_dict, y_data, fit, gas_T, fit_flag = results
                         
                         now_fit_spec = True
@@ -1036,7 +1042,7 @@ class mygui(tk.Tk):
                                                                  result_queue))
                     
                     t2 = Thread(target = fit_spec, args = (common,
-                                                           common['last_spec'],
+                                                           [x, common['last_spec']],
                                                            grid,
                                                            result_queue))
                     
@@ -1133,26 +1139,25 @@ class mygui(tk.Tk):
                         common['solar_resid'] = np.add(common['solar_resid'],
                                                        np.divide(y_data, fit))
                         resid_count += 1
-                    if bool(settings['update_params']) == True:
-                        print('mark')
+
                     # Check fit quality and update first guess params if required
                     if fit_flag == False:
                         fit_msg = 'Failed'
-                        if settings['update_params'] == True:
+                        if bool(settings['update_params']) == True:
                             common['params'] = initial_params.copy()
                             self.print_output('Fitting for spectrum '+str(spec_no)+\
                                               ' failed, resetting parameters')
                             
                     elif max_resid > float(settings['good_fit_bound'])/100:
                         fit_msg = 'Bad'
-                        if settings['update_params'] == True:
+                        if bool(settings['update_params']) == True:
                             common['params'] = initial_params.copy()
                             self.print_output('Fitting for spectrum '+str(spec_no)+\
                                               ' bad, resetting parameters')
                             
                     else:
                         fit_msg = 'Good'
-                        if settings['update_params'] == True:
+                        if bool(settings['update_params']) == True:
                             # Update first guesses with last fitted params
                             for key, val in fit_dict.items():
                                 common['params'][key][0] = val
@@ -1226,9 +1231,9 @@ class mygui(tk.Tk):
 #========================================================================================
 #=======================================Update plot======================================
 #========================================================================================
-        
+
                 # Replot data
-                if int(settings['Show Graphs']) == 1 and skip_flag[0] == False:            
+                if bool(settings['Show Graphs']) == True and skip_flag[0] == False:            
                     
                     if now_fit_spec == True:
                         
