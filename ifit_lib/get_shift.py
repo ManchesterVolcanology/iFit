@@ -40,7 +40,7 @@ def get_shift(grid, spec, common):
     spec = griddata(grid, spec, common['model_grid'], method = 'cubic')
 
     # Convolve high resolution spectrum with ils
-    ils = make_ils(common['ils_width'], spacing, common['ils_gauss_weight'])
+    ils = make_ils(common['ils_width'], spacing, common['gauss_weight'])
     smooth_sol = np.convolve(common['sol'], ils, 'same')
     
     # Center spectra on 0

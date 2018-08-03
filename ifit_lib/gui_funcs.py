@@ -124,8 +124,8 @@ def update_int_time(self, settings):
     
     try:
         # Update integration time on spectrometer
-        settings['int_time'] = float(self.int_time.get())*1000
-        settings['spec'].integration_time_micros(float(settings['int_time']))
+        settings['int_time'] = float(self.int_time.get())
+        settings['spec'].integration_time_micros(settings['int_time']*1000)
         
         self.print_output('Integration time updated to '+str(settings['int_time']) +\
                           '\nSpectrum number ' + str(settings['loop']))
@@ -274,33 +274,38 @@ def adv_settings(self, settings, version):
         
         # Update model settings
         settings['wave_start']       = float(popup.wave_start.get())
+        settings['wave_stop']        = float(popup.wave_stop.get())
         settings['model_resolution'] = float(model_res_e.get())
         settings['dark_flag']        = popup.dark_b.get()
         settings['flat_flag']        = popup.flat_b.get()
         settings['solar_resid_flag'] = popup.resid_b.get()
-        settings['calc_shift_flag']  = popup.calc_shift_b.get()
-        settings['get_ils_flag']     = popup.get_ils_b.get()
         settings['update_params']    = popup.update_b.get()
         settings['good_fit_bound']   = float(fit_bound_e.get())
         
         # Update parameter settings
-        settings['poly_n']           = popup.poly_n.get()
-        settings['ils_width']        = popup.ils_width.get()
-        settings['shift']            = popup.shift.get()
-        settings['stretch']          = popup.stretch.get()
-        settings['ring_amt']         = popup.ring_amt.get()
         settings['so2_amt']          = popup.so2_amt.get()
         settings['no2_amt']          = popup.no2_amt.get()
         settings['o3_amt']           = popup.o3_amt.get()
         settings['bro_amt']          = popup.bro_amt.get()
+        settings['shift']            = popup.shift.get()
+        settings['ils_width']        = popup.ils_width.get()
+        settings['gauss_weight']     = popup.gauss_weight.get()
+        settings['ldf']              = popup.ldf.get()
+        settings['poly_n']           = popup.poly_n.get()
+        settings['stretch']          = popup.stretch.get()
+        settings['ring_amt']         = popup.ring_amt.get()
         
-        settings['Fit shift']        = popup.shift_c.get()
-        settings['Fit stretch']      = popup.stretch_c.get()
-        settings['Fit ring']         = popup.ring_amt_c.get()
         settings['Fit so2']          = popup.so2_amt_c.get()
         settings['Fit no2']          = popup.no2_amt_c.get()
         settings['Fit o3']           = popup.o3_amt_c.get()
         settings['Fit bro']          = popup.bro_amt_c.get()
+        settings['Fit shift']        = popup.shift_c.get()
+        settings['calc_shift_flag']  = popup.calc_shift_b.get()
+        settings['Fit ILS']          = popup.ils_width_c.get()
+        settings['get_ils_flag']     = popup.get_ils_b.get()
+        settings['Fit LDF']          = popup.ldf_c.get()
+        settings['Fit stretch']      = popup.stretch_c.get()
+        settings['Fit ring']         = popup.ring_amt_c.get()
         
         # Update data base settings
         settings['sol_path']         = sol_path_e.get()
@@ -335,6 +340,9 @@ def adv_settings(self, settings, version):
         
         # Print message to confirm settings have been updated
         self.print_output('Settings updated')
+        
+        # Turn on flag to re-build the forward model
+        self.build_model_flag = True
         
         # Close the window
         if close_flag == True:

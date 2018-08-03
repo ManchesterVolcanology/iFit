@@ -155,4 +155,7 @@ def build_fwd_data(common, settings, self):
                                      method = 'cubic')
     self.print_output('BrO cross-section imported')
     
+    # Turn off flag to build forward model
+    self.build_model_flag = False
+    
     return common
