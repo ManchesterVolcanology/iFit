@@ -60,17 +60,17 @@ class mygui(tk.Tk):
 
         # Create control Frame
         cont_frame = ttk.Frame(self, relief = 'groove')
-        cont_frame.grid(row=0, column=0, padx=10, pady=10, rowspan=2, sticky="NW")
+        cont_frame.grid(row=0, column=0, padx=10, pady=10, rowspan=2)
         
         # Create frame to hold graphs
         graph_frame = ttk.Frame(self, relief = 'groove')
-        graph_frame.grid(row=1, column=1, padx=10, pady=10, rowspan=10, sticky="N")
+        graph_frame.grid(row=1, column=1, padx=10, pady=10, rowspan=10)
         graph_frame.columnconfigure(index=0, weight=1)
         graph_frame.rowconfigure(index = 0, weight = 1)
         
         # Create frame to hold text output
         text_frame = ttk.Frame(self, relief = 'groove')
-        text_frame.grid(row=2, column=0, padx=10, pady=10, sticky="NW")
+        text_frame.grid(row=2, column=0, padx=10, pady=10)
         
         # Create global common dictionary to hold settings
         global common
@@ -121,7 +121,7 @@ class mygui(tk.Tk):
 #========================================================================================     
         
         # Build text box
-        self.text_box = tkst.ScrolledText(text_frame, width = 60, height = 10)
+        self.text_box = tkst.ScrolledText(text_frame, width = 50, height = 10)
         self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
                            columnspan = 4)
         self.text_box.insert('1.0', 'Welcome to calc_flux! Written by Ben Esse\n\n')
@@ -200,7 +200,7 @@ class mygui(tk.Tk):
         ifit_path_e.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
         ifit_path_b = ttk.Button(trav_frame, text="Select iFit output", 
                                  command = lambda: self.get_fp(self.ifit_path))
-        ifit_path_b.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
+        ifit_path_b.grid(row = 0, column=2, padx=5, pady=5, columnspan=2, sticky='W')
         
         # Create inputs for gps file
         self.gps_path = tk.StringVar(value = 'No file selected')
@@ -211,7 +211,7 @@ class mygui(tk.Tk):
         gps_path_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
         gps_path_b = ttk.Button(trav_frame, text="Select GPS file", 
                                 command = lambda: self.get_fp(self.gps_path))
-        gps_path_b.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
+        gps_path_b.grid(row=1, column=2, padx=5, pady=5, columnspan=2, sticky='W')
         
         # Create inputs for wind speed
         self.wind_speed = tk.IntVar(value = 10.0)
@@ -234,7 +234,14 @@ class mygui(tk.Tk):
         # Create button to read in files
         read_b = ttk.Button(trav_frame, text="Read Traverse Data", 
                             command = self.read_trav_data)
-        read_b.grid(row = 2, column = 2, padx = 5, pady = 5, columnspan=3, sticky = 'W')
+        read_b.grid(row = 2, column = 2, padx = 5, pady = 5, columnspan=2, sticky = 'W')
+        
+        # Control whether or not to remove flat spectra
+        self.de_spike = tk.BooleanVar(trav_frame, value = True)
+        de_spike_l = tk.Label(trav_frame, text='Remove Bad\nSpectra?', font=NORM_FONT)
+        de_spike_l.grid(row = 3, column = 2, padx = 5, pady = 5)
+        de_spike_c = ttk.Checkbutton(trav_frame, variable = self.de_spike)
+        de_spike_c.grid(row = 3, column = 3, padx = 5, pady = 5)
         
 #========================================================================================
 #===================================Volcano controls=====================================
@@ -422,6 +429,7 @@ class mygui(tk.Tk):
             txt_time    = data['Time'] 
             txt_so2_amt = data['so2_amt']/2.463e15
             txt_so2_err = data['so2_amt_e']/2.463e15
+            fit_flag    = data['Fit Quality']
             
         except KeyError:
             self.text_output('ERROR: Wrong iFit file format')
@@ -457,6 +465,23 @@ class mygui(tk.Tk):
             common['so2_err'][n] = float(i)
         
         self.text_output('Done!', add_line = False) 
+
+        # Remove bad datapoints
+        if self.de_spike.get():
+            
+            # Get indicies of bad spectra
+            spec_qual = np.zeros(len(txt_so2_amt))
+            
+            for n, q in enumerate(fit_flag):
+                if q == 'Good':
+                    spec_qual[n] = 1
+                    
+            idx = np.where(spec_qual==1)
+            
+            # Remove bad data
+            common['time'] = common['time'][idx]
+            common['so2_amt'] = common['so2_amt'][idx]
+            common['so2_err'] = common['so2_err'][idx]
             
         # Read GPS data from file
         self.text_output('Reading GPS data...', add_line = False)
