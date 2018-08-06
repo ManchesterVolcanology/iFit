@@ -134,6 +134,7 @@ class mygui(tk.Tk):
             settings['flat_flag']         = True
             settings['update_params']     = True
             settings['good_fit_bound']    = 10
+            settings['fit_weight']        = 'None'
             settings['Show Graphs']       = True
             settings['Show Error Bars']   = 0
             settings['analysis_gas']      = 'SO2'
@@ -141,8 +142,6 @@ class mygui(tk.Tk):
             settings['scroll_spec_no']    = 200
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
-            settings['calc_shift_flag']   = False
-            settings['get_ils_flag']      = True
             settings['poly_n']            = 3
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
@@ -426,7 +425,8 @@ class mygui(tk.Tk):
         common['dark_flag']        = bool(settings['dark_flag'])
         common['flat_flag']        = bool(settings['flat_flag'])
         common['solar_resid_flag'] = str(settings['solar_resid_flag'])
-        common['calc_shift_flag']  = bool(settings['calc_shift_flag'])
+        common['Fit shift']       = str(settings['Fit shift'])
+        common['fit_weight']       = str(settings['fit_weight'])
 
 #========================================================================================
 #================================Build parameter dictionary==============================

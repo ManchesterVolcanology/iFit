@@ -5,6 +5,7 @@ from scipy.optimize import curve_fit
 from ifit_lib.make_ils import make_ils
 from ifit_lib.make_poly import make_poly
 from ifit_lib.get_shift import get_shift
+from ifit_lib.smooth import smooth
 
 #========================================================================================
 #=========================================fit_spec=======================================
@@ -43,7 +44,7 @@ def fit_spec(common, spectrum, grid, q = None):
     x, y = spectrum
     
     # Pre-calculate shift
-    if common['calc_shift_flag'] == True:
+    if common['Fit shift'] == 'Pre-calc':
         
         # Find first guess for the shift
         shift, err = get_shift(x, y, common) 
@@ -67,6 +68,22 @@ def fit_spec(common, spectrum, grid, q = None):
     if common['flat_flag'] == True:
         y = np.divide(y, common['flat'])
         
+    # Set weighting for fitting function
+    if common['fit_weight'] == 'SO2 xsec':
+        so2_poly = np.polyval(np.polyfit(com['model_grid'], com['so2_xsec'], 3),
+                              com['model_grid'])
+        sigma = np.divide(1, np.abs(np.subtract(common['so2_xsec'], so2_poly)))
+        sigma = griddata(com['model_grid'], sigma, grid, 'cubic')
+        
+    if common['fit_weight'] == 'Noise':
+        noise = np.abs(np.divide(y, smooth(y, 3)))
+        sigma = np.divide(1, noise)
+        
+        sigma = None
+        
+    if common['fit_weight'] == 'None':
+        sigma = None
+    
     # Unpack the inital fit parameters
     fit_params = []
     
@@ -81,7 +98,7 @@ def fit_spec(common, spectrum, grid, q = None):
     # Appempt to fit!
     try:
         # Fit
-        popt, pcov = curve_fit(ifit_fwd_model, grid, y, p0 = fit_params)
+        popt, pcov = curve_fit(ifit_fwd_model, grid, y, p0 = fit_params, sigma = sigma)
 
         # Calculate transmittance spectra
         fit = ifit_fwd_model(grid, *popt, calc_trans_flag = True)
@@ -171,12 +188,12 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
             p[key] = fit_params[i]
             i += 1
             
-        if val[1] == 'Fix':
+        if val[1] in ['Fix', 'Pre-calc', 'File']:
             p[key] = val[0]
             
         if val[1] == 'N/A':
             p[key] = 0
-            
+       
     # Unpack polynomial parameters
     poly_coefs = np.zeros(com['poly_n'])
     for i in range(com['poly_n']):
@@ -213,8 +230,7 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
     plume_F = np.multiply(plume_F, 1-p['ldf'])
     raw_F = np.add(plume_F, light_d)
     
-
-    # Convolve high res raw_F with ILS
+    # Make sure ILS is sensible, then form and convolve with high res raw_F
     ils = make_ils(p['ils_width'], (com['model_grid'][1] - com['model_grid'][0]),
                    com['gauss_weight'])
     F_conv = np.convolve(raw_F, ils, 'same')

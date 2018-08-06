@@ -75,7 +75,7 @@ def build_fwd_data(common, settings, self):
             common['flat_flag'] = False    
     
     # Try importing ils. If not found set to 1
-    if bool(settings['get_ils_flag']) == True:
+    if settings['Fit ILS'] == 'File':
         self.print_output('Importing ILS width', add_line = False)
         try:
             # Import ils width

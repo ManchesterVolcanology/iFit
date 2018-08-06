@@ -180,13 +180,14 @@ class mygui(tk.Tk):
             settings['no_darks']          = 10
             settings['ils_width']         = 0.52
             settings['gauss_weight']      = 1.0
-            settings['Fit ILS']           = 'Fix'
+            settings['Fit ILS']           = 'File'
             settings['ldf']               = 0.0
             settings['Fit LDF']           = 'N/A'
             settings['dark_flag']         = True
             settings['flat_flag']         = True
             settings['update_params']     = True
             settings['good_fit_bound']    = 10
+            settings['fit_weight']        = 'None'
             settings['Show Graphs']       = True
             settings['Show Error Bars']   = 0
             settings['analysis_gas']      = 'SO2'
@@ -194,8 +195,6 @@ class mygui(tk.Tk):
             settings['scroll_spec_no']    = 200
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
-            settings['calc_shift_flag']   = False
-            settings['get_ils_flag']      = True
             settings['poly_n']            = 3
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
@@ -601,8 +600,9 @@ class mygui(tk.Tk):
         common['ldf']              = float(settings['ldf'])
         common['dark_flag']        = bool(settings['dark_flag'])
         common['flat_flag']        = bool(settings['flat_flag'])
+        common['Fit shift']       = str(settings['Fit shift'])
+        common['fit_weight']       = str(settings['fit_weight'])
         common['solar_resid_flag'] = str(settings['solar_resid_flag'])
-        common['calc_shift_flag']  = bool(settings['calc_shift_flag'])
 
         # Turn of dark flag if in real time and no darks have been taken
         if rt_flag == 'rt_analysis' and settings['rt_dark_flag'] == False:
@@ -783,6 +783,7 @@ class mygui(tk.Tk):
                     
             except PermissionError:
                 self.print_output('Please close iFit output file to continue')
+                self.build_model_flag = True
                 return                
 
 #========================================================================================
@@ -1014,7 +1015,7 @@ class mygui(tk.Tk):
 
                         if val[1] == 'Fit':
                             writer.write(','+str(fit_dict[key])+','+str(err_dict[key]))
-                        if val[1] == 'Fix':
+                        if val[1] in ['Fix', 'Pre-calc', 'File']:
                             writer.write(','+str(common['params'][key][0])+',NaN')
                         if val[1] == 'N/A':
                             writer.write(',NaN,NaN')
