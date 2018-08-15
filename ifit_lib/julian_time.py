@@ -6,7 +6,7 @@ Created on Thu Jul 12 09:36:21 2018
 """
 
 import numpy as np
-from datetime import datetime as dt
+import datetime as dt
 
 def hms_to_julian(time_arr, str_format = None, out_format = 'decimal days'):
     
@@ -39,7 +39,7 @@ def hms_to_julian(time_arr, str_format = None, out_format = 'decimal days'):
         # If format is given, use this to convert to datetime object
         if str_format != None:
             
-            time = dt.strptime(str(time), format)
+            time = dt.datetime.strptime(str(time), str_format)
         
         # Extract individual hour, minute, second and microsecond info
         hours = time.hour
@@ -56,21 +56,59 @@ def hms_to_julian(time_arr, str_format = None, out_format = 'decimal days'):
     return jul_time
             
         
+def julian_to_hms(time_arr, input_format = 'decimal days'):
+
+    '''
+    Function to convert an array of Julian times into hh:mm:ss datetime objects
+    
+    INPUTS
+    ------
+    time_arr:     array of julan time values
+    input_format: string describing the format of the input Julian time values.
+                    Either "decimal days" (default) or "decimal hours"
+                    
+    OUTPUTS
+    -------
+    time: array of datetime objects
+    '''    
+
+    # Check if output format is correct
+    if input_format not in ['decimal days', 'decimal hours']:
+        msg = 'input_format value is not supported. Only supported values are:\n' + \
+              '    decimal days\n    decimal hours'
+        raise ValueError(msg) 
+        
+    # Make array to hold datetime objects
+    time = []
+    
+    # Cycle through the input array to produce datetime objects
+    for n, t in enumerate(time_arr):
+        
+        # Get hour data, depending on whether its decomal days or hours
+        if input_format == 'decimal days':
             
+            hours = t * 24
+            h = int(hours)
+            delta_h = hours - h
             
+        if input_format == 'decimal hours':
             
+            h = int(t)
+            delta_h = hours - h
+        
+        # Extract minute, second and microsecond info 
+        mins = delta_h * 60
+        m = int(mins)
+        delta_m = mins - m
+        
+        secs = delta_m * 60
+        s = int(secs)
+        delta_s = secs - s
+        
+        usecs = delta_s * 1e6
+        u = int(usecs)
+        
+        # Combine to form a time object
+        time.append(dt.datetime(1900, 1, 1, h, m, s, u))
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+    return time

@@ -104,12 +104,14 @@ def fit_spec(common, spectrum, grid, q = None):
         fit = ifit_fwd_model(grid, *popt, calc_trans_flag = True)
         
         # Form transmittance spectra
-        gas_T['SO2_tran'] = y / com['F_no_so2']
-        gas_T['O3_tran']  = y / com['F_no_o3']
-        gas_T['BrO_tran'] = y / com['F_no_bro']
-        gas_T['SO2_spec'] = com['so2_spec']
-        gas_T['O3_spec']  = com['o3_spec']
-        gas_T['BrO_spec'] = com['bro_spec']
+        gas_T['SO2_tran']  = -np.log(np.divide(y, com['F_no_so2']))
+        gas_T['O3_tran']   = -np.log(np.divide(y, com['F_no_o3']))
+        gas_T['BrO_tran']  = -np.log(np.divide(y, com['F_no_bro']))
+        gas_T['Ring_tran'] = np.subtract(y, com['F_no_ring'])
+        gas_T['SO2_spec']  = -np.log(com['so2_spec'])
+        gas_T['O3_spec']   = -np.log(com['o3_spec'])
+        gas_T['BrO_spec']  = -np.log(com['bro_spec'])
+        gas_T['Ring_spec'] = com['ring_spec']
                         
         # Fit successful
         fitted_flag = True
@@ -125,9 +127,11 @@ def fit_spec(common, spectrum, grid, q = None):
         gas_T['SO2_tran']  = np.zeros(len(grid))
         gas_T['O3_tran']   = np.zeros(len(grid))
         gas_T['BrO_tran']  = np.zeros(len(grid))
+        gas_T['Ring_tran'] = np.zeros(len(grid))
         gas_T['SO2_spec']  = np.zeros(len(grid))
         gas_T['O3_spec']   = np.zeros(len(grid))
         gas_T['BrO_spec']  = np.zeros(len(grid))
+        gas_T['Ring_spec'] = np.zeros(len(grid))
         
         fitted_flag = False
 
@@ -147,7 +151,17 @@ def fit_spec(common, spectrum, grid, q = None):
         if val[1] == 'Fit':
             err_dict[key] = np.sqrt(np.diag(pcov))[m]
             m+=1
+                    
+    ##############################DELETE###################################
     
+    np.savetxt('Data Dump/spectrum.txt', np.column_stack((grid, y)))
+    np.savetxt('Data Dump/fit.txt', np.column_stack((grid, fit)))
+    
+    for key, val in gas_T.items():
+        np.savetxt('Data Dump/' + key + '.txt', np.column_stack((grid, val)))
+    
+    ##############################DELETE###################################
+
     # Return results, either to a queue if threaded, or as an array if not
     if q == None:                     
         return fit_dict, err_dict, y, fit, gas_T, fitted_flag
@@ -212,6 +226,8 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
     # Calculate ring effect
     ring_T = np.multiply(com['sol'], np.multiply(com['ring'], p['ring_amt']))
     sol_T = np.add(com['sol'], ring_T)
+    #ring_T = np.multiply(com['ring'], p['ring_amt'])
+    #sol_T = np.multiply(com['sol'], ring_T)
 
     
     # Background sky spectrum
@@ -242,7 +258,7 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
     shift_model_grid = np.add(shift_model_grid, np.multiply(line, p['stretch']))
     
     # Interpolate onto measurement wavelength grid
-    F = griddata(shift_model_grid, F_conv, grid, method = 'linear')
+    F = griddata(shift_model_grid, F_conv, grid, method = 'cubic')
     
     if calc_trans_flag == True:
         
@@ -259,25 +275,41 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
         raw_F_no_bro = np.multiply(raw_F_no_bro, no2_T)
         raw_F_no_bro = np.multiply(raw_F_no_bro, o3_T)
         
+        # Generate raw spectrum without ring
+        sol_no_ring = np.multiply(bg_poly, com['sol'])
+        raw_F_no_ring = np.multiply(sol_no_ring, so2_T)
+        raw_F_no_ring = np.multiply(raw_F_no_ring, no2_T)
+        raw_F_no_ring = np.multiply(raw_F_no_ring, o3_T)
+        raw_F_no_ring = np.multiply(raw_F_no_ring, bro_T)
+        
         # Add light dilution
         raw_F_no_so2 = np.add(np.multiply(raw_F_no_so2, 1 - p['ldf']), light_d)
         raw_F_no_o3  = np.add(np.multiply(raw_F_no_o3,  1 - p['ldf']), light_d)
         raw_F_no_bro = np.add(np.multiply(raw_F_no_bro, 1 - p['ldf']), light_d)
+        raw_F_no_ring= np.add(np.multiply(raw_F_no_ring,1 - p['ldf']), light_d)
         
         # Convolve with the ils
         F_conv_no_so2 = np.convolve(raw_F_no_so2, ils, 'same')
         F_conv_no_o3  = np.convolve(raw_F_no_o3,  ils, 'same')
-        F_conv_no_bro = np.convolve(raw_F_no_bro, ils, 'same')       
+        F_conv_no_bro = np.convolve(raw_F_no_bro, ils, 'same')   
+        F_conv_no_ring= np.convolve(raw_F_no_ring,ils, 'same')     
         
         # Place onto spectrometer grid
         com['F_no_so2'] = griddata(shift_model_grid, F_conv_no_so2, grid)
-        com['so2_spec'] = griddata(shift_model_grid, np.convolve(so2_T,ils,'same'), grid)
+        com['so2_spec'] = griddata(shift_model_grid, np.convolve(so2_T,ils,'same'), grid, 
+                                   method = 'cubic')
     
         com['F_no_o3'] = griddata(shift_model_grid, F_conv_no_o3, grid)
-        com['o3_spec'] = griddata(shift_model_grid, np.convolve(o3_T, ils, 'same'), grid)
+        com['o3_spec'] = griddata(shift_model_grid, np.convolve(o3_T, ils, 'same'), grid, 
+                                  method = 'cubic')
     
         com['F_no_bro'] = griddata(shift_model_grid, F_conv_no_bro, grid)
-        com['bro_spec'] = griddata(shift_model_grid, np.convolve(bro_T,ils,'same'), grid)
+        com['bro_spec'] = griddata(shift_model_grid, np.convolve(bro_T,ils,'same'), grid, 
+                                   method = 'cubic')
+        
+        com['F_no_ring'] = griddata(shift_model_grid, F_conv_no_ring, grid)
+        com['ring_spec'] = griddata(shift_model_grid, np.convolve(ring_T,ils,'same'), 
+                                    grid, method = 'cubic')
 
     # Remove solar residual
     if com['solar_resid_flag'] == 'Remove':
@@ -285,7 +317,8 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
         
         if calc_trans_flag == True:
             com['F_no_so2'] = np.multiply(com['F_no_so2'], com['solar_resid'])
-            com['F_no_o3'] = np.multiply(com['F_no_o3'], com['solar_resid'])
+            com['F_no_o3']  = np.multiply(com['F_no_o3'],  com['solar_resid'])
             com['F_no_bro'] = np.multiply(com['F_no_bro'], com['solar_resid'])
+            com['F_no_ring']= np.multiply(com['F_no_ring'],com['solar_resid'])
         
     return F

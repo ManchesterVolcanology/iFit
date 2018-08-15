@@ -109,10 +109,6 @@ class mygui(tk.Tk):
         save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
         save_b.grid(row = 0, column = 1, padx = 5, pady = 5)
         
-        # Create a button to exit
-        exit_b = ttk.Button(text_frame, text = 'Exit', command = self.quit)
-        exit_b.grid(row = 0, column = 2, padx = 5, pady = 5)
-        
 #========================================================================================
 #==============================Create quick analysis outputs=============================
 #========================================================================================
@@ -278,19 +274,19 @@ class mygui(tk.Tk):
         # Create lines to plot data series
         
         # Spectral data
-        self.line0, = self.ax0.plot(0, 0, 'b', label = 'Spectrum')
-        self.line1, = self.ax0.plot(0, 0, 'darkorange', label = 'Fit')
+        self.line0, = self.ax0.plot(0, 0, label = 'Spectrum')
+        self.line1, = self.ax0.plot(0, 0, label = 'Fit')
         self.ax0.legend(loc = 0)
         
         # Full spectrum
-        self.line2, = self.ax1.plot(0, 0, 'b')
+        self.line2, = self.ax1.plot(0, 0)
         
         # Residual
         self.line3, = self.ax2.plot(0, 0, 'r')
         
         # SO2 transmittance data
-        self.line4, = self.ax3.plot(0, 0, 'b', label = 'Spec / F_no_gas')
-        self.line5, = self.ax3.plot(0, 0, 'r', label = 'Gas abs')
+        self.line4, = self.ax3.plot(0, 0, label = 'Spec / F_no_gas')
+        self.line5, = self.ax3.plot(0, 0, label = 'Gas abs')
         self.ax3.legend(loc = 0)
         
         # SO2 Time series and error bars
@@ -347,12 +343,17 @@ class mygui(tk.Tk):
 
         for i, name in enumerate(glob.glob('data_bases/Spectrometer/flat_*')):
             options.append(name[29:-4])
+            
+        # Create function to turn on the fwd model flag if the spectrometer is changed
+        def on_change(event):
+            self.build_model_flag = True
         
         # Create entry to select spectrometer
         self.spec_name = tk.StringVar(setup_frame, value = options[0])
         spectro_l = tk.Label(setup_frame, text = 'Spectrometer:', font = NORM_FONT)
         spectro_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        spectro_c = ttk.OptionMenu(setup_frame, self.spec_name, *options)
+        spectro_c = ttk.OptionMenu(setup_frame, self.spec_name, *options, 
+                                   command = on_change)
         spectro_c.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
         
         # Create entry to select spectra type
@@ -538,12 +539,24 @@ class mygui(tk.Tk):
 
     # Report exceptions in a new window
     def report_callback_exception(self, *args):
+        
+        # Report error
         err = traceback.format_exception(*args)
         tkMessageBox.showerror('Exception', err)
+        
+        # Reset formation of the forward model
+        self.build_model_flag = True
 
     # Close program on 'x' button
     def handler(self):
-        self.quit()
+        
+        if tkMessageBox.askyesno('Exit', 'Would you like to\nsave the settings?'):
+        
+            self.save()
+            self.quit()
+            
+        else:
+            self.quit()
         
     # Function to print text to the output box          
     def print_output(self, text, add_line = True):
@@ -811,12 +824,14 @@ class mygui(tk.Tk):
             # Create empty arrays to hold the loop number and so2_amt values
             gas = {}
             spec_nos = []
-            gas['SO2_amts'] = []
-            gas['SO2_errs'] = []
-            gas['O3_amts']  = []
-            gas['O3_errs']  = []
-            gas['BrO_amts'] = []
-            gas['BrO_errs'] = []
+            gas['SO2_amts']  = []
+            gas['SO2_errs']  = []
+            gas['O3_amts']   = []
+            gas['O3_errs']   = []
+            gas['BrO_amts']  = []
+            gas['BrO_errs']  = []
+            gas['Ring_amts'] = []
+            gas['Ring_errs'] = []
         
             # Update status
             if rt_flag == 'rt_analysis':
@@ -1035,6 +1050,9 @@ class mygui(tk.Tk):
                     if common['params']['bro_amt'][1] == 'Fit':
                         gas['BrO_amts'].append(fit_dict['bro_amt']/2.463e15)
                         gas['BrO_errs'].append(err_dict['bro_amt']/2.463e15)
+                    if common['params']['ring_amt'][1] == 'Fit':
+                        gas['Ring_amts'].append(fit_dict['ring_amt'])
+                        gas['Ring_errs'].append(err_dict['ring_amt'])
                         
                     if common['params']['so2_amt'][1] == 'Fix':
                         gas['SO2_amts'].append(common['params']['so2_amt'][0]/2.463e15)
@@ -1045,6 +1063,9 @@ class mygui(tk.Tk):
                     if common['params']['bro_amt'][1] == 'Fix':
                         gas['BrO_amts'].append(common['params']['bro_amt'][0]/2.463e15)
                         gas['BrO_errs'].append(0)
+                    if common['params']['ring_amt'][1] == 'Fix':
+                        gas['Ring_amts'].append(common['params']['ring_amt'][0])
+                        gas['Ring_errs'].append(0)
                         
                     if common['params']['so2_amt'][1] == 'N/A':
                         gas['SO2_amts'].append(0)
@@ -1055,7 +1076,10 @@ class mygui(tk.Tk):
                     if common['params']['bro_amt'][1] == 'N/A':
                         gas['BrO_amts'].append(0)
                         gas['BrO_errs'].append(0)
-                    
+                    if common['params']['ring_amt'][1] == 'N/A':
+                        gas['Ring_amts'].append(0)
+                        gas['Ring_errs'].append(0)
+
                     # Update quick analysis with values
                     last_amt="{0:0.2f}".format(gas[settings['analysis_gas']+'_amts'][-1])
                     last_err="{0:0.2f}".format(gas[settings['analysis_gas']+'_errs'][-1])
@@ -1080,8 +1104,8 @@ class mygui(tk.Tk):
                     if now_fit_spec == True:
                         
                         # Get selected transmittance data
-                        gas_tran = -np.log(gas_T[settings['analysis_gas'] + '_tran'])
-                        gas_spec = -np.log(gas_T[settings['analysis_gas'] + '_spec'])
+                        gas_tran = gas_T[settings['analysis_gas'] + '_tran']
+                        gas_spec = gas_T[settings['analysis_gas'] + '_spec']
                         gas_amts = gas[settings['analysis_gas'] + '_amts']
                     
                         # Build axes and lines arrays

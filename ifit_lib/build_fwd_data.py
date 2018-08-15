@@ -54,7 +54,7 @@ def build_fwd_data(common, settings, self):
     model_grid = np.arange(start = common['wave_start'] - 3, 
                            stop = common['wave_stop'] + 3 + float(settings['model_res']), 
                            step = float(settings['model_res']))
-    
+
     common['model_grid'] = model_grid
     
     # Try importing flat spectrum. If not found set to 1
@@ -114,6 +114,7 @@ def build_fwd_data(common, settings, self):
     # Import ring spectrum and interpolate onto the model_grid
     self.print_output('Importing ring spectrum...', add_line = False)
     ring_x, ring_y = np.loadtxt(settings['ring_path'], unpack = True)
+    ring_y = np.subtract(ring_y, 1)
     common['ring'] = interpolate(ring_x, ring_y, model_grid, method = 'cubic')
     self.print_output('Ring spectrum imported', add_line = False)
     
@@ -135,8 +136,8 @@ def build_fwd_data(common, settings, self):
     
     
     # Import O3 data
-    o3_xsec = np.loadtxt(settings['o3_path'], skiprows=41)
-    common['o3_xsec'] = interpolate(o3_xsec[:,0], o3_xsec[:,1], model_grid, 
+    o3_xsec = np.loadtxt(settings['o3_path'])
+    common['o3_xsec'] = interpolate(o3_xsec[:,0], o3_xsec[:,8], model_grid, 
                                     method = 'cubic')
     self.print_output('O3 cross-section imported', add_line = False)
     

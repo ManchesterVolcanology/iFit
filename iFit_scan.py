@@ -75,7 +75,7 @@ class mygui(tk.Tk):
 #========================================================================================        
                  
          # Build text box
-        self.text_box = tkst.ScrolledText(text_frame, width = 60, height = 8)
+        self.text_box = tkst.ScrolledText(text_frame, width = 50, height = 8)
         self.text_box.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W',
                            columnspan = 4)
         self.text_box.insert('1.0', 'Welcome to iFit_scan! Written by Ben Esse\n\n')    
@@ -85,7 +85,8 @@ class mygui(tk.Tk):
         start_b.grid(row = 0, column = 0, padx = 5, pady = 5)
         
         # Create button to stop
-        stop_b = ttk.Button(text_frame, text = 'Stop', command = lambda: stop(self, settings))
+        stop_b = ttk.Button(text_frame, text = 'Stop', 
+                            command = lambda: stop(self, settings))
         stop_b.grid(row = 1, column = 0, padx = 5, pady = 5)
         
         # Create button to save settings
@@ -96,10 +97,6 @@ class mygui(tk.Tk):
         adv_set_b = ttk.Button(text_frame, text = 'Adv. Settings', 
                                command = lambda: adv_settings(self, settings, 'iFit'))
         adv_set_b.grid(row = 1, column = 2,  padx = 5, pady = 5)
-        
-        # Create a button to exit
-        exit_b = ttk.Button(text_frame, text = 'Exit', command = self.quit)
-        exit_b.grid(row = 0, column = 3, padx = 5, pady = 5)
         
 #========================================================================================
 #===================================Set program settings=================================
@@ -290,7 +287,7 @@ class mygui(tk.Tk):
 #========================================================================================
                
         # Create progress bar
-        self.progress = ttk.Progressbar(quick_frame, orient = tk.HORIZONTAL, length=300,
+        self.progress = ttk.Progressbar(quick_frame, orient = tk.HORIZONTAL, length=350,
                                         mode = 'determinate')
         self.progress.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 4)
         
@@ -298,9 +295,9 @@ class mygui(tk.Tk):
         # Create loop counter for scans
         self.scan_count = tk.StringVar(self, value = '1 / 1')
         scan_count_l = tk.Label(quick_frame, text = 'Scan:', font = NORM_FONT)
-        scan_count_l.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
+        scan_count_l.grid(row = 0, column = 4, padx = 5, pady = 5, sticky = 'W')
         scan_count_e = tk.Label(quick_frame, textvariable = self.scan_count)
-        scan_count_e.grid(row = 0, column = 2, padx = 5, pady = 5)
+        scan_count_e.grid(row = 0, column = 5, padx = 5, pady = 5)
         
         # Create ouput for last so2 amount
         self.last_so2_amt = tk.DoubleVar(self, value = 0)
@@ -334,7 +331,14 @@ class mygui(tk.Tk):
 
     # Close program on 'x' button
     def handler(self):
-        self.quit()
+        
+        if tkMessageBox.askyesno('Exit', 'Would you like to\nsave the settings?'):
+        
+            self.save()
+            self.quit()
+            
+        else:
+            self.quit()
         
     # Function to print text to the output box          
     def print_output(self, text, add_line = True):
@@ -425,7 +429,7 @@ class mygui(tk.Tk):
         common['dark_flag']        = bool(settings['dark_flag'])
         common['flat_flag']        = bool(settings['flat_flag'])
         common['solar_resid_flag'] = str(settings['solar_resid_flag'])
-        common['Fit shift']       = str(settings['Fit shift'])
+        common['Fit shift']        = str(settings['Fit shift'])
         common['fit_weight']       = str(settings['fit_weight'])
 
 #========================================================================================
@@ -537,6 +541,8 @@ class mygui(tk.Tk):
             gas['O3_errs']  = []
             gas['BrO_amts'] = []
             gas['BrO_errs'] = []
+            gas['Ring_amts'] = []
+            gas['Ring_errs'] = []
             
             # End loop if finished
             if settings['stop_flag'] == True:
@@ -575,7 +581,7 @@ class mygui(tk.Tk):
 
                         # Fit the spectrum
                         fit_data = fit_spec(common, [x, y], grid)
-                        fit_dict, err_dict, y_data, fit,gas_T, fit_flag = fit_data    
+                        fit_dict, err_dict, y_data, fit, gas_T, fit_flag = fit_data    
                         
                         # Unpack spec no, timestamp and motor position
                         spec_no = str(info_block[0][n])
@@ -593,7 +599,8 @@ class mygui(tk.Tk):
                                 str(err_dict['so2_amt']/2.463e15))
                         
                         # Add values to array for plotting
-                        spec_nos.append(float(spec_no))
+                        spec_nos.append(spec_no)
+                        
                         if common['params']['so2_amt'][1] == 'Fit':
                             gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
                             gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
@@ -603,6 +610,35 @@ class mygui(tk.Tk):
                         if common['params']['bro_amt'][1] == 'Fit':
                             gas['BrO_amts'].append(fit_dict['bro_amt']/2.463e15)
                             gas['BrO_errs'].append(err_dict['bro_amt']/2.463e15)
+                        if common['params']['ring_amt'][1] == 'Fit':
+                            gas['Ring_amts'].append(fit_dict['ring_amt'])
+                            gas['Ring_errs'].append(err_dict['ring_amt'])
+                            
+                        if common['params']['so2_amt'][1] == 'Fix':
+                            gas['SO2_amts'].append(common['params']['so2_amt'][0]/2.463e15)
+                            gas['SO2_errs'].append(0)
+                        if common['params']['o3_amt'][1] == 'Fix':
+                            gas['O3_amts'].append(common['params']['o3_amt'][0]/2.463e15)
+                            gas['O3_errs'].append(0)
+                        if common['params']['bro_amt'][1] == 'Fix':
+                            gas['BrO_amts'].append(common['params']['bro_amt'][0]/2.463e15)
+                            gas['BrO_errs'].append(0)
+                        if common['params']['ring_amt'][1] == 'Fix':
+                            gas['Ring_amts'].append(common['params']['ring_amt'][0])
+                            gas['Ring_errs'].append(0)
+                            
+                        if common['params']['so2_amt'][1] == 'N/A':
+                            gas['SO2_amts'].append(0)
+                            gas['SO2_errs'].append(0)
+                        if common['params']['o3_amt'][1] == 'N/A':
+                            gas['O3_amts'].append(0)
+                            gas['O3_errs'].append(0)
+                        if common['params']['bro_amt'][1] == 'N/A':
+                            gas['BrO_amts'].append(0)
+                            gas['BrO_errs'].append(0)
+                        if common['params']['ring_amt'][1] == 'N/A':
+                            gas['Ring_amts'].append(0)
+                            gas['Ring_errs'].append(0)
     
                         # Update quick analysis with values
                         last_amt="{0:0.2f}".format(gas[settings['analysis_gas']+'_amts'][-1])
@@ -677,12 +713,12 @@ class mygui(tk.Tk):
 #========================================================================================
         
                         # Replot data
-                        if int(settings['Show Graphs']) == 1:    
+                        if settings['Show Graphs']:    
                             
                             
                             # Get selected transmittance data
-                            gas_tran = -np.log(gas_T[settings['analysis_gas'] + '_tran'])
-                            gas_spec = -np.log(gas_T[settings['analysis_gas'] + '_spec'])
+                            gas_tran = gas_T[settings['analysis_gas'] + '_tran']
+                            gas_spec = gas_T[settings['analysis_gas'] + '_spec']
                             gas_amts = gas[settings['analysis_gas'] + '_amts']
                         
                             # Build axes and lines arrays

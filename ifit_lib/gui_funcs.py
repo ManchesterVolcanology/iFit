@@ -275,7 +275,7 @@ def adv_settings(self, settings, version):
         # Update model settings
         settings['wave_start']       = float(popup.wave_start.get())
         settings['wave_stop']        = float(popup.wave_stop.get())
-        settings['model_resolution'] = float(model_res_e.get())
+        settings['model_res']        = float(model_res_e.get())
         settings['dark_flag']        = popup.dark_b.get()
         settings['flat_flag']        = popup.flat_b.get()
         settings['fit_weight']       = popup.fit_weight.get()
@@ -352,8 +352,14 @@ def adv_settings(self, settings, version):
         
         # Open dialouge to get files
         fpath = fd.askopenfilenames()
-        
         entry.set(str(fpath[0]))   
+        
+        # Turn on making fwd model
+        self.build_model_flag = True
+        
+    # Make function to turn on re-building the forward model
+    def build_fwd_model(*args):
+        self.build_model_flag = True
 
 #========================================================================================
 #======================================Make frames=======================================
@@ -411,20 +417,22 @@ def adv_settings(self, settings, version):
     
     popup.wave_start = tk.DoubleVar(wl_frame, value = settings['wave_start'])
     wave_start_e = ttk.Entry(wl_frame, textvariable = popup.wave_start,
-                                  width = 12)
+                                  width = 12, command = build_fwd_model)
     wave_start_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
     
     popup.wave_stop = tk.DoubleVar(wl_frame, value = settings['wave_stop'])
     wave_stop_l = tk.Label(wl_frame, text = 'to:', font = NORM_FONT)
     wave_stop_l.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
-    wave_stop_e = ttk.Entry(wl_frame, textvariable = popup.wave_stop, width = 12)
+    wave_stop_e = ttk.Entry(wl_frame, textvariable = popup.wave_stop, width = 12,
+                            command = build_fwd_model)
     wave_stop_e.grid(row = row_n, column = col_n+3, padx = 5, pady = 5)
     
     # Set resolution of model grid
     popup.model_res = tk.DoubleVar(wl_frame, value = settings['model_res'])
     model_res_l = tk.Label(wl_frame, text='Model Grid\nSpacing (nm):', font=NORM_FONT)
     model_res_l.grid(row = row_n, column = col_n+4, padx = 5, pady = 5)
-    model_res_e = ttk.Entry(wl_frame, textvariable = popup.model_res, width = 12)
+    model_res_e = ttk.Entry(wl_frame, textvariable = popup.model_res, width = 12,
+                            command = build_fwd_model)
     model_res_e.grid(row = row_n, column = col_n+5, padx = 5, pady = 5)
     row_n += 1
     
@@ -440,7 +448,8 @@ def adv_settings(self, settings, version):
     popup.flat_b = tk.BooleanVar(model_frame, value = settings['flat_flag'])
     flat_l = tk.Label(model_frame, text = 'Remove Flat\nSpectrum?', font = NORM_FONT)
     flat_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    flat_c = ttk.Checkbutton(model_frame, variable = popup.flat_b)
+    flat_c = ttk.Checkbutton(model_frame, variable = popup.flat_b, 
+                             command = build_fwd_model)
     flat_c.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
     row_n += 1
     
@@ -464,7 +473,8 @@ def adv_settings(self, settings, version):
     popup.resid_b = tk.StringVar(model_frame, value = settings['solar_resid_flag'])
     resid_l = tk.Label(model_frame, text = 'Solar\nresidual:', font = NORM_FONT)
     resid_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    resid_c = ttk.OptionMenu(model_frame, popup.resid_b, *resid_options)
+    resid_c = ttk.OptionMenu(model_frame, popup.resid_b, *resid_options, 
+                             command = build_fwd_model)
     resid_c.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
     row_n += 1
     
@@ -551,7 +561,11 @@ def adv_settings(self, settings, version):
     ils_width_e.config(state='disabled')
     
     def ils_activate_check(*args):
-        ils_width_e.config(state='disabled')
+        
+        # Turn on fwd model creation
+        self.build_model_flag = True
+        
+        # Enable/disable the ils width input
         if popup.ils_width_c.get() == 'File':
             ils_width_e.config(state='disabled')
         else:
@@ -768,9 +782,10 @@ def adv_settings(self, settings, version):
     gas_options = [settings['analysis_gas'],
                    'SO2',
                    'O3',
-                   'BrO']
+                   'BrO',
+                   'Ring']
     gas = tk.StringVar(graph_frame, value = settings['scroll_flag'])
-    gas_l = tk.Label(graph_frame, text = 'Gas to analyse:', font = NORM_FONT)
+    gas_l = tk.Label(graph_frame, text = 'Parameter\nto analyse:', font = NORM_FONT)
     gas_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     gas_c = ttk.OptionMenu(graph_frame, gas, *gas_options)
     gas_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
