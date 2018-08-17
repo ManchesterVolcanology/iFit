@@ -18,6 +18,37 @@ from ifit_lib.file_control import make_directory
 from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.update_graph import update_graph
 
+#========================================================================================
+#=======================================Read Setttings===================================
+#========================================================================================
+
+def read_settings(fname, settings):
+    
+    # Open the settings file 
+    with open(fname, 'r') as r:
+                
+        # Read data line by line
+        data = r.readlines()
+        
+        # Unpack and save to dictionary
+        for i in data:
+            name, val = i.strip().split(';')
+            
+            # Check if float
+            try:
+                settings[name] = float(val)
+            except ValueError:
+                
+                # Check if boolean
+                if val in ['True', 'False']:
+                    # Convert to boolian
+                    settings[name] = bool(val)
+               
+                else:
+                    # Set as string
+                    settings[name] = val
+                    
+    return settings
 
 #========================================================================================
 #=======================================Toggle fitting===================================
@@ -273,15 +304,16 @@ def adv_settings(self, settings, version):
     def update_settings(settings, close_flag):
         
         # Update model settings
-        settings['wave_start']       = float(popup.wave_start.get())
-        settings['wave_stop']        = float(popup.wave_stop.get())
-        settings['model_res']        = float(model_res_e.get())
+        settings['wave_start']       = popup.wave_start.get()
+        settings['wave_stop']        = popup.wave_stop.get()
+        settings['model_pad']        = popup.model_pad.get()
+        settings['model_res']        = popup.model_res.get()
         settings['dark_flag']        = popup.dark_b.get()
         settings['flat_flag']        = popup.flat_b.get()
         settings['fit_weight']       = popup.fit_weight.get()
         settings['solar_resid_flag'] = popup.resid_b.get()
         settings['update_params']    = popup.update_b.get()
-        settings['good_fit_bound']   = float(fit_bound_e.get())
+        settings['good_fit_bound']   = popup.fit_bound.get()
         
         # Update parameter settings
         settings['so2_amt']          = popup.so2_amt.get()
@@ -307,18 +339,18 @@ def adv_settings(self, settings, version):
         settings['Fit ring']         = popup.ring_amt_c.get()
         
         # Update data base settings
-        settings['sol_path']         = sol_path_e.get()
-        settings['ring_path']        = ring_path_e.get()
-        settings['so2_path']         = so2_path_e.get()
-        settings['no2_path']         = no2_path_e.get()
-        settings['o3_path']          = o3_path_e.get()
-        settings['bro_path']         = bro_path_e.get()
-        settings['solar_resid_path'] = solar_resid_path_e.get()
+        settings['sol_path']         = popup.sol_path.get()
+        settings['ring_path']        = popup.ring_path.get()
+        settings['so2_path']         = popup.so2_path.get()
+        settings['no2_path']         = popup.no2_path.get()
+        settings['o3_path']          = popup.o3_path.get()
+        settings['bro_path']         = popup.bro_path.get()
+        settings['solar_resid_path'] = popup.solar_resid_path.get()
         
         # Update graph settings
         settings['Show Graphs']      = graph_b.get()
         settings['scroll_flag']      = scroll_b.get()
-        settings['scroll_spec_no']   = int(spec_no_e.get())
+        settings['scroll_spec_no']   = popup.spec_no.get()
         settings['resid_type']       = resid_type.get()
         settings['analysis_gas']     = gas.get()
         
@@ -414,7 +446,7 @@ def adv_settings(self, settings, version):
     
     popup.wave_start = tk.DoubleVar(wl_frame, value = settings['wave_start'])
     wave_start_e = ttk.Entry(wl_frame, textvariable = popup.wave_start, width = 12, 
-                             validate="focusout",validatecommand = build_fwd_model)
+                             validate="focusout", validatecommand = build_fwd_model)
     wave_start_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
     
     popup.wave_stop = tk.DoubleVar(wl_frame, value = settings['wave_stop'])
@@ -424,13 +456,21 @@ def adv_settings(self, settings, version):
                             validate="focusout",validatecommand = build_fwd_model)
     wave_stop_e.grid(row = row_n, column = col_n+3, padx = 5, pady = 5)
     
+    # Set model grid padding
+    popup.model_pad = tk.DoubleVar(wl_frame, value = settings['model_pad'])
+    model_pad_l = tk.Label(wl_frame, text='Model Grid\nPadding (nm):', font=NORM_FONT)
+    model_pad_l.grid(row = row_n, column = col_n+4, padx = 5, pady = 5)
+    model_pad_e = ttk.Entry(wl_frame, textvariable = popup.model_pad, width = 12,
+                            validate="focusout", validatecommand = build_fwd_model)
+    model_pad_e.grid(row = row_n, column = col_n+5, padx = 5, pady = 5)
+    
     # Set resolution of model grid
     popup.model_res = tk.DoubleVar(wl_frame, value = settings['model_res'])
     model_res_l = tk.Label(wl_frame, text='Model Grid\nSpacing (nm):', font=NORM_FONT)
-    model_res_l.grid(row = row_n, column = col_n+4, padx = 5, pady = 5)
+    model_res_l.grid(row = row_n, column = col_n+6, padx = 5, pady = 5)
     model_res_e = ttk.Entry(wl_frame, textvariable = popup.model_res, width = 12,
-                            validatecommand = build_fwd_model)
-    model_res_e.grid(row = row_n, column = col_n+5, padx = 5, pady = 5)
+                            validate="focusout", validatecommand = build_fwd_model)
+    model_res_e.grid(row = row_n, column = col_n+7, padx = 5, pady = 5)
     row_n += 1
     
     # Control whether or not to remove dark spectra

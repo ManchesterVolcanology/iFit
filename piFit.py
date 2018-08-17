@@ -30,7 +30,7 @@ from ifit_lib.fit import fit_spec
 from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.file_control import make_directory, make_csv_file
 from ifit_lib.gui_funcs import adv_settings, fit_toggle, stop, connect_spec, test_spec, \
-                               update_int_time, read_darks
+                               update_int_time, read_darks, read_settings
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -142,15 +142,7 @@ class mygui(tk.Tk):
         
         # Read in settings file
         try:
-            with open('data_bases/pifit_settings.txt', 'r') as r:
-                
-                # Read data
-                data = r.readlines()
-                
-                # Unpack and save to dictionary
-                for i in data:
-                    name, val = i.strip().split(';')
-                    settings[name] = val
+            settings = read_settings('data_bases/pifit_settings.txt', settings)
    
         except FileNotFoundError:
             self.print_output('No settings file found, reverting to default')
@@ -191,12 +183,13 @@ class mygui(tk.Tk):
             settings['Fit no2']           = 'Fit'
             settings['Fit o3']            = 'Fit'
             settings['Fit bro']           = 'Fit'
-            settings['model_res']         = 0.02
+            settings['model_res']         = 0.01
+            settings['model_pad']         = 3
             settings['sol_path']          = 'data_bases/gas data/sao2010.txt'
             settings['ring_path']         = 'data_bases/gas data/qdoas_ring.dat'
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
-            settings['o3_path']           = 'data_bases/gas data/O3_293K.dat'
+            settings['o3_path']           = 'data_bases/gas data/O3_xsec.dat'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['graph_view']        = 'Spectrum'

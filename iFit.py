@@ -31,7 +31,8 @@ from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.update_graph import update_graph
 from ifit_lib.file_control import make_csv_file
 from ifit_lib.gui_funcs import adv_settings, fit_toggle, spec_fp, dark_fp, stop, \
-                               connect_spec, update_int_time, test_spec, read_darks
+                               connect_spec, update_int_time, test_spec, read_darks, \
+                               read_settings
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -59,7 +60,7 @@ class mygui(tk.Tk):
         ttk.Style().configure('TButton', width = 20, height = 20, relief="flat") 
         
         # Add a title and icon
-        tk.Tk.wm_title(self, 'iFit-2-3')
+        tk.Tk.wm_title(self, 'iFit-2-4')
         tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         
         # Create notebook to hold different frames
@@ -148,22 +149,7 @@ class mygui(tk.Tk):
         
         # Read in settings file
         try:
-            with open('data_bases/ifit_settings.txt', 'r') as r:
-                
-                # Read data
-                data = r.readlines()
-                
-                # Unpack and save to dictionary
-                for i in data:
-                    name, val = i.strip().split(';')
-                    
-                    # Check if boolian
-                    if val == 'True':
-                        settings[name] = True
-                    elif val == 'False':
-                        settings[name] = False
-                    else:
-                        settings[name] = val
+            settings = read_settings('data_bases/ifit_settings.txt', settings)
    
         except FileNotFoundError:
             self.print_output('No settings file found, reverting to origional')
@@ -185,7 +171,6 @@ class mygui(tk.Tk):
             settings['good_fit_bound']    = 10
             settings['fit_weight']        = 'None'
             settings['Show Graphs']       = True
-            settings['Show Error Bars']   = 0
             settings['analysis_gas']      = 'SO2'
             settings['scroll_flag']       = True
             settings['scroll_spec_no']    = 200
@@ -206,12 +191,13 @@ class mygui(tk.Tk):
             settings['Fit no2']           = 'Fit'
             settings['Fit o3']            = 'Fit'
             settings['Fit bro']           = 'Fit'
-            settings['model_res']         = 0.02
+            settings['model_res']         = 0.01
+            settings['model_pad']         = 3.0
             settings['sol_path']          = 'data_bases/gas data/sao2010.txt'
             settings['ring_path']         = 'data_bases/gas data/qdoas_ring.dat'
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
-            settings['o3_path']           = 'data_bases/gas data/O3_293K.dat'
+            settings['o3_path']           = 'data_bases/gas data/O3_xsec.dat'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['Spectra Filepaths'] = ''
@@ -550,6 +536,10 @@ class mygui(tk.Tk):
     # Close program on 'x' button
     def handler(self):
         
+        # Turn on stopping flag
+        settings['stop_flag'] = True
+        
+        # Open save dialouge
         if tkMessageBox.askyesno('Exit', 'Would you like to\nsave the settings?'):
         
             self.save()
@@ -605,8 +595,6 @@ class mygui(tk.Tk):
             common = self.common
 
         # Populate common with other data from the GUI
-        common['wave_start']       = float(settings['wave_start'])
-        common['wave_stop']        = float(settings['wave_stop'])
         common['poly_n']           = int(settings['poly_n']) + 1
         common['ils_width']        = float(settings['ils_width'])
         common['gauss_weight']     = float(settings['gauss_weight'])
@@ -677,6 +665,7 @@ class mygui(tk.Tk):
 #========================================================================================
 
         if rt_flag == 'post_analysis':
+            
             # Get spectra filepaths
             spectra_files = self.spec_fpaths
             dark_files    = self.dark_fpaths
@@ -719,8 +708,8 @@ class mygui(tk.Tk):
                 return 
             
         # Find indices of desired wavelength window and add to common
-        common['fit_idx'] = np.where(np.logical_and(common['wave_start'] <= x, 
-                                                    x <= common['wave_stop']))
+        common['fit_idx'] = np.where(np.logical_and(settings['wave_start'] <= x, 
+                                                    x <= settings['wave_stop']))
         grid = x[common['fit_idx']]
         
         # Find stray light window

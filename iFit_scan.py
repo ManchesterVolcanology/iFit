@@ -25,7 +25,7 @@ from ifit_lib.build_fwd_data import build_fwd_data
 from ifit_lib.fit import fit_spec
 from ifit_lib.read_binary_block import read_binary_block
 from ifit_lib.update_graph import update_graph
-from ifit_lib.gui_funcs import adv_settings, stop
+from ifit_lib.gui_funcs import adv_settings, stop, read_settings
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -108,15 +108,7 @@ class mygui(tk.Tk):
         
         # Read in settings file
         try:
-            with open('data_bases/ifit_scan_settings.txt', 'r') as r:
-                
-                # Read data
-                data = r.readlines()
-                
-                # Unpack and save to dictionary
-                for i in data:
-                    name, val = i.strip().split(';')
-                    settings[name] = val
+            settings = read_settings('data_bases/ifit_scan_settings.txt', settings)
    
         except FileNotFoundError:
             self.print_output('No settings file found, reverting to origional')
@@ -154,12 +146,13 @@ class mygui(tk.Tk):
             settings['Fit no2']           = 'Fit'
             settings['Fit o3']            = 'Fit'
             settings['Fit bro']           = 'Fit'
-            settings['model_res']         = 0.02
+            settings['model_res']         = 0.01
+            settings['model_pad']         = 3
             settings['sol_path']          = 'data_bases/gas data/sao2010.txt'
             settings['ring_path']         = 'data_bases/gas data/qdoas_ring.dat'
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
-            settings['o3_path']           = 'data_bases/gas data/O3_293K.dat'
+            settings['o3_path']           = 'data_bases/gas data/O3_xsec.dat'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['Scan Filepaths'] = ''

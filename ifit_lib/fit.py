@@ -151,17 +151,7 @@ def fit_spec(common, spectrum, grid, q = None):
         if val[1] == 'Fit':
             err_dict[key] = np.sqrt(np.diag(pcov))[m]
             m+=1
-                    
-    ##############################DELETE###################################
     
-    np.savetxt('Data Dump/spectrum.txt', np.column_stack((grid, y)))
-    np.savetxt('Data Dump/fit.txt', np.column_stack((grid, fit)))
-    
-    for key, val in gas_T.items():
-        np.savetxt('Data Dump/' + key + '.txt', np.column_stack((grid, val)))
-    
-    ##############################DELETE###################################
-
     # Return results, either to a queue if threaded, or as an array if not
     if q == None:                     
         return fit_dict, err_dict, y, fit, gas_T, fitted_flag
