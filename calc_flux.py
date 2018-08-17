@@ -72,6 +72,9 @@ class mygui(tk.Tk):
         text_frame = ttk.Frame(self, relief = 'groove')
         text_frame.grid(row=2, column=0, padx=10, pady=10)
         
+        # Create flag to controll whether or not to save outputs on loading new data
+        self.save_flag = False
+        
         # Create global common dictionary to hold settings
         global common
         common = {}
@@ -249,13 +252,13 @@ class mygui(tk.Tk):
         
         # Create frame
         volc_frame = tk.LabelFrame(cont_frame, text='Volcano Settings', font=LARG_FONT)
-        volc_frame.grid(row=1, column=0, padx=10, pady=6, columnspan = 2, sticky="NW")
+        volc_frame.grid(row=1, column=0, padx=10, pady=6, sticky="NW")
         
         # Create inputs for volcano lonitude
         self.volc_lon = tk.DoubleVar(value = 0.0)
         volc_lon_l = tk.Label(volc_frame, text = 'Volcano Lon:', font = NORM_FONT)
         volc_lon_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        volc_lon_e = tk.Entry(volc_frame, font = NORM_FONT, width = 25, 
+        volc_lon_e = tk.Entry(volc_frame, font = NORM_FONT, width = 20, 
                                  text = self.volc_lon)
         volc_lon_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
         
@@ -263,15 +266,16 @@ class mygui(tk.Tk):
         self.volc_lat = tk.DoubleVar(value = 0.0)
         volc_lat_l = tk.Label(volc_frame, text = 'Volcano Lat:', font = NORM_FONT)
         volc_lat_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        volc_lat_e = tk.Entry(volc_frame, font = NORM_FONT, width = 25, 
+        volc_lat_e = tk.Entry(volc_frame, font = NORM_FONT, width = 20, 
                                  text = self.volc_lat)
         volc_lat_e.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
         
         # Create input for time difference
         self.time_diff = tk.DoubleVar(value = 0.0)
-        time_diff_l = tk.Label(volc_frame,text='Time Difference (hours):',font=NORM_FONT)
+        time_diff_l = tk.Label(volc_frame, text = 'Time Difference\n(hours):',
+                               font = NORM_FONT)
         time_diff_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        time_diff_e = tk.Entry(volc_frame, font = NORM_FONT, width = 25, 
+        time_diff_e = tk.Entry(volc_frame, font = NORM_FONT, width = 20, 
                                  text = self.time_diff)
         time_diff_e.grid(row = 3, column = 1, padx = 5, pady = 5, sticky = 'W')
         
@@ -297,12 +301,9 @@ class mygui(tk.Tk):
 #========================================================================================
         
         # Create button to analyse
-        begin_b = ttk.Button(cont_frame, text="Analyse", command = self.analyse)
-        begin_b.grid(row = 2, column = 0, padx = 5, pady = 5)
-        
-        # Create a button to exit
-        exit_b = ttk.Button(cont_frame, text = 'Exit', command = self.close_window)
-        exit_b.grid(row = 2, column = 1, padx = 5, pady = 5)
+        begin_b = ttk.Button(cont_frame, text = "Calculate\n    Flux", 
+                             command = self.analyse)
+        begin_b.grid(row = 1, column = 1, padx = 5, pady = 5)
         
         
         
@@ -322,7 +323,11 @@ class mygui(tk.Tk):
         
 
     def handler(self):
-
+        
+        # Save results
+        self.save_results()
+        
+        # Close
         self.quit()        
         
         
@@ -377,12 +382,13 @@ class mygui(tk.Tk):
         mygui.update(self) 
     
 #========================================================================================
-#======================================Close window======================================
+#======================================Save Results======================================
 #========================================================================================
     
-    def close_window(self):
+    def save_results(self):
         
         if len(common['fluxes']) != 0:
+            
             # Calculate the average flux and uncertainty
             av_flux = 0
             av_err  = 0
@@ -408,13 +414,15 @@ class mygui(tk.Tk):
                 r.write('Average flux = ' + str(int(av_flux)) + ' +/- ' + \
                         str(int(av_err)) + ' (t/day)')
         
-        self.quit()
-        
 #========================================================================================
 #==================================Read Traverse data====================================
 #========================================================================================
          
     def read_trav_data(self):
+        
+        # Save results from last read if not the first
+        if self.save_flag:
+            self.save_results()
         
         # Reset loop counter
         common['loop'] = 0
@@ -530,6 +538,9 @@ class mygui(tk.Tk):
         
         # Apply changes
         self.fig.canvas.draw()
+        
+        # Turn on save flag
+        self.save_flag = True
         
 #========================================================================================
 #=======================================Analysis=========================================
