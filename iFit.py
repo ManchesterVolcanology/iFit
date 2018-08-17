@@ -97,7 +97,7 @@ class mygui(tk.Tk):
         # Build text box
         self.text_box = tkst.ScrolledText(text_frame, width = 55, height = 10)
         self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
-                           columnspan = 4)
+                           columnspan = 2)
         self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')  
         
         # Create button for advanced settings

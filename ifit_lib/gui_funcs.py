@@ -340,9 +340,6 @@ def adv_settings(self, settings, version):
         # Print message to confirm settings have been updated
         self.print_output('Settings updated')
         
-        # Turn on flag to re-build the forward model
-        self.build_model_flag = True
-        
         # Close the window
         if close_flag == True:
             popup.destroy()
@@ -360,7 +357,7 @@ def adv_settings(self, settings, version):
     # Make function to turn on re-building the forward model
     def build_fwd_model(*args):
         self.build_model_flag = True
-
+        
 #========================================================================================
 #======================================Make frames=======================================
 #========================================================================================        
@@ -416,15 +413,15 @@ def adv_settings(self, settings, version):
     fit_range_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
     
     popup.wave_start = tk.DoubleVar(wl_frame, value = settings['wave_start'])
-    wave_start_e = ttk.Entry(wl_frame, textvariable = popup.wave_start,
-                                  width = 12, command = build_fwd_model)
+    wave_start_e = ttk.Entry(wl_frame, textvariable = popup.wave_start, width = 12, 
+                             validate="focusout",validatecommand = build_fwd_model)
     wave_start_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
     
     popup.wave_stop = tk.DoubleVar(wl_frame, value = settings['wave_stop'])
     wave_stop_l = tk.Label(wl_frame, text = 'to:', font = NORM_FONT)
     wave_stop_l.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
-    wave_stop_e = ttk.Entry(wl_frame, textvariable = popup.wave_stop, width = 12,
-                            command = build_fwd_model)
+    wave_stop_e = ttk.Entry(wl_frame, textvariable = popup.wave_stop, width = 12, 
+                            validate="focusout",validatecommand = build_fwd_model)
     wave_stop_e.grid(row = row_n, column = col_n+3, padx = 5, pady = 5)
     
     # Set resolution of model grid
@@ -432,7 +429,7 @@ def adv_settings(self, settings, version):
     model_res_l = tk.Label(wl_frame, text='Model Grid\nSpacing (nm):', font=NORM_FONT)
     model_res_l.grid(row = row_n, column = col_n+4, padx = 5, pady = 5)
     model_res_e = ttk.Entry(wl_frame, textvariable = popup.model_res, width = 12,
-                            command = build_fwd_model)
+                            validatecommand = build_fwd_model)
     model_res_e.grid(row = row_n, column = col_n+5, padx = 5, pady = 5)
     row_n += 1
     
@@ -562,12 +559,13 @@ def adv_settings(self, settings, version):
     
     def ils_activate_check(*args):
         
-        # Turn on fwd model creation
-        self.build_model_flag = True
-        
         # Enable/disable the ils width input
         if popup.ils_width_c.get() == 'File':
             ils_width_e.config(state='disabled')
+        
+            # Turn on fwd model creation
+            self.build_model_flag = True
+            
         else:
             ils_width_e.config(state='normal')
     
