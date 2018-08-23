@@ -1,6 +1,8 @@
 from math import radians, cos, sin, asin, atan2, sqrt, pi
 import numpy as np
 
+from ifit_lib.julian_time import hms_to_julian
+
 #========================================================================================
 #========================================read_nmea=======================================
 #========================================================================================
@@ -104,7 +106,7 @@ def read_txt_gps(gps_fname):
     '''
     
     # Create empty arrays to hold the outputs
-    time = np.array(())
+    time = []
     lat  = np.array(())
     lon  = np.array(())
     
@@ -118,6 +120,7 @@ def read_txt_gps(gps_fname):
         reader.readline()
         
         for i in range(1,n_lines):
+            
             # Read the line
             line = reader.readline()
             
@@ -130,16 +133,13 @@ def read_txt_gps(gps_fname):
             # Append values to arrays
             lat = np.append(lat, float(info[2]))
             lon = np.append(lon, float(info[3]))
+            time.append(time_text)
             
-            # Extract time and convert to julian time
-            h = float(time_text[0:2])
-            m = float(time_text[3:5])
-            s = float(time_text[6:8])
-            
-            t = (h * 3600.0 + m * 60.0 + s) / 86400.0
-            
-            # Append to array            
-            time = np.append(time,t)
+    # Convert time to julian 
+    try:           
+        time = hms_to_julian(time, str_format = '%H:%M:%S', out_format = 'decimal hours')
+    except ValueError:
+        time = hms_to_julian(time, str_format = '%H:%M:%S.%f',out_format='decimal hours')
             
     return time, lat, lon
 

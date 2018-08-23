@@ -15,7 +15,6 @@ import matplotlib
 matplotlib.use('TkAgg')
 from tkinter import ttk
 import tkinter as tk
-import datetime
 from tkinter import filedialog as fd
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
@@ -28,6 +27,7 @@ from pandas import read_csv
 from ifit_lib.find_nearest import extract_window
 from ifit_lib.read_gps import read_txt_gps, gps_vector, haversine
 from ifit_lib.center_of_grav import cog
+from ifit_lib.julian_time import hms_to_julian
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -55,22 +55,22 @@ class mygui(tk.Tk):
         ttk.Style().configure('TButton', width = 20, height = 20, relief = 'flat')
         
         # Add a title and icon
-        tk.Tk.wm_title(self, 'calc_flux 2.0')
+        tk.Tk.wm_title(self, 'calc_flux 2.1')
         tk.Tk.iconbitmap(self, default = 'data_bases/calc_flux_icon.ico')
 
         # Create control Frame
-        cont_frame = ttk.Frame(self, relief = 'groove')
+        cont_frame = ttk.Frame(self)
         cont_frame.grid(row=0, column=0, padx=10, pady=10, rowspan=2)
         
         # Create frame to hold graphs
         graph_frame = ttk.Frame(self, relief = 'groove')
-        graph_frame.grid(row=1, column=1, padx=10, pady=10, rowspan=10)
+        graph_frame.grid(row=1, column=1, padx=10, pady=10, rowspan=2)
         graph_frame.columnconfigure(index=0, weight=1)
         graph_frame.rowconfigure(index = 0, weight = 1)
         
         # Create frame to hold text output
         text_frame = ttk.Frame(self, relief = 'groove')
-        text_frame.grid(row=2, column=0, padx=10, pady=10)
+        text_frame.grid(row=2, column=0, padx=10, pady=10, sticky = 'W')
         
         # Create flag to controll whether or not to save outputs on loading new data
         self.save_flag = False
@@ -140,16 +140,16 @@ class mygui(tk.Tk):
         # Create the canvas to hold the graph in the GUI
         self.canvas = FigureCanvasTkAgg(self.fig, graph_frame)
         self.canvas.show()
-        self.canvas.get_tk_widget().grid(row=0, column=0, columnspan = 3, padx=10, 
+        self.canvas.get_tk_widget().grid(row=0, column=0, padx=10, 
                                          pady = 10, sticky = 'NW')
         
         # Create plot axes
         self.ax0 = self.fig.add_subplot(111)
         self.fig.subplots_adjust(bottom=0.3)
         
-        self.line0, = self.ax0.plot(0, 0, 'g', lw=1.5)
-        self.vline0 = self.ax0.axvline(0)
-        self.vline1 = self.ax0.axvline(1)
+        self.line0, = self.ax0.plot(0, 0, lw=1.5)
+        self.vline0 = self.ax0.axvline(0, color = 'r')
+        self.vline1 = self.ax0.axvline(1, color = 'r')
         self.fill   = self.ax0.fill_between([0], [0], [1])
         self.ax0.set_xlabel('Julian Time (Fraction of Day)', fontsize=10)
         self.ax0.set_ylabel('SO2 column amount (ppm.m)', fontsize=10)
@@ -179,12 +179,22 @@ class mygui(tk.Tk):
         
         # Make it look nice
         #plt.tight_layout()
-        
+        '''
         # Add matplotlib toolbar above the plot canvas
         toolbar_frame = tk.Frame(self, bg = 'black')  
-        toolbar_frame.grid(row=0,column=1, sticky = 'NW', padx = 10, pady = 10)                             
+        toolbar_frame.grid(row=3,column=1, sticky = 'NW', padx = 10, pady = 10)                             
         toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
         toolbar.update()
+        '''
+        # Add buttons to zoom and rest
+        button_frame = tk.Frame(self)
+        button_frame.grid(row=0, column=1, padx=10, pady=10)
+        zoom_b = ttk.Button(button_frame, text = 'Zoom', command = self.zoom)
+        zoom_b.grid(row=0, column=0, sticky='E', padx=10)
+        rescale_b = ttk.Button(button_frame, text = 'Rescale', command = self.rescale)
+        rescale_b.grid(row=0, column=1, sticky='E', padx=10)
+        reset_b = ttk.Button(button_frame, text = 'Reset', command = self.reset)
+        reset_b.grid(row=0, column=2, sticky='E', padx=10)
         
 #========================================================================================
 #==================================Traverse controls=====================================
@@ -343,6 +353,68 @@ class mygui(tk.Tk):
 #======================================================================================== 
 
 #========================================================================================
+#====================================Zoom/reset Buttons==================================
+#========================================================================================
+        
+    def zoom(self):
+        
+        # Get slider values
+        pos = self.slide_lo.val, self.slide_hi.val
+        
+        # Get graph limits
+        lims = self.ax0.get_xlim()
+        lim_range = lims[1] - lims[0]
+        
+        # Update axis limits
+        new_lims = [lims[0] + lim_range * pos[0], lims[0] + lim_range * pos[1]]
+        self.ax0.set_xlim(new_lims)
+        
+        # Reset sliders
+        self.slide_hi.reset()
+        self.slide_lo.reset()
+        
+        # Apply changes
+        self.fig.canvas.draw()
+        
+    def reset(self):
+        
+        try:
+            # Reset limits
+            self.ax0.set_xlim(common['lims'])
+            self.rescale()
+            
+            # Apply changes
+            self.fig.canvas.draw()
+            
+        except KeyError:
+            self.text_output('Please import data first')
+        
+    def rescale(self):
+        
+        try:
+            # Get graph x limits
+            lims = self.ax0.get_xlim()
+            
+            # Get current data
+            idx = np.where(np.logical_and(common['time']>lims[0], common['time']<lims[1]))
+            y = common['so2_amt'][idx]
+            
+            # Find 5% of the range of data
+            y_pad = (max(y) - min(y))*0.05
+            
+            # Set limits 
+            y_lims = [min(y) - y_pad, max(y) + y_pad]
+            
+            # Set axis y limits
+            self.ax0.set_ylim(y_lims)
+            
+            # Apply changes
+            self.fig.canvas.draw()
+        
+        except KeyError:
+            self.text_output('Please import data first')
+        
+#========================================================================================
 #=====================================Filepath Buttons===================================
 #========================================================================================
    
@@ -443,34 +515,17 @@ class mygui(tk.Tk):
             self.text_output('ERROR: Wrong iFit file format')
             return
         
-        # Create empty time array
-        common['time'] = np.ones(len(txt_time))
-        
-        for n, t in enumerate(txt_time):
-        
-            # Convert the time to julian time
-            try:
-                timestamp = datetime.datetime.strptime(t, '%H:%M:%S.%f').time()
-                
-            except ValueError:
-                timestamp = datetime.datetime.strptime(t, '%H:%M:%S').time()
-            
-            # Split into hours, minutes and seconds
-            h = timestamp.hour
-            m = timestamp.minute
-            s = timestamp.second + timestamp.microsecond/1e6
-            
-            # Convert to julian time
-            common['time'][n] = (h * 3600.0 + m * 60.0 + s) / 86400.0
+        # Convert timestamps to decimal hours, first trying with us then without
+        try:
+            common['time'] = hms_to_julian(txt_time, str_format = '%H:%M:%S.%f',
+                                           out_format = 'decimal hours')
+        except ValueError:
+            common['time'] = hms_to_julian(txt_time, str_format = '%H:%M:%S.%f',
+                                           out_format = 'decimal hours')
             
          # Convert others from string to number arrays
-        common['so2_amt'] = np.ones(len(txt_so2_amt))
-        for n, i in enumerate(txt_so2_amt):
-            common['so2_amt'][n] = float(i)
-            
-        common['so2_err'] = np.ones(len(txt_so2_err))
-        for n, i in enumerate(txt_so2_err):
-            common['so2_err'][n] = float(i)
+        common['so2_amt'] = np.asarray(txt_so2_amt, dtype = float)
+        common['so2_err'] = np.asarray(txt_so2_err, dtype = float)
         
         self.text_output('Done!', add_line = False) 
 
@@ -526,7 +581,7 @@ class mygui(tk.Tk):
         lo_bound = np.subtract(common['so2_amt'], common['so2_err'])
         hi_bound = np.add(common['so2_amt'], common['so2_err'])
         self.fill = self.ax0.fill_between(common['time'], lo_bound, hi_bound, 
-                                          color = 'lightgreen')
+                                          color = 'lightblue')
         
         # Reset sliders
         self.slide_hi.reset()
@@ -535,6 +590,9 @@ class mygui(tk.Tk):
         # Rescale the axes
         self.ax0.relim()
         self.ax0.autoscale_view() 
+        
+        # Get origional limits
+        common['lims'] = self.ax0.get_xlim()
         
         # Apply changes
         self.fig.canvas.draw()
@@ -566,12 +624,12 @@ class mygui(tk.Tk):
             return
         
         # Correct for time difference
-        gps_time = np.subtract(gps_time, int(self.time_diff.get()) / 24)
+        gps_time = np.subtract(gps_time, int(self.time_diff.get()))
         
         # Check for change of day
         for n, t in enumerate(gps_time):
-            if t > 1:
-                gps_time[n] = t - 1
+            if t > 24:
+                gps_time[n] = t - 24
             
         # Get indices of selected data
         time_grid, idx0, idx1 = extract_window(time, self.t0, self.t1)
@@ -586,11 +644,12 @@ class mygui(tk.Tk):
         time    = time[idx0:idx1]
         so2_amt = so2_amt[idx0:idx1]
         so2_err = so2_err[idx0:idx1]
-
+        
 #========================================================================================
 #============================Define peak of SO2 concentration============================
 #========================================================================================
 
+        # Get the centre of the plume
         peak_idx = cog(so2_amt)   
 
 #========================================================================================
@@ -777,9 +836,9 @@ def make_graph(d):
     ax4 = plt.subplot(gs[1,1])   
 
     # Plot the full SO2 amount time series
-    ax1.plot(d['time'], d['so2_amt'],  'g', lw = 1.5)
+    ax1.plot(d['time'], d['so2_amt'], lw = 1.5)
     ax1.fill_between(d['time'], np.subtract(d['so2_amt'], d['so2_err']), 
-                     np.add(d['so2_amt'], d['so2_err']), color = 'lightgreen')
+                     np.add(d['so2_amt'], d['so2_err']), color = 'lightblue')
     ax1.plot(d['time'][d['peak_idx']], d['so2_amt'][d['peak_idx']], 'ko')
     ax1.set_xlabel('Julian Time (Fraction of Day)', fontsize = 10)
     ax1.set_ylabel('SO2 column amount (ppm.m)', fontsize = 10)
@@ -797,10 +856,10 @@ def make_graph(d):
     ax2.set_ylabel('Latitude (deg)', fontsize = 10)
 
     # Plot the full SO2 amount time series overlaid with the selected section
-    ax3.plot(common['time'], common['so2_amt'], 'g-')
+    ax3.plot(common['time'], common['so2_amt'])
     ax3.fill_between(common['time'], np.subtract(common['so2_amt'], common['so2_err']),
-                     np.add(common['so2_amt'], common['so2_err']), color = 'lightgreen')
-    ax3.plot(d['time'], d['so2_amt'], 'r-')
+                     np.add(common['so2_amt'], common['so2_err']), color = 'lightblue')
+    ax3.plot(d['time'], d['so2_amt'])
     ax3.fill_between(d['time'], np.subtract(d['so2_amt'], d['so2_err']),
                      np.add(d['so2_amt'], d['so2_err']), 
                      color = 'coral')
@@ -808,8 +867,8 @@ def make_graph(d):
     ax3.set_ylabel('SO2 column amount (ppm.m)', fontsize = 10)
     
     # Plot the full GPS track and overlay the selected window wrt the volcano location
-    ax4.plot(d['modlon_old'], d['modlat_old'], 'g-', label = 'Full Track')
-    ax4.plot(d['modlon'], d['modlat'], 'r', lw = 1.5, label = 'Traverse')
+    ax4.plot(d['modlon_old'], d['modlat_old'], label = 'Full Track')
+    ax4.plot(d['modlon'], d['modlat'], lw = 1.5, label = 'Traverse')
     ax4.scatter(d['modlon'][0], d['modlat'][0], c='g', s=100, label = 'Start')
     ax4.scatter(d['modlon'][-1], d['modlat'][-1], c='r', s=100, label = 'Stop')
     ax4.scatter(d['volc_lon'], d['volc_lat'], c='darkorange', s=200, label = 'Volcano')
