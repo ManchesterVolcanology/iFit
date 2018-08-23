@@ -815,6 +815,8 @@ class mygui(tk.Tk):
             spec_nos = []
             gas['SO2_amts']  = []
             gas['SO2_errs']  = []
+            gas['NO2_amts']  = []
+            gas['NO2_errs']  = []
             gas['O3_amts']   = []
             gas['O3_errs']   = []
             gas['BrO_amts']  = []
@@ -1033,6 +1035,9 @@ class mygui(tk.Tk):
                     if common['params']['so2_amt'][1] == 'Fit':
                         gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
                         gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
+                    if common['params']['no2_amt'][1] == 'Fit':
+                        gas['NO2_amts'].append(fit_dict['no2_amt']/2.463e15)
+                        gas['NO2_errs'].append(err_dict['no2_amt']/2.463e15)
                     if common['params']['o3_amt'][1] == 'Fit':
                         gas['O3_amts'].append(fit_dict['o3_amt']/2.463e15)
                         gas['O3_errs'].append(err_dict['o3_amt']/2.463e15)
@@ -1046,6 +1051,9 @@ class mygui(tk.Tk):
                     if common['params']['so2_amt'][1] == 'Fix':
                         gas['SO2_amts'].append(common['params']['so2_amt'][0]/2.463e15)
                         gas['SO2_errs'].append(0)
+                    if common['params']['no2_amt'][1] == 'Fix':
+                        gas['NO2_amts'].append(common['params']['no2_amt'][0]/2.463e15)
+                        gas['NO2_errs'].append(0)
                     if common['params']['o3_amt'][1] == 'Fix':
                         gas['O3_amts'].append(common['params']['o3_amt'][0]/2.463e15)
                         gas['O3_errs'].append(0)
@@ -1058,7 +1066,10 @@ class mygui(tk.Tk):
                         
                     if common['params']['so2_amt'][1] == 'N/A':
                         gas['SO2_amts'].append(0)
-                        gas['SO2_errs'].append(0)
+                        gas['SO2_errs'].append(0)    
+                    if common['params']['no2_amt'][1] == 'N/A':
+                        gas['NO2_amts'].append(0)
+                        gas['NO2_errs'].append(0)
                     if common['params']['o3_amt'][1] == 'N/A':
                         gas['O3_amts'].append(0)
                         gas['O3_errs'].append(0)

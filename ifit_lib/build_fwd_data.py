@@ -100,7 +100,7 @@ def build_fwd_data(common, settings, self):
     # Import ring spectrum and interpolate onto the model_grid
     self.print_output('Importing ring spectrum...', add_line = False)
     ring_x, ring_y = np.loadtxt(settings['ring_path'], unpack = True)
-    ring_y = np.subtract(ring_y, 1)
+    
     common['ring'] = griddata(ring_x, ring_y, model_grid, method = 'cubic')
     self.print_output('Ring spectrum imported', add_line = False)
     
@@ -113,18 +113,17 @@ def build_fwd_data(common, settings, self):
                                   method = 'cubic')
     self.print_output('SO2 cross-section imported', add_line = False)
     
-    
+
     # Import NO2 data
     no2_xsec = np.loadtxt(settings['no2_path'], skiprows=43)
     common['no2_xsec'] = griddata(no2_xsec[:,0], no2_xsec[:,2], model_grid,
                                   method = 'cubic')
-    self.print_output('NO2 cross-section imported', add_line = False)
+    self.print_output('NO2 cross-section imported', add_line = False)  
     
     
     # Import O3 data
     o3_xsec = np.loadtxt(settings['o3_path'])
-    common['o3_xsec'] = griddata(o3_xsec[:,0], o3_xsec[:,8], model_grid, 
-                                 method = 'cubic')
+    common['o3_xsec'] = griddata(o3_xsec[:,0], o3_xsec[:,11], model_grid, method='cubic')
     self.print_output('O3 cross-section imported', add_line = False)
     
     

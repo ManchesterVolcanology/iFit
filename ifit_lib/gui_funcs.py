@@ -381,10 +381,12 @@ def adv_settings(self, settings, version):
         
         # Open dialouge to get files
         fpath = fd.askopenfilenames()
-        entry.set(str(fpath[0]))   
         
-        # Turn on making fwd model
-        self.build_model_flag = True
+        if fpath != '':
+            entry.set(str(fpath[0]))   
+        
+            # Turn on making fwd model
+            self.build_model_flag = True
         
     # Make function to turn on re-building the forward model
     def build_fwd_model(*args):
@@ -723,7 +725,7 @@ def adv_settings(self, settings, version):
     sol_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     sol_path_e = ttk.Entry(datab_frame, text=popup.sol_path, font=NORM_FONT, width=40)
     sol_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    sol_path_b = ttk.Button(datab_frame, text = "Update", 
+    sol_path_b = ttk.Button(datab_frame, text = "Browse", 
                             command = lambda: update_fp(popup.sol_path))
     sol_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -735,7 +737,7 @@ def adv_settings(self, settings, version):
     ring_path_e = ttk.Entry(datab_frame, textvariable=popup.ring_path, font=NORM_FONT, 
                             width=40)
     ring_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    ring_path_b = ttk.Button(datab_frame, text = "Update", 
+    ring_path_b = ttk.Button(datab_frame, text = "Browse", 
                              command = lambda: update_fp(popup.ring_path))
     ring_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -747,7 +749,7 @@ def adv_settings(self, settings, version):
     so2_path_e = ttk.Entry(datab_frame, textvariable = popup.so2_path, font = NORM_FONT,
                            width = 40)
     so2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    so2_path_b = ttk.Button(datab_frame, text = "Update", 
+    so2_path_b = ttk.Button(datab_frame, text = "Browse", 
                             command = lambda: update_fp(popup.so2_path))
     so2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -759,7 +761,7 @@ def adv_settings(self, settings, version):
     no2_path_e = ttk.Entry(datab_frame, textvariable = popup.no2_path, font = NORM_FONT,
                            width = 40)
     no2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    no2_path_b = ttk.Button(datab_frame, text = "Update", 
+    no2_path_b = ttk.Button(datab_frame, text = "Browse", 
                             command = lambda: update_fp(popup.no2_path))
     no2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -771,7 +773,7 @@ def adv_settings(self, settings, version):
     o3_path_e = ttk.Entry(datab_frame, textvariable = popup.o3_path, font = NORM_FONT,
                           width = 40)
     o3_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    o3_path_b = ttk.Button(datab_frame, text = "Update", 
+    o3_path_b = ttk.Button(datab_frame, text = "Browse", 
                            command = lambda: update_fp(popup.o3_path))
     o3_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -783,7 +785,7 @@ def adv_settings(self, settings, version):
     bro_path_e = ttk.Entry(datab_frame, textvariable = popup.bro_path, font = NORM_FONT,
                            width = 40)
     bro_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
-    bro_path_b = ttk.Button(datab_frame, text = "Update", 
+    bro_path_b = ttk.Button(datab_frame, text = "Browse", 
                             command = lambda: update_fp(popup.bro_path))
     bro_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1
@@ -795,7 +797,7 @@ def adv_settings(self, settings, version):
     solar_resid_path_e = ttk.Entry(datab_frame, textvariable = popup.solar_resid_path,
                                    font = NORM_FONT, width = 40)
     solar_resid_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
-    solar_resid_path_b = ttk.Button(datab_frame, text = "Update", 
+    solar_resid_path_b = ttk.Button(datab_frame, text = "Browse", 
                                     command = lambda: update_fp(popup.solar_resid_path))
     solar_resid_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1    
@@ -819,6 +821,7 @@ def adv_settings(self, settings, version):
     # Select which gas to analyse
     gas_options = [settings['analysis_gas'],
                    'SO2',
+                   'NO2',
                    'O3',
                    'BrO',
                    'Ring']
@@ -856,3 +859,86 @@ def adv_settings(self, settings, version):
     resid_type_m = ttk.OptionMenu(graph_frame, resid_type, *resid_options)
     resid_type_m.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
+
+#========================================================================================   
+#===================================Gas Xsec analyser====================================
+#======================================================================================== 
+
+def conv_xsec():
+    
+    # Make popup window
+    win = tk.Tk()
+    tk.Tk.wm_title(win, 'Cross Section Analyser')
+    
+    # Create frames
+    setup_frame = ttk.Frame(win)
+    setup_frame.grid(row=0, column=0, padx=10, pady=10)
+    
+    # Make function to select filepaths
+    def update_fp(entry):
+        
+        # Open dialouge to get files
+        fpath = fd.askopenfilenames()
+        
+        if fpath != '':
+            entry.set(str(fpath[0]))   
+   
+#===================================Filepath controls====================================
+    
+    # Create row number counter
+    row_n = 0
+    
+    # Load spectrum fpath
+    win.load_path = tk.StringVar(setup_frame)
+    load_path_l = tk.Label(setup_frame, text = 'Load File Path:', font = NORM_FONT)
+    load_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    load_path_e = ttk.Entry(setup_frame, text=win.load_path, font=NORM_FONT, width=40)
+    load_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    load_path_b = ttk.Button(setup_frame, text = "Browse", 
+                             command = lambda: update_fp(win.load_path))
+    load_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
+    
+    # Save spectrum fpath
+    win.save_path = tk.StringVar(setup_frame)
+    save_path_l = tk.Label(setup_frame, text = 'Save file path:', font = NORM_FONT)
+    save_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    save_path_e = ttk.Entry(setup_frame, text=win.load_path, font=NORM_FONT, width=40)
+    save_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    save_path_b = ttk.Button(setup_frame, text = "Browse", 
+                             command = lambda: update_fp(win.save_path))
+    save_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    row_n += 1
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
