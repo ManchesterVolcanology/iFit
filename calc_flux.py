@@ -499,6 +499,9 @@ class mygui(tk.Tk):
         # Reset loop counter
         common['loop'] = 0
         
+        # Reset flux amount array
+        common['fluxes'] = []
+        
         self.text_output('Reading traverse data...', add_line = False)
            
         # Read data file
@@ -517,7 +520,7 @@ class mygui(tk.Tk):
         
         # Convert timestamps to decimal hours, first trying with us then without
         try:
-            common['time'] = hms_to_julian(txt_time, str_format = '%H:%M:%S.%f',
+            common['time'] = hms_to_julian(txt_time, str_format = '%H:%M:%S',
                                            out_format = 'decimal hours')
         except ValueError:
             common['time'] = hms_to_julian(txt_time, str_format = '%H:%M:%S.%f',
@@ -840,7 +843,7 @@ def make_graph(d):
     ax1.fill_between(d['time'], np.subtract(d['so2_amt'], d['so2_err']), 
                      np.add(d['so2_amt'], d['so2_err']), color = 'lightblue')
     ax1.plot(d['time'][d['peak_idx']], d['so2_amt'][d['peak_idx']], 'ko')
-    ax1.set_xlabel('Julian Time (Fraction of Day)', fontsize = 10)
+    ax1.set_xlabel('Julian Time (Decimal hours)', fontsize = 10)
     ax1.set_ylabel('SO2 column amount (ppm.m)', fontsize = 10)
 
     # Plot the selected traverse points and SO2 amounts wrt the volcano
@@ -863,7 +866,7 @@ def make_graph(d):
     ax3.fill_between(d['time'], np.subtract(d['so2_amt'], d['so2_err']),
                      np.add(d['so2_amt'], d['so2_err']), 
                      color = 'coral')
-    ax3.set_xlabel('Julian Time (Fraction of Day)', fontsize = 10)
+    ax3.set_xlabel('Julian Time (Decimal hours)', fontsize = 10)
     ax3.set_ylabel('SO2 column amount (ppm.m)', fontsize = 10)
     
     # Plot the full GPS track and overlay the selected window wrt the volcano location
