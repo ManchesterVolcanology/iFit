@@ -166,6 +166,7 @@ class mygui(tk.Tk):
             settings['analysis_gas']      = 'SO2'
             settings['scroll_flag']       = True
             settings['scroll_spec_no']    = 200
+            settings['x_plot']            = 'Time'
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
             settings['poly_n']            = 3

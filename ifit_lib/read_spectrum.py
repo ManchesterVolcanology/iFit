@@ -8,7 +8,7 @@ Created on Mon Mar 27 14:30:41 2017
 import linecache
 import numpy as np
 import datetime
-from pandas import read_csv as read_csv
+from pandas import read_csv
 
 #========================================================================================
 #======================================read_spectrum=====================================
@@ -126,6 +126,32 @@ def read_spectrum(fname, spec_type='iFit'):
             # Unpack date_time string
             date_time = datetime.datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S')
             
+        if spec_type == 'Ind':
+            
+            # Weird file format for data from Indonesia
+            
+            # Load data into a numpy array, skipping header info
+            x, y = np.loadtxt(fname, skiprows=15, unpack = True)
+            
+            # Get spectrum number from file name
+            spec_no = int(fname[-9:-4])
+            
+            # Get time string file info
+            time_str = fname[-16:-4]
+            
+            # Get date from file info
+            date_info = date_time = linecache.getline(fname, 3)[6:].strip()
+            day   = date_info[8:10]
+            month = date_info[4:7]
+            year  = date_info[-4:]
+            time_str = date_info[11:19]
+            
+            # Form into a single string and turn into a datetime object
+            date_time_str = day + ' ' + month + ' ' + year + ' ' + time_str
+
+            date_time = datetime.datetime.strptime(date_time_str, '%d %b %Y %H:%M:%S')
+
+        # Report no error
         read_err = False, 'No Error'
         
         # Unpack date and time separately
@@ -139,7 +165,7 @@ def read_spectrum(fname, spec_type='iFit'):
         date     = None
         time     = None
         spec_no  = None
-        read_err = True,e
+        read_err = True, e
     
     return x, y, date, time, spec_no, read_err
   
@@ -151,23 +177,23 @@ def average_spectra(files, spec_type):
     
     for fname in files:
         
-        # Check if file exists, if true then read
-        try:
-          
-            # Load spectrum
-            grid,y,spec_date,spec_time,spec_no,read_err = read_spectrum(fname,spec_type)
-            
+        # Load spectrum
+        grid,y,spec_date,spec_time,spec_no,read_err = read_spectrum(fname,spec_type)
+        
+        # Check if spectra were read correctly
+        if not read_err[0]:
+        
             # Sum spectra
             if fname == files[0]:
                 spec = y
             else:
                 spec += y
-         
-        except FileNotFoundError:
-            grid, spec = None, None
+                
+        else:
+            return None, None, read_err
             
     # Divide to get average spectrum
     spec = np.divide(spec, len(files))
     
-    return (grid, spec)
+    return grid, spec, read_err
 

@@ -27,6 +27,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from ifit_lib.build_fwd_data import build_fwd_data
 from ifit_lib.read_spectrum import read_spectrum, average_spectra
 from ifit_lib.fit import fit_spec
+from ifit_lib.julian_time import hms_to_julian
 from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.update_graph import update_graph
 from ifit_lib.file_control import make_csv_file
@@ -62,7 +63,15 @@ class mygui(tk.Tk):
         # Add a title and icon
         tk.Tk.wm_title(self, 'iFit-2-4')
         tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
-        
+        '''
+        # Build a menubar to hold options for the user
+        menubar = tk.Menu(self)
+        filemenu = tk.Menu(menubar, tearoff = 0)
+        filemenu.add_command(label = 'Convert cross-section', command = conv_xsec)
+        filemenu.add_separator()
+        menubar.add_cascade(label = 'Tools', menu = filemenu)
+        tk.Tk.config(self, menu = menubar)
+        '''
         # Create notebook to hold different frames
         nb = ttk.Notebook(self)
         page1 = ttk.Frame(nb)
@@ -174,6 +183,7 @@ class mygui(tk.Tk):
             settings['analysis_gas']      = 'SO2'
             settings['scroll_flag']       = True
             settings['scroll_spec_no']    = 200
+            settings['x_plot']            = 'Time'
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
             settings['poly_n']            = 3
@@ -255,7 +265,10 @@ class mygui(tk.Tk):
         self.ax3.set_xlabel('Wavelength (nm)', fontsize=10)
         
         self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
-        self.ax4.set_xlabel('Spectrum number', fontsize=10)
+        if settings['x_plot'] == 'Number':
+            self.ax4.set_xlabel('Spectrum number', fontsize=10)
+        if settings['x_plot'] == 'Time':
+            self.ax4.set_xlabel('Time (decimal hours)', fontsize=10)
         
         # Create lines to plot data series
         
@@ -348,7 +361,8 @@ class mygui(tk.Tk):
                         'Master.Scope',
                         'Jai Spec',
                         'Spectrasuite',
-                        'GSJ']
+                        'GSJ',
+                        'Ind']
         
         self.spec_type = tk.StringVar(setup_frame, value = spec_options[0])
         spec_l = tk.Label(setup_frame, text = 'Spectra Type:', font = NORM_FONT)
@@ -601,7 +615,7 @@ class mygui(tk.Tk):
         common['ldf']              = float(settings['ldf'])
         common['dark_flag']        = bool(settings['dark_flag'])
         common['flat_flag']        = bool(settings['flat_flag'])
-        common['Fit shift']       = str(settings['Fit shift'])
+        common['Fit shift']        = str(settings['Fit shift'])
         common['fit_weight']       = str(settings['fit_weight'])
         common['solar_resid_flag'] = str(settings['solar_resid_flag'])
 
@@ -675,7 +689,12 @@ class mygui(tk.Tk):
     
             # Read in dark spectra
             if common['dark_flag'] == True:
-                x, common['dark'] = average_spectra(dark_files, spec_type)
+                x, common['dark'], read_err = average_spectra(dark_files, spec_type)
+        
+                # If there is an error reading the spectrum exit loop
+                if read_err[0]:
+                    self.print_output('Error reading dark spectrum:\n'+str(read_err[1]))
+                    return
                 
         elif settings['rt_dark_flag'] == True and common['dark_flag'] == True:
             
@@ -690,7 +709,7 @@ class mygui(tk.Tk):
             
             # Read first spectrum to get date of data and define stray light indices
             spectrum_data = read_spectrum(spectra_files[0], spec_type)
-            x, y, read_date, read_time, spec_no, fit_flag = spectrum_data
+            x, y, read_date, read_time, spec_no, read_err = spectrum_data
             
         else:
 
@@ -706,7 +725,12 @@ class mygui(tk.Tk):
             except SeaBreezeError:
                 self.print_output('Spectrometer disconnected')
                 return 
-            
+        
+        # If there is an error reading the spectrum exit loop
+        if read_err[0]:
+            self.print_output('Error reading spectrum:\n' + str(read_err[1]))
+            return
+        
         # Find indices of desired wavelength window and add to common
         common['fit_idx'] = np.where(np.logical_and(settings['wave_start'] <= x, 
                                                     x <= settings['wave_stop']))
@@ -813,6 +837,7 @@ class mygui(tk.Tk):
             # Create empty arrays to hold the loop number and so2_amt values
             gas = {}
             spec_nos = []
+            spec_times = []
             gas['SO2_amts']  = []
             gas['SO2_errs']  = []
             gas['NO2_amts']  = []
@@ -1028,9 +1053,10 @@ class mygui(tk.Tk):
                         
                     # Write fit quality and start new line
                     writer.write(',' + fit_msg + '\n')
-                
+                    
                     # Add values to array for plotting
                     spec_nos.append(spec_no)
+                    spec_times.append(hms_to_julian(read_time))
                     
                     if common['params']['so2_amt'][1] == 'Fit':
                         gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
@@ -1091,8 +1117,15 @@ class mygui(tk.Tk):
                         lim = int(settings['scroll_spec_no'])
                         if len(spec_nos) > lim:
                             spec_nos = spec_nos[1:]
+                            spec_times = spec_times[1:]
                             for m in gas:
                                 gas[m] = gas[m][1:]
+                                
+                    # Select whether to show so2 time series in time or number
+                    if settings['x_plot'] == 'Number':
+                        x_plot = spec_nos
+                    if settings['x_plot'] == 'Time':
+                        x_plot = spec_times
                                 
 #========================================================================================
 #=======================================Update plot======================================
@@ -1130,14 +1163,14 @@ class mygui(tk.Tk):
                         
                         
                         # Build data array to pass to graphing function
-                        #                 x data    y data    x limits     y limits
-                        data = np.array(([grid,     y_data,   'auto'     , [y_lo,y_hi]],
-                                         [grid,     fit,      'auto'     , [y_lo,y_hi]],
-                                         [x   ,     y,        'auto'     , 'auto'     ],
-                                         [grid,     resid,    'auto'     , 'auto'     ],
-                                         [grid,     gas_tran, 'auto'     , [t_lo,t_hi]],
-                                         [grid,     gas_spec, 'auto'     , [t_lo,t_hi]],
-                                         [spec_nos, gas_amts, 'auto'     , 'auto'     ]))
+                        #                 x data  y data    x limits     y limits
+                        data = np.array(([grid,   y_data,   'auto'     , [y_lo,y_hi]],
+                                         [grid,   fit,      'auto'     , [y_lo,y_hi]],
+                                         [x   ,   y,        'auto'     , 'auto'     ],
+                                         [grid,   resid,    'auto'     , 'auto'     ],
+                                         [grid,   gas_tran, 'auto'     , [t_lo,t_hi]],
+                                         [grid,   gas_spec, 'auto'     , [t_lo,t_hi]],
+                                         [x_plot, gas_amts, 'auto'     , 'auto'     ]))
                     
                     else:
                         

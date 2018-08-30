@@ -10,6 +10,8 @@ from tkinter import ttk
 import tkinter as tk
 import tkinter.messagebox as tkMessageBox
 import datetime
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import filedialog as fd
 import seabreeze.spectrometers as sb
 from seabreeze.cseabreeze.wrapper import SeaBreezeError
@@ -344,6 +346,7 @@ def adv_settings(self, settings, version):
         settings['so2_path']         = popup.so2_path.get()
         settings['no2_path']         = popup.no2_path.get()
         settings['o3_path']          = popup.o3_path.get()
+        settings['o3_temp']          = popup.o3_temp.get()
         settings['bro_path']         = popup.bro_path.get()
         settings['solar_resid_path'] = popup.solar_resid_path.get()
         
@@ -351,10 +354,12 @@ def adv_settings(self, settings, version):
         settings['Show Graphs']      = graph_b.get()
         settings['scroll_flag']      = scroll_b.get()
         settings['scroll_spec_no']   = popup.spec_no.get()
+        settings['x_plot']           = x_plot.get()
         settings['resid_type']       = resid_type.get()
         settings['analysis_gas']     = gas.get()
         
         if version == 'iFit':
+            
             # Update graph
             if settings['resid_type'] == 'Percentage':
                 self.ax2.set_ylabel('Fit residual (%)', fontsize=10)
@@ -366,6 +371,10 @@ def adv_settings(self, settings, version):
             self.ax3.set_ylabel(settings['analysis_gas'] + ' Absorbance', fontsize=10)
             
             self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
+            if settings['x_plot'] == 'Number':
+                self.ax4.set_xlabel('Spectrum number', fontsize=10)
+            if settings['x_plot'] == 'Time':
+                self.ax4.set_xlabel('Time (decimal hours)', fontsize=10)
                 
             self.canvas.draw()
         
@@ -776,7 +785,22 @@ def adv_settings(self, settings, version):
     o3_path_b = ttk.Button(datab_frame, text = "Browse", 
                            command = lambda: update_fp(popup.o3_path))
     o3_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
+    
+    # O3 Temp
+    temp_options = [settings['o3_temp'], '298K', '283K', '273K', '263K', '253K', '243K', 
+                    '233K', '223K', '213K', '203K', '193K']
+    popup.o3_temp = tk.StringVar(datab_frame, value = settings['o3_temp'])
+    o3_temp_c = ttk.OptionMenu(datab_frame, popup.o3_temp, *temp_options, 
+                               command = build_fwd_model)
+    o3_temp_c.grid(row = row_n, column = 3, padx = 5, pady = 5)
     row_n += 1
+    
+    
+    
+    
+    
+    
+    
     
     # Bro xsec
     popup.bro_path = tk.StringVar(datab_frame, value = settings['bro_path'])
@@ -801,6 +825,10 @@ def adv_settings(self, settings, version):
                                     command = lambda: update_fp(popup.solar_resid_path))
     solar_resid_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1    
+    
+    # Create a button to convert a gas cross-section to be converted
+    conv_xsec_b = ttk.Button(datab_frame, text = 'Convert Xsec', command = conv_xsec)
+    conv_xsec_b.grid(row = row_n, column = 1, padx=5, pady=5)
     
 #========================================================================================
 #====================================Graph Settings======================================
@@ -831,6 +859,17 @@ def adv_settings(self, settings, version):
     gas_c = ttk.OptionMenu(graph_frame, gas, *gas_options)
     gas_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
     row_n += 1
+    
+    # Set x-axis for time series
+    x_plot_options = [settings['x_plot'],
+                      'Time',
+                      'Number']
+    x_plot = tk.StringVar(graph_frame, value = settings['resid_type'])
+    x_plot_l = tk.Label(graph_frame, text = 'Time Series\nx-axix', font = NORM_FONT)
+    x_plot_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
+    x_plot_m = ttk.OptionMenu(graph_frame, x_plot, *x_plot_options)
+    x_plot_m.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    row_n += 1 
     
     # Turn on/off graph scrolling
     scroll_b = tk.BooleanVar(graph_frame, value = settings['scroll_flag'])
@@ -871,8 +910,14 @@ def conv_xsec():
     tk.Tk.wm_title(win, 'Cross Section Analyser')
     
     # Create frames
+    fpath_frame = ttk.Frame(win)
+    fpath_frame.grid(row=0, column=0, padx=10, sticky = 'N')
+    
+    graph_frame = ttk.Frame(win)
+    graph_frame.grid(row=0, column=1, padx=10, rowspan=20, sticky = 'N')
+    
     setup_frame = ttk.Frame(win)
-    setup_frame.grid(row=0, column=0, padx=10, pady=10)
+    setup_frame.grid(row=1, column=0, padx=10, sticky = 'N')
     
     # Make function to select filepaths
     def update_fp(entry):
@@ -881,34 +926,114 @@ def conv_xsec():
         fpath = fd.askopenfilenames()
         
         if fpath != '':
-            entry.set(str(fpath[0]))   
+            entry.set(str(fpath[0])) 
+            
+    # Create array of intergers for spinboxes
+    choices = []
+    for i in range(101):
+        choices.append(i)
    
 #===================================Filepath controls====================================
     
-    # Create row number counter
-    row_n = 0
-    
     # Load spectrum fpath
-    win.load_path = tk.StringVar(setup_frame)
-    load_path_l = tk.Label(setup_frame, text = 'Load File Path:', font = NORM_FONT)
-    load_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    load_path_e = ttk.Entry(setup_frame, text=win.load_path, font=NORM_FONT, width=40)
-    load_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    load_path_b = ttk.Button(setup_frame, text = "Browse", 
+    win.load_path = tk.StringVar(fpath_frame)
+    load_path_l = tk.Label(fpath_frame, text = 'Load File Path:', font = NORM_FONT)
+    load_path_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+    load_path_e = ttk.Entry(fpath_frame, text=win.load_path, font=NORM_FONT, width=30)
+    load_path_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+    load_path_b = ttk.Button(fpath_frame, text = "Browse", 
                              command = lambda: update_fp(win.load_path))
-    load_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1
+    load_path_b.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
     
     # Save spectrum fpath
-    win.save_path = tk.StringVar(setup_frame)
-    save_path_l = tk.Label(setup_frame, text = 'Save file path:', font = NORM_FONT)
-    save_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    save_path_e = ttk.Entry(setup_frame, text=win.load_path, font=NORM_FONT, width=40)
-    save_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
-    save_path_b = ttk.Button(setup_frame, text = "Browse", 
+    win.save_path = tk.StringVar(fpath_frame)
+    save_path_l = tk.Label(fpath_frame, text = 'Save file path:', font = NORM_FONT)
+    save_path_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+    save_path_e = ttk.Entry(fpath_frame, text=win.load_path, font=NORM_FONT, width=30)
+    save_path_e.grid(row = 1, column = 1, padx = 5, pady = 5)
+    save_path_b = ttk.Button(fpath_frame, text = "Browse", 
                              command = lambda: update_fp(win.save_path))
-    save_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
-    row_n += 1
+    save_path_b.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
+   
+#====================================Program controls====================================
+    
+    # Create inputs for number of header and footer rows to ignore
+    win.head_rows = tk.IntVar(setup_frame, value = 0)
+    head_rows_l = tk.Label(setup_frame, text = 'Header\nrows:', font = NORM_FONT)
+    head_rows_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+    head_rows_e = tk.Spinbox(setup_frame, values = choices, width = 12,
+                             textvariable = win.head_rows)
+    head_rows_e.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
+       
+    win.foot_rows = tk.IntVar(setup_frame, value = 0)
+    foot_rows_l = tk.Label(setup_frame, text = 'Footer\nrows:', font = NORM_FONT)
+    foot_rows_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+    foot_rows_e = tk.Spinbox(setup_frame, values = choices, width = 12,
+                             textvariable = win.foot_rows)
+    foot_rows_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
+    
+    # Create inputs for columns for wavelength and xsec
+    win.wl_col = tk.IntVar(setup_frame, value = 0)
+    wl_col_l = tk.Label(setup_frame, text = 'Wavelength\nColumn:', font = NORM_FONT)
+    wl_col_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
+    wl_col_e = tk.Spinbox(setup_frame, values = choices, width = 12,
+                          textvariable = win.wl_col)
+    wl_col_e.grid(row = 0, column = 3, padx = 5, pady = 5, sticky = 'W')
+    
+    win.xsec_col = tk.IntVar(setup_frame, value = 0)
+    xsec_col_l = tk.Label(setup_frame, text = 'Spectrum\nColumn:', font = NORM_FONT)
+    xsec_col_l.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
+    xsec_col_e = tk.Spinbox(setup_frame, values = choices, width = 12,
+                            textvariable = win.xsec_col)
+    xsec_col_e.grid(row = 1, column = 3, padx = 5, pady = 5, sticky = 'W')
+    
+    # Create control on wether the grid is nm or wavenumber
+    grid_options = ['nanometer','nanometer', 'wavenumber']
+    win.unit = tk.StringVar(setup_frame, value = grid_options[0])
+    unit_l = tk.Label(setup_frame, text = 'Wavlength\nUnits:', font = NORM_FONT)
+    unit_l.grid(row = 2, column = 2, padx = 5, pady = 5)
+    unit_c = ttk.OptionMenu(setup_frame, win.unit, *grid_options)
+    unit_c.grid(row = 2, column = 3, padx = 5, pady = 5)
+    
+    # Create input for column delimiter
+    delim_options = ['tab','tab','space','comma','input']
+    win.delimiter = tk.StringVar(setup_frame, value = 0)
+    delimiter_l = tk.Label(setup_frame, text = 'Delimiter:', font = NORM_FONT)
+    delimiter_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
+    delimiter_e = ttk.OptionMenu(setup_frame, win.delimiter, *delim_options)
+    delimiter_e.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
+
+#====================================Convert button======================================
+    
+    # Create frame to hold the button
+    button_frame = ttk.Frame(win)
+    button_frame.grid(row=2, column=0, sticky='N')
+    
+    # Create button to convert the selected spectrum
+    conv_b = ttk.Button(button_frame, text = 'Convert', command = convert)
+    conv_b.grid()
+
+#=====================================Graph control======================================
+    
+    # Create graph for display
+    fig = plt.figure(figsize = (6,4))
+    ax = fig.add_subplot(111)
+    
+    ax.set_xlabel('Wavelength (nm)', fontsize = 10)
+    ax.set_ylabel('Absorption (photons/cm2)', fontsize = 10)
+    
+    line, = ax.plot(0, 0)
+    
+    plt.tight_layout()
+    
+    # Create the canvas to hold the graph in the GUI
+    canvas = FigureCanvasTkAgg(fig, graph_frame)
+    canvas.draw()
+    canvas.get_tk_widget().grid(row=0, column=0, rowspan = 20, padx=10, pady = 10)
+    
+def convert():
+    pass
+    
     
     
     

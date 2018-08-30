@@ -123,7 +123,13 @@ def build_fwd_data(common, settings, self):
     
     # Import O3 data
     o3_xsec = np.loadtxt(settings['o3_path'])
-    common['o3_xsec'] = griddata(o3_xsec[:,0], o3_xsec[:,11], model_grid, method='cubic')
+    
+    # Get column number from temperature
+    temps = ['298K', '283K', '273K', '263K', '253K', '243K', '233K', '223K', '213K', 
+             '203K', '193K']
+    col_n = temps.index(settings['o3_temp']) + 1
+    common['o3_xsec'] = griddata(o3_xsec[:,0], o3_xsec[:,col_n], model_grid, 
+                                 method = 'cubic')
     self.print_output('O3 cross-section imported', add_line = False)
     
     
