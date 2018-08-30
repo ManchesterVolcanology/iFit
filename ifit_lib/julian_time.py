@@ -30,6 +30,10 @@ def hms_to_julian(time_arr, str_format = None, out_format = 'decimal days'):
               '    decimal days\n    decimal hours'
         raise ValueError(msg)
     
+    # If single value, convert to list
+    if type(time_arr) not in [list]:
+        time_arr = [time_arr]
+    
     # Make julian time array object to populate
     jul_time = np.zeros(len(time_arr))
     
@@ -38,8 +42,11 @@ def hms_to_julian(time_arr, str_format = None, out_format = 'decimal days'):
         
         # If format is given, use this to convert to datetime object
         if str_format != None:
-            
-            time = dt.datetime.strptime(str(time), str_format)
+            try:
+                time = dt.datetime.strptime(str(time), '%H:%M:%S')
+            except ValueError:
+                time = dt.datetime.strptime(str(time), '%H:%M:%S.%f')
+                
         
         # Extract individual hour, minute, second and microsecond info
         hours = time.hour
