@@ -96,13 +96,13 @@ def read_txt_gps(gps_fname):
     
     INPUTS
     ------
-    lon1, lat1: longitude and latitude of first point
-    lon2, lat2: longitude and latitude of second point
+    gps_fname: string, file path to the gps file to load
     
     OUTPUTS
     -------
-    dist: distance between two points in meters
-    bearing: bearing between points (0 - 2pi clockwise from North)
+    time: array, time values in decimal hours
+    lat:  array, point latitudes
+    lon:  array, point longitudes
     '''
     
     # Create empty arrays to hold the outputs

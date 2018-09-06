@@ -8,14 +8,14 @@ Created on Thu Jul 12 09:36:21 2018
 import numpy as np
 import datetime as dt
 
-def hms_to_julian(time_arr, str_format = None, out_format = 'decimal days'):
+def hms_to_julian(times, str_format = None, out_format = 'decimal days'):
     
     '''
     Function to convert an array of datetime objects or strings to julian time
     
     INPUTS
     ------
-    time_arr  : array; origional time objects
+    times     : array; origional time objects
     str_format: string; time format if converting from strings. Default is None
     out_format: string; Format of output:
                    
@@ -31,21 +31,24 @@ def hms_to_julian(time_arr, str_format = None, out_format = 'decimal days'):
         raise ValueError(msg)
     
     # If single value, convert to list
-    if type(time_arr) not in [list]:
-        time_arr = [time_arr]
+    if type(times) in [str, dt.datetime, dt.time]:
+        times = [times]
     
     # Make julian time array object to populate
-    jul_time = np.zeros(len(time_arr))
+    jul_time = np.zeros(len(times))
     
     # Iterate through time array and convert
-    for n, time in enumerate(time_arr):
-        
+    for n, time in enumerate(times):
+
         # If format is given, use this to convert to datetime object
         if str_format != None:
             try:
-                time = dt.datetime.strptime(str(time), '%H:%M:%S')
+                time = dt.datetime.strptime(str(time), str_format)
             except ValueError:
-                time = dt.datetime.strptime(str(time), '%H:%M:%S.%f')
+                try:
+                    time = dt.datetime.strptime(str(time), '%H:%M:%S')
+                except ValueError:
+                    time = dt.datetime.strptime(str(time), '%H:%M:%S.%f')
                 
         
         # Extract individual hour, minute, second and microsecond info

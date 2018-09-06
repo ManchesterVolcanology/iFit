@@ -23,6 +23,7 @@ from matplotlib.colorbar import Colorbar
 from matplotlib.widgets import Slider
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from pandas import read_csv
+import folium
 
 from ifit_lib.find_nearest import extract_window
 from ifit_lib.read_gps import read_txt_gps, gps_vector, haversine
@@ -46,7 +47,7 @@ class mygui(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         
         # Cause exceptions to report in a new window
-        tk.Tk.report_callback_exception = self.report_callback_exception
+        #tk.Tk.report_callback_exception = self.report_callback_exception
         
         # Close program on closure of window
         self.protocol("WM_DELETE_WINDOW",self.handler)
@@ -154,11 +155,16 @@ class mygui(tk.Tk):
         self.ax0.set_xlabel('Julian Time (Fraction of Day)', fontsize=10)
         self.ax0.set_ylabel('SO2 column amount (ppm.m)', fontsize=10)
         
+        # Get origional limits
+        common['lims'] = self.ax0.get_xlim()
+        
         # Create sliders
         self.ax_lo = self.fig.add_axes([0.12, 0.15, 0.78, 0.03])
         self.slide_lo = Slider(self.ax_lo, 'Low Bound', 0, 1, valinit = 0.05)
         self.ax_hi = self.fig.add_axes([0.12, 0.1, 0.78, 0.03])
         self.slide_hi = Slider(self.ax_hi, 'High Bound', 0, 1, valinit = 0.95)
+        
+
         
         def update(val):
             
@@ -176,9 +182,6 @@ class mygui(tk.Tk):
             
         self.slide_lo.on_changed(update)
         self.slide_hi.on_changed(update)
-        
-        # Make it look nice
-        #plt.tight_layout()
         '''
         # Add matplotlib toolbar above the plot canvas
         toolbar_frame = tk.Frame(self, bg = 'black')  
@@ -186,13 +189,11 @@ class mygui(tk.Tk):
         toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
         toolbar.update()
         '''
-        # Add buttons to zoom and rest
+        # Add buttons to zoom and reset
         button_frame = tk.Frame(self)
         button_frame.grid(row=0, column=1, padx=10, pady=10)
         zoom_b = ttk.Button(button_frame, text = 'Zoom', command = self.zoom)
         zoom_b.grid(row=0, column=0, sticky='E', padx=10)
-        rescale_b = ttk.Button(button_frame, text = 'Rescale', command = self.rescale)
-        rescale_b.grid(row=0, column=1, sticky='E', padx=10)
         reset_b = ttk.Button(button_frame, text = 'Reset', command = self.reset)
         reset_b.grid(row=0, column=2, sticky='E', padx=10)
         
@@ -208,53 +209,61 @@ class mygui(tk.Tk):
         self.ifit_path = tk.StringVar(value = 'No file selected')
         ifit_path_l = tk.Label(trav_frame, text = 'iFit file:', font = NORM_FONT)
         ifit_path_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        ifit_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 20, 
+        ifit_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 30, 
                                text = self.ifit_path)
-        ifit_path_e.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
+        ifit_path_e.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W',
+                         columnspan = 2)
         ifit_path_b = ttk.Button(trav_frame, text="Select iFit output", 
                                  command = lambda: self.get_fp(self.ifit_path))
-        ifit_path_b.grid(row = 0, column=2, padx=5, pady=5, columnspan=2, sticky='W')
+        ifit_path_b.grid(row = 0, column=3, padx=5, pady=5, columnspan=2, sticky='W')
         
         # Create inputs for gps file
         self.gps_path = tk.StringVar(value = 'No file selected')
         gps_path_l = tk.Label(trav_frame, text = 'GPS file:', font = NORM_FONT)
         gps_path_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        gps_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 20, 
+        gps_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 30, 
                               text = self.gps_path)
-        gps_path_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
+        gps_path_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W',
+                        columnspan = 2)
         gps_path_b = ttk.Button(trav_frame, text="Select GPS file", 
                                 command = lambda: self.get_fp(self.gps_path))
-        gps_path_b.grid(row=1, column=2, padx=5, pady=5, columnspan=2, sticky='W')
+        gps_path_b.grid(row=1, column=3, padx=5, pady=5, columnspan=2, sticky='W')
         
-        # Create inputs for wind speed
-        self.wind_speed = tk.IntVar(value = 10.0)
-        wind_speed_l = tk.Label(trav_frame, text = 'Wind Speed (ms-1):', 
-                                font = NORM_FONT)
+        # Create inputs for wind speed and units
+        self.wind_speed = tk.IntVar(value = 0)
+        wind_speed_l = tk.Label(trav_frame, text = 'Wind Speed:', font = NORM_FONT)
         wind_speed_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        wind_speed_e = tk.Entry(trav_frame, font = NORM_FONT, width = 20, 
+        wind_speed_e = tk.Entry(trav_frame, font = NORM_FONT, width = 15, 
                                 text = self.wind_speed)
         wind_speed_e.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
+        self.wind_unit = tk.StringVar(value = 'm/s')
+        wind_speed_u = ttk.OptionMenu(trav_frame, self.wind_unit, 
+                                      *['m/s','m/s','knots'])
+        wind_speed_u.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'EW')
         
-        # Create inputs for wind error
-        self.wind_error = tk.DoubleVar(value = 10)
-        wind_error_l = tk.Label(trav_frame, text = 'Wind Error (%):', 
-                                font = NORM_FONT)
-        wind_error_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        wind_error_e = tk.Entry(trav_frame, font = NORM_FONT, width = 20, 
+        # Create inputs for wind error and units
+        self.wind_error = tk.DoubleVar(value = 0)
+        wind_error_l = tk.Label(trav_frame, text = 'Wind Error:', font = NORM_FONT)
+        wind_error_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')        
+        wind_error_e = tk.Entry(trav_frame, font = NORM_FONT, width = 15, 
                                 text = self.wind_error)
         wind_error_e.grid(row = 3, column = 1, padx = 5, pady = 5, sticky = 'W')
+        self.error_unit = tk.StringVar(value = '%')
+        wind_error_u = ttk.OptionMenu(trav_frame, self.error_unit, 
+                                      *['%','%','abs'])
+        wind_error_u.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'EW')
         
         # Create button to read in files
         read_b = ttk.Button(trav_frame, text="Read Traverse Data", 
                             command = self.read_trav_data)
-        read_b.grid(row = 2, column = 2, padx = 5, pady = 5, columnspan=2, sticky = 'W')
+        read_b.grid(row = 2, column = 3, padx = 5, pady = 5, columnspan=2, sticky = 'W')
         
         # Control whether or not to remove flat spectra
         self.de_spike = tk.BooleanVar(trav_frame, value = True)
         de_spike_l = tk.Label(trav_frame, text='Remove Bad\nSpectra?', font=NORM_FONT)
-        de_spike_l.grid(row = 3, column = 2, padx = 5, pady = 5)
+        de_spike_l.grid(row = 3, column = 3, padx = 5, pady = 5)
         de_spike_c = ttk.Checkbutton(trav_frame, variable = self.de_spike)
-        de_spike_c.grid(row = 3, column = 3, padx = 5, pady = 5)
+        de_spike_c.grid(row = 3, column = 4, padx = 5, pady = 5)
         
 #========================================================================================
 #===================================Volcano controls=====================================
@@ -330,12 +339,8 @@ class mygui(tk.Tk):
     def report_callback_exception(self, *args):
         err = traceback.format_exception(*args)
         tkMessageBox.showerror('Exception', err)
-        
 
     def handler(self):
-        
-        # Save results
-        self.save_results()
         
         # Close
         self.quit()        
@@ -368,6 +373,7 @@ class mygui(tk.Tk):
         # Update axis limits
         new_lims = [lims[0] + lim_range * pos[0], lims[0] + lim_range * pos[1]]
         self.ax0.set_xlim(new_lims)
+        self.rescale()
         
         # Reset sliders
         self.slide_hi.reset()
@@ -452,39 +458,6 @@ class mygui(tk.Tk):
         
         # Force gui to update
         mygui.update(self) 
-    
-#========================================================================================
-#======================================Save Results======================================
-#========================================================================================
-    
-    def save_results(self):
-        
-        if len(common['fluxes']) != 0:
-            
-            # Calculate the average flux and uncertainty
-            av_flux = 0
-            av_err  = 0
-            n = 0 
-            
-            for i in common['fluxes']:
-                av_flux += i[0]
-                av_err  += (i[1]/i[0])**2
-                n += 1
-                
-            av_flux = av_flux / n
-            av_err  = (av_err / n)**0.5 * av_flux
-            
-            # Save the fluxes in a text file for ease of access
-            header = 'Results from calc_flux.py\n' + \
-                     'NOTE errors are from SO2 fitting and wind speed only\n' + \
-                     'Flux (tonnes/day),     Error (+/- t/d)'
-            
-            np.savetxt(common['out_folder'] + 'flux_results.txt', common['fluxes'],
-                       header = header)
-            
-            with open(common['out_folder'] + 'flux_results.txt', 'a') as r:
-                r.write('Average flux = ' + str(int(av_flux)) + ' +/- ' + \
-                        str(int(av_err)) + ' (t/day)')
         
 #========================================================================================
 #==================================Read Traverse data====================================
@@ -492,15 +465,15 @@ class mygui(tk.Tk):
          
     def read_trav_data(self):
         
-        # Save results from last read if not the first
-        if self.save_flag:
-            self.save_results()
+        # Reset the graph
+        self.reset()
         
         # Reset loop counter
-        common['loop'] = 0
+        common['loop'] = 1
         
         # Reset flux amount array
         common['fluxes'] = []
+        common['flux_errs'] = []
         
         self.text_output('Reading traverse data...', add_line = False)
            
@@ -590,9 +563,19 @@ class mygui(tk.Tk):
         self.slide_hi.reset()
         self.slide_lo.reset()
         
+        # Find 5% of the range of data
+        x = common['time']
+        y = common['so2_amt']
+        x_pad = (max(x) - min(x))*0.05
+        y_pad = (max(y) - min(y))*0.05
+        
+        # Set limits 
+        x_lims = [min(x) - x_pad, max(x) + x_pad]
+        y_lims = [min(y) - y_pad, max(y) + y_pad]
+        
         # Rescale the axes
-        self.ax0.relim()
-        self.ax0.autoscale_view() 
+        self.ax0.set_xlim(x_lims)
+        self.ax0.set_ylim(y_lims)
         
         # Get origional limits
         common['lims'] = self.ax0.get_xlim()
@@ -625,6 +608,10 @@ class mygui(tk.Tk):
         except KeyError:
             self.text_output('Please import data first')
             return
+        
+        # If wind error is absolute, turn into %
+        if self.error_unit == 'abs':
+            wind_err = wind_err / wind_speed * 100
         
         # Correct for time difference
         gps_time = np.subtract(gps_time, int(self.time_diff.get()))
@@ -664,7 +651,7 @@ class mygui(tk.Tk):
         modlat_old = griddata(gps_time,lat,common['time'])
         modlat = griddata(gps_time,lat,time)
         modlon = griddata(gps_time,lon,time)
-
+        
 #========================================================================================
 #==============================Perform geometric correction==============================
 #========================================================================================
@@ -696,6 +683,10 @@ class mygui(tk.Tk):
 #========================================================================================
 #=====================================Calculate flux=====================================
 #========================================================================================
+
+        # If wind speed is in knotts, convert to m/s
+        if self.wind_unit == 'knots':
+            wind_speed = 1.9438444924572 * wind_speed
 
         # Convert so2 amounts from ppm.m to molecules.cm-2
         so2_amt_molec = np.multiply(so2_amt, 2.463e15)
@@ -744,7 +735,11 @@ class mygui(tk.Tk):
 #========================================================================================
 #=============================Plot selected SO2 and GPS data=============================
 #========================================================================================
-           
+         
+        # Remove NaN values
+        modlon_old = modlon_old[~np.isnan(modlon_old)]
+        modlat_old = modlat_old[~np.isnan(modlat_old)]
+        
         # Create dictionary to pass to plotting function
         d = {}
         d['time']              = time
@@ -785,7 +780,8 @@ def make_graph(d):
         fig.savefig(common['out_folder'] + 'traverse_' + str(common['loop']) + '.png')
         
         # Append flux and error to list
-        common['fluxes'].append([d['flux'], d['flux_err']]) 
+        common['fluxes'].append(d['flux'])
+        common['flux_errs'].append(d['flux_err']) 
 
         # Make string of cog position
         cog_pos = str(d['modlon'][d['peak_idx']])+','+str(d['modlat'][d['peak_idx']])
@@ -819,7 +815,45 @@ def make_graph(d):
                              str(d['cuml_dist'][i])           + '\n')
 
             writer.write('\n')
+    
         
+        # Produce map with gps track
+        trav_map = folium.Map(location = [d['volc_lat'], d['volc_lon']],
+                              zoom_start = 13,
+                              tiles = 'Stamen Terrain')
+        
+        folium.Circle(radius = 100,
+                      location = [d['volc_lat'], d['volc_lon']],
+                      color = 'orange',
+                      fill = True,
+                      tooltip = 'Source').add_to(trav_map)
+        
+        folium.PolyLine(locations = np.column_stack((d['modlat_old'], d['modlon_old'])),
+                        tooltip = 'GPS Track').add_to(trav_map)
+        
+        folium.PolyLine(locations = np.column_stack((d['modlat'], d['modlon'])),
+                        tooltip = 'Traverse',
+                        color = 'orange').add_to(trav_map)
+        
+        trav_map.save(common['out_folder'] + 'Map_' + str(common['loop']) + '.html')
+        
+        # Update text results file
+        
+        # Calculate the average flux and uncertainty
+        av_flux = np.average(common['fluxes'])
+        av_err  = np.average(np.power(common['flux_errs'], 2)**0.5)
+        
+        # Save the fluxes in a text file for ease of access
+        header = 'Results from calc_flux.py\n' + \
+                 'NOTE errors are from SO2 fitting and wind speed only\n' + \
+                 'Flux (tonnes/day),     Error (+/- t/d)'
+        data = np.column_stack((common['fluxes'], common['flux_errs']))
+        np.savetxt(common['out_folder'] + 'flux_results.txt', data, header = header)
+        
+        with open(common['out_folder'] + 'flux_results.txt', 'a') as r:
+            r.write('Average flux = ' + str(int(av_flux)) + ' +/- ' + \
+                    str(int(av_err)) + ' (t/day)')
+    
         # Add to the loop counter
         common['loop'] += 1
         
