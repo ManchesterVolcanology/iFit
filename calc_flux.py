@@ -182,13 +182,7 @@ class mygui(tk.Tk):
             
         self.slide_lo.on_changed(update)
         self.slide_hi.on_changed(update)
-        '''
-        # Add matplotlib toolbar above the plot canvas
-        toolbar_frame = tk.Frame(self, bg = 'black')  
-        toolbar_frame.grid(row=3,column=1, sticky = 'NW', padx = 10, pady = 10)                             
-        toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
-        toolbar.update()
-        '''
+        
         # Add buttons to zoom and reset
         button_frame = tk.Frame(self)
         button_frame.grid(row=0, column=1, padx=10, pady=10)
@@ -610,7 +604,7 @@ class mygui(tk.Tk):
             return
         
         # If wind error is absolute, turn into %
-        if self.error_unit == 'abs':
+        if self.error_unit.get() == 'abs':
             wind_err = wind_err / wind_speed * 100
         
         # Correct for time difference
@@ -685,8 +679,8 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # If wind speed is in knotts, convert to m/s
-        if self.wind_unit == 'knots':
-            wind_speed = 1.9438444924572 * wind_speed
+        if self.wind_unit.get() == 'knots':
+            wind_speed = wind_speed * 0.5144444444
 
         # Convert so2 amounts from ppm.m to molecules.cm-2
         so2_amt_molec = np.multiply(so2_amt, 2.463e15)
@@ -730,7 +724,8 @@ class mygui(tk.Tk):
         
         flux_err = int(flux * delta_F)
         
-        self.text_output('Flux = '+str(flux)+' (+/- ' + str(flux_err)+') tonnes/day')
+        self.text_output('Peak ' + str(common['loop']) + \
+                         'Flux = '+str(flux)+' (+/- ' + str(flux_err)+') tonnes/day')
 
 #========================================================================================
 #=============================Plot selected SO2 and GPS data=============================

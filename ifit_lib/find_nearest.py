@@ -13,6 +13,22 @@ import numpy as np
 #          array[idx]: the true array value
 
 def find_nearest(array, value):
+    
+    '''
+    Function to find nearest value in an array
+    
+    INPUTS
+    ------
+    array: array to search
+    value: value to find in array
+    
+    OUTPUTS
+    -------
+    idx: index of nearest value
+    val: value of nearest value in array
+    
+    '''
+    
     idx = (np.abs(array-value)).argmin()
     return idx, array[idx]
 
