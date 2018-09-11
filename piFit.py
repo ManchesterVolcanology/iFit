@@ -191,6 +191,7 @@ class mygui(tk.Tk):
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
             settings['o3_path']           = 'data_bases/gas data/O3_xsec.dat'
+            settings['o3_temp']           = '233K'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['graph_view']        = 'Spectrum'

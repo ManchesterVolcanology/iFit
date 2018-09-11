@@ -63,15 +63,7 @@ class mygui(tk.Tk):
         # Add a title and icon
         tk.Tk.wm_title(self, 'iFit-2-4')
         tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
-        '''
-        # Build a menubar to hold options for the user
-        menubar = tk.Menu(self)
-        filemenu = tk.Menu(menubar, tearoff = 0)
-        filemenu.add_command(label = 'Convert cross-section', command = conv_xsec)
-        filemenu.add_separator()
-        menubar.add_cascade(label = 'Tools', menu = filemenu)
-        tk.Tk.config(self, menu = menubar)
-        '''
+        
         # Create notebook to hold different frames
         nb = ttk.Notebook(self)
         page1 = ttk.Frame(nb)
@@ -208,6 +200,7 @@ class mygui(tk.Tk):
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
             settings['o3_path']           = 'data_bases/gas data/O3_xsec.dat'
+            settings['o3_temp']           = '233K'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['Spectra Filepaths'] = ''

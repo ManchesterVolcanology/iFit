@@ -154,6 +154,7 @@ class mygui(tk.Tk):
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
             settings['o3_path']           = 'data_bases/gas data/O3_xsec.dat'
+            settings['o3_temp']           = '233K'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['Scan Filepaths'] = ''
@@ -465,7 +466,7 @@ class mygui(tk.Tk):
         scan_files = self.scan_fpaths
         
         # Read in first scan in array
-        err,x,header,info_block,spec_block = read_binary_block(scan_files[0])
+        err, x, header, info_block, spec_block = read_binary_block(scan_files[0])
         
          # Find indices of desired wavelength window and add to common
         common['fit_idx'] = np.where(np.logical_and(common['wave_start'] <= x,
@@ -522,7 +523,7 @@ class mygui(tk.Tk):
         self.scan_count.set(msg)
 
         # Output initiation message
-        self.print_output('Loop Started\nSpectrum number ' + str(settings['loop']))
+        self.print_output('Loop Started')
 
         for fpath in scan_files:
             
@@ -578,7 +579,7 @@ class mygui(tk.Tk):
                         fit_dict, err_dict, y_data, fit, gas_T, fit_flag = fit_data    
                         
                         # Unpack spec no, timestamp and motor position
-                        spec_no = str(info_block[0][n])
+                        spec_no = float(info_block[0][n])
                         timestamp = str(int(info_block[1][n])) + ':' + \
                                     str(int(info_block[2][n])) + ':' + \
                                     str(int(info_block[3][n]))
@@ -586,7 +587,7 @@ class mygui(tk.Tk):
                         view_ang  = str(float(motor_pos) * 0.06 - 102)
                             
                         # Add the data to the results file
-                        w.write(spec_no + ','+timestamp+','+motor_pos+','+view_ang)
+                        w.write(str(spec_no) + ','+timestamp+','+motor_pos+','+view_ang)
                         
                         # Print so2 amount and error in ppm.m for ease
                         w.write(',' + str(fit_dict['so2_amt']/2.463e15) + ',' + \
@@ -741,10 +742,10 @@ class mygui(tk.Tk):
                                              [grid,     fit,      'auto',  [y_lo,y_hi]],
                                              [x   ,     y,        'auto',  'auto'     ],
                                              [grid,     resid,    'auto',  'auto'     ],
-                                             [grid,     gas_tran, 'auto',  [t_lo,t_hi]],
-                                             [grid,     gas_spec, 'auto',  [t_lo,t_hi]],
+                                             [grid,     gas_tran, 'auto',  'auto'],
+                                             [grid,     gas_spec, 'auto',  'auto'],
                                              [spec_nos, gas_amts, 'auto',  'auto'     ]))
-
+                           
                             # Update graph
                             update_graph(lines, axes, self.canvas, data)
                         
