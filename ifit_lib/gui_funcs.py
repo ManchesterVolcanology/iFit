@@ -60,14 +60,14 @@ def read_settings(fname, settings):
 def fit_toggle(self, settings):
     
     # Toggle button text and colour
-    if self.toggle_button.config('text')[-1] == 'FITTING ON':
-        self.toggle_button.config(text = 'FITTING OFF')
-        self.toggle_button.config(bg = 'red')
+    if self.toggle_b.config('text')[-1] == 'FITTING ON':
+        self.toggle_b.config(text = 'FITTING OFF')
+        self.toggle_b.config(bg = 'red')
         self.print_output('Fitting turned off\n' +\
                           'Spectrum number ' + str(self.loop))
     else:
-        self.toggle_button.config(text = 'FITTING ON')
-        self.toggle_button.config(bg = 'green')
+        self.toggle_b.config(text = 'FITTING ON')
+        self.toggle_b.config(bg = 'green')
         self.print_output('Fitting turned on\n' +\
                           'Spectrum number ' + str(self.loop))
 
@@ -104,10 +104,10 @@ def connect_spec(self, settings):
             results_folder = 'Results/iFit/'+str(datetime.date.today())+'/ifit_out/'
            
             # Create folder
-            self.rt_folder = make_directory(results_folder, overwrite = True)
+            self.results_folder = make_directory(results_folder, overwrite = True)
             
             # Create notes file
-            self.notes_fname = self.rt_folder + 'notes.txt'
+            self.notes_fname = self.results_folder + 'notes.txt'
             with open(self.notes_fname, 'w') as w:
                 w.write('Notes file for iFit\n\n')
     
@@ -211,7 +211,7 @@ def read_darks(self, settings, mygui, line, ax):
         dark = np.zeros(2048)
         
         # Define dark filepath
-        dark_fp = self.rt_folder + 'dark/'
+        dark_fp = self.results_folder + 'dark/'
         
         # Create the directory  
         dark_fp = make_directory(dark_fp)
@@ -849,11 +849,11 @@ def adv_settings(self, settings, version):
     
     # Select which gas to analyse
     gas_options = [settings['analysis_gas'],
-                   'SO2',
-                   'NO2',
-                   'O3',
-                   'BrO',
-                   'Ring']
+                   'so2',
+                   'no2',
+                   'o3',
+                   'bro',
+                   'ring']
     gas = tk.StringVar(graph_frame, value = settings['scroll_flag'])
     gas_l = tk.Label(graph_frame, text = 'Parameter\nto analyse:', font = NORM_FONT)
     gas_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')

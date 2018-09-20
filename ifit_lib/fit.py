@@ -104,16 +104,16 @@ def fit_spec(common, spectrum, grid, q = None):
         fit = ifit_fwd_model(grid, *popt, calc_trans_flag = True)
         
         # Form transmittance spectra
-        gas_T['SO2_tran']  = -np.log(np.divide(y, com['F_no_so2']))
-        gas_T['NO2_tran']  = -np.log(np.divide(y, com['F_no_no2']))
-        gas_T['O3_tran']   = -np.log(np.divide(y, com['F_no_o3']))
-        gas_T['BrO_tran']  = -np.log(np.divide(y, com['F_no_bro']))
-        gas_T['Ring_tran'] = np.divide(y, com['F_no_ring'])
-        gas_T['SO2_spec']  = -np.log(com['so2_spec'])
-        gas_T['NO2_spec']  = -np.log(com['no2_spec'])
-        gas_T['O3_spec']   = -np.log(com['o3_spec'])
-        gas_T['BrO_spec']  = -np.log(com['bro_spec'])
-        gas_T['Ring_spec'] = com['ring_spec']
+        gas_T['so2_tran']  = -np.log(np.divide(y, com['F_no_so2']))
+        gas_T['no2_tran']  = -np.log(np.divide(y, com['F_no_no2']))
+        gas_T['o3_tran']   = -np.log(np.divide(y, com['F_no_o3']))
+        gas_T['bro_tran']  = -np.log(np.divide(y, com['F_no_bro']))
+        gas_T['ring_tran'] = np.divide(y, com['F_no_ring'])
+        gas_T['so2_spec']  = -np.log(com['so2_spec'])
+        gas_T['no2_spec']  = -np.log(com['no2_spec'])
+        gas_T['o3_spec']   = -np.log(com['o3_spec'])
+        gas_T['bro_spec']  = -np.log(com['bro_spec'])
+        gas_T['ring_spec'] = com['ring_spec']
         
         #################################################################################
         '''
@@ -136,16 +136,16 @@ def fit_spec(common, spectrum, grid, q = None):
         fit = np.zeros(len(grid))
         
         # Form transmittance spectra
-        gas_T['SO2_tran']  = np.zeros(len(grid))
-        gas_T['NO2_tran']  = np.zeros(len(grid))
-        gas_T['O3_tran']   = np.zeros(len(grid))
-        gas_T['BrO_tran']  = np.zeros(len(grid))
-        gas_T['Ring_tran'] = np.zeros(len(grid))
-        gas_T['SO2_spec']  = np.zeros(len(grid))
-        gas_T['NO2_spec']  = np.zeros(len(grid))
-        gas_T['O3_spec']   = np.zeros(len(grid))
-        gas_T['BrO_spec']  = np.zeros(len(grid))
-        gas_T['Ring_spec'] = np.zeros(len(grid))
+        gas_T['so2_tran']  = np.zeros(len(grid))
+        gas_T['no2_tran']  = np.zeros(len(grid))
+        gas_T['o3_tran']   = np.zeros(len(grid))
+        gas_T['bro_tran']  = np.zeros(len(grid))
+        gas_T['ring_tran'] = np.zeros(len(grid))
+        gas_T['so2_spec']  = np.zeros(len(grid))
+        gas_T['so2_spec']  = np.zeros(len(grid))
+        gas_T['o3_spec']   = np.zeros(len(grid))
+        gas_T['bro_spec']  = np.zeros(len(grid))
+        gas_T['ring_spec'] = np.zeros(len(grid))
         
         fitted_flag = False
 

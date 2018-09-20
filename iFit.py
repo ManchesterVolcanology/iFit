@@ -8,7 +8,6 @@ Created on Fri Mar  2 09:24:05 2018
 # Import required libraries
 import matplotlib
 matplotlib.use('TkAgg')
-import os
 import traceback
 import tkinter.messagebox as tkMessageBox
 import tkinter.scrolledtext as tkst
@@ -16,21 +15,17 @@ import glob
 import numpy as np
 from tkinter import ttk
 import tkinter as tk
-from queue import Queue
-from threading import Thread
-from seabreeze.cseabreeze.wrapper import SeaBreezeError
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from collections import OrderedDict
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 
 from ifit_lib.build_fwd_data import build_fwd_data
-from ifit_lib.read_spectrum import read_spectrum, average_spectra
 from ifit_lib.fit import fit_spec
+from ifit_lib.read_spectrum import read_spectrum
 from ifit_lib.julian_time import hms_to_julian
-from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.update_graph import update_graph
-from ifit_lib.file_control import make_csv_file
+from ifit_lib.control_loop import rt_setup, post_setup, rt_analyse
 from ifit_lib.gui_funcs import adv_settings, fit_toggle, spec_fp, dark_fp, stop, \
                                connect_spec, update_int_time, test_spec, read_darks, \
                                read_settings
@@ -126,19 +121,19 @@ class mygui(tk.Tk):
         self.status_e.grid(row=0, column=4, padx=5, pady=5, sticky="EW")
         
         # Create ouput for last so2 amount
-        self.last_so2_amt = tk.StringVar(self, value = '-')
-        last_so2_amt_l = tk.Label(quick_frame, text = 'Last amt:', font = NORM_FONT)
-        last_so2_amt_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        last_so2_amt_e = tk.Label(quick_frame, textvariable = self.last_so2_amt)
-        last_so2_amt_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
+        self.last_amt = tk.StringVar(self, value = '-')
+        last_amt_l = tk.Label(quick_frame, text = 'Last amt:', font = NORM_FONT)
+        last_amt_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+        last_amt_e = tk.Label(quick_frame, textvariable = self.last_amt)
+        last_amt_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
         
         # Create ouput for last so2 error
-        self.last_so2_err = tk.StringVar(self, value = '-')
-        last_so2_err_l = tk.Label(quick_frame, text = '+/-', 
+        self.last_err = tk.StringVar(self, value = '-')
+        last_err_l = tk.Label(quick_frame, text = '+/-', 
                                   font = NORM_FONT)
-        last_so2_err_l.grid(row = 1, column = 2, pady = 5, sticky = 'W')
-        last_so2_err_e = tk.Label(quick_frame, textvariable = self.last_so2_err)
-        last_so2_err_e.grid(row = 1, column = 3, padx = 5, pady = 5, sticky = 'W')
+        last_err_l.grid(row = 1, column = 2, pady = 5, sticky = 'W')
+        last_err_e = tk.Label(quick_frame, textvariable = self.last_err)
+        last_err_e.grid(row = 1, column = 3, padx = 5, pady = 5, sticky = 'W')
         
 #========================================================================================
 #===================================Set program settings=================================
@@ -172,7 +167,7 @@ class mygui(tk.Tk):
             settings['good_fit_bound']    = 10
             settings['fit_weight']        = 'None'
             settings['Show Graphs']       = True
-            settings['analysis_gas']      = 'SO2'
+            settings['analysis_gas']      = 'so2'
             settings['scroll_flag']       = True
             settings['scroll_spec_no']    = 200
             settings['x_plot']            = 'Time'
@@ -417,7 +412,7 @@ class mygui(tk.Tk):
         
         # Create button to start
         start_b = ttk.Button(button_frame, text = 'Begin!', 
-                             command = lambda: self.begin('post_analysis'))
+                             command = lambda: self.begin('post'))
         start_b.grid(row = 0, column = 0, padx = 40, pady = 5, columnspan = 2)
         
         # Create button to stop
@@ -515,7 +510,7 @@ class mygui(tk.Tk):
         
         # Create button to start
         start_aq_b = ttk.Button(button_frame2, text = 'Begin!', 
-                                command = lambda: self.begin('rt_analysis'))
+                                command = lambda: self.begin('rt'))
         start_aq_b.grid(row = 0, column = 0, padx = 40, pady = 5)
         
         # Create button to stop
@@ -524,10 +519,10 @@ class mygui(tk.Tk):
         stop_aq_b.grid(row = 0, column = 1, padx = 40, pady = 5)
         
         # Create switch to toggle fitting on or off
-        self.toggle_button = tk.Button(button_frame2, text = 'FITTING OFF', width = 12, 
-                                       height = 1, bg = 'red', font = LARG_FONT,
-                                       command = lambda: fit_toggle(self, settings))
-        self.toggle_button.grid(row=1, column=0, padx=5, pady=5, columnspan=2)
+        self.toggle_b = tk.Button(button_frame2, text = 'FITTING OFF', width = 12, 
+                                  height = 1, bg = 'red', font = LARG_FONT,
+                                  command = lambda: fit_toggle(self, settings))
+        self.toggle_b.grid(row=1, column=0, padx=5, pady=5, columnspan=2)
         
         
 
@@ -596,18 +591,10 @@ class mygui(tk.Tk):
 #========================================================================================
      
     # Function to begin analysis loop
-    def begin(self, rt_flag):
-        
-        # If running real time, check if spectrometer is connected
-        if rt_flag == 'rt_analysis' and settings['Spectrometer'] == 'Not Connected':
-            self.print_output('No spectrometer connected')
-            return
+    def begin(self, mode):
         
         # Turn off stopping flag
         self.stop_flag = False
- 
-        # Create flag to skip an analyis in case of spectrum read error
-        skip_flag = [False, 'No error']
        
         # Create common dictionary
         if self.build_model_flag == True:
@@ -625,11 +612,6 @@ class mygui(tk.Tk):
         common['Fit shift']        = str(settings['Fit shift'])
         common['fit_weight']       = str(settings['fit_weight'])
         common['solar_resid_flag'] = str(settings['solar_resid_flag'])
-
-        # Turn of dark flag if in real time and no darks have been taken
-        if rt_flag == 'rt_analysis' and self.rt_dark_flag == False:
-            common['dark_flag'] = 0
-            self.print_output('WARNING! No dark spectra aquired!')
 
 #========================================================================================
 #================================Build parameter dictionary==============================
@@ -657,187 +639,37 @@ class mygui(tk.Tk):
             common['params'][key][0] = float(common['params'][key][0])
                                 
         # Create empty last spec
-        common['last_spec'] = np.array([0])
+        common['last_spec'] = []
         
         # Save initial guess parameters
         initial_params = common['params'].copy()
+        
+        # Create residual counter for forming solar residual
+        resid_count = 0
+        
+#========================================================================================
+#========================================Run setup=======================================
+#========================================================================================        
 
-#========================================================================================
-#=================================Read in xsecs and flat=================================
-#========================================================================================
+        if mode == 'rt':
+            setup = rt_setup(self, settings, common, mygui)
+            
+        if mode == 'post':
+            setup = post_setup(self, settings, common, mygui)
+            
+        if setup == False:
+            return
         
-        if self.build_model_flag == True:
+        # Read in xsecs and flat spectrum
+        common = build_fwd_data(common, settings, self)
         
-            # Update status
-            self.status.set('Building Model')
-            mygui.update(self)
-    
-            # Get spectrometer serial number to get flat and ILS
-            if rt_flag == 'post_analysis':
-                common['spec_name'] = str(self.spec_name.get())
-            else:
-                common['spec_name'] = str(self.c_spec.get())
             
-            # Load fitting data files
-            common = build_fwd_data(common, settings, self)
-
-#========================================================================================
-#===================================Build dark spectrum==================================
-#========================================================================================
-
-        if rt_flag == 'post_analysis':
-            
-            # Get spectra filepaths
-            spectra_files = self.spec_fpaths
-            dark_files    = self.dark_fpaths
-            
-            # Read format of spectra
-            spec_type = self.spec_type.get()
-    
-            # Read in dark spectra
-            if common['dark_flag'] == True:
-                x, common['dark'], read_err = average_spectra(dark_files, spec_type)
-        
-                # If there is an error reading the spectrum exit loop
-                if read_err[0]:
-                    self.print_output('Error reading dark spectrum:\n'+str(read_err[1]))
-                    return
-                
-        elif self.rt_dark_flag == True and common['dark_flag'] == True:
-            
-            # Assign dark spectrum
-            common['dark'] = self.dark_spec
-
-#========================================================================================
-#========================Read test spectrum to get wavelength grid=======================
-#========================================================================================
- 
-        if rt_flag == 'post_analysis':
-            
-            # Read first spectrum to get date of data and define stray light indices
-            spectrum_data = read_spectrum(spectra_files[0], spec_type)
-            x, y, read_date, read_time, spec_no, read_err = spectrum_data
-            
-            # If there is an error reading the spectrum exit loop
-            if read_err[0]:
-                self.print_output('Error reading spectrum:\n' + str(read_err[1]))
-                return
-            
-        else:
-
-            # Read a single spectrum to get wavelength data
-            try:
-                x, y, header, t = acquire_spectrum(self, self.spec, 1, 1)
-                read_date, read_time = t.split()
-                
-            except KeyError:
-                self.print_output('No spectrometer connected')
-                return
-            
-            except SeaBreezeError:
-                self.print_output('Spectrometer disconnected')
-                return 
-        
-        
-        
-        # Find indices of desired wavelength window and add to common
-        common['fit_idx'] = np.where(np.logical_and(settings['wave_start'] <= x, 
-                                                    x <= settings['wave_stop']))
-        grid = x[common['fit_idx']]
-        
-        # Find stray light window
-        common['stray_idx'] = np.where(np.logical_and(280 <= x, x <= 290))
-        
-        # If no stray light pixels available, turn off the flag
-        if len(common['stray_idx'][0]) == 0:
-            common['stray_flag'] = False     
-        else:
-            common['stray_flag'] = True
-            
-        # If forming solar residual create empty array and counter
-        if common['solar_resid_flag'] == 'Generate':
-            common['solar_resid'] = np.zeros(len(grid))
-            resid_count = 0
- 
-#========================================================================================
-#===================================Create ouput folder==================================
-#========================================================================================
-            
-        # Create output folder to hold analysis results
-        if rt_flag == 'rt_analysis':
-            
-            # Create new output folder
-            if self.create_out_flag == True:
-               
-                # Reset loop counter
-                self.loop = 0
-                
-                # Create filename for output file
-                out_excel_fname = self.rt_folder + 'iFit_out.csv'
-                
-                # Open excel file and write header line
-                make_csv_file(out_excel_fname, common)
-                
-                # Create folder to hold spectra
-                if not os.path.exists(self.rt_folder + 'spectra/'):
-                        os.makedirs(self.rt_folder + 'spectra/')
-                
-                # Turn off flag to limit folders to one per program run
-                self.create_out_flag = False
-                
-            else:
-                
-                # Get final spectrum number in folder
-                flist = glob.glob(self.rt_folder + 'spectra/spectrum*')
-                
-                # Update loop number to append spectra to those in the folder
-                self.loop = int(flist[-1][-9:-4]) + 1
-                
-                # Create filename for output file
-                out_excel_fname = self.rt_folder + 'iFit_out.csv'
-                
-        else:
-            
-            # Reset loop counter
-            self.loop = 0
-            
-            # Create filepath to directory to hold program outputs
-            post_results_folder = 'Results/iFit/' + str(read_date) + '/'
-            
-            # Create folder if it doesn't exist
-            if not os.path.exists(post_results_folder):
-                    os.makedirs(post_results_folder)
-            
-            # Create filename for output file
-            out_excel_fname = post_results_folder + 'iFit_out.csv'
-        
-            try:
-                
-                # Open excel file and write header line
-                make_csv_file(out_excel_fname, common)
-                    
-            except PermissionError:
-                self.print_output('Please close iFit output file to continue')
-                self.build_model_flag = True
-                return                
-
-#========================================================================================
-#===========================Set Progress bar to correct format===========================
-#========================================================================================
-            
-        if rt_flag == 'rt_analysis':
-            self.progress['mode'] = 'indeterminate'
-            self.progress['value'] = 0
-        else:
-            self.progress['mode'] = 'determinate'
-            self.progress['value'] = 0
-             
 #========================================================================================
 #===================================Start Analysis Loop==================================
 #========================================================================================
 
         # Open excel file
-        with open(out_excel_fname, 'a') as writer:
+        with open(self.out_excel_fname, 'a') as writer:
 
             # Print output message to begin
             self.print_output('Loop Started\n' +\
@@ -847,162 +679,95 @@ class mygui(tk.Tk):
             gas = {}
             spec_nos = []
             spec_times = []
-            gas['SO2_amts']  = []
-            gas['SO2_errs']  = []
-            gas['NO2_amts']  = []
-            gas['NO2_errs']  = []
-            gas['O3_amts']   = []
-            gas['O3_errs']   = []
-            gas['BrO_amts']  = []
-            gas['BrO_errs']  = []
-            gas['Ring_amts'] = []
-            gas['Ring_errs'] = []
+            gas['so2_amts']  = []
+            gas['so2_errs']  = []
+            gas['no2_amts']  = []
+            gas['no2_errs']  = []
+            gas['o3_amts']   = []
+            gas['o3_errs']   = []
+            gas['bro_amts']  = []
+            gas['bro_errs']  = []
+            gas['ring_amts'] = []
+            gas['ring_errs'] = []
+            
+            # If forming solar residual create empty array and counter
+            if common['solar_resid_flag'] == 'Generate':
+                common['solar_resid'] = np.zeros(len(common['grid']))
+                resid_count = 0
         
             # Update status
-            if rt_flag == 'rt_analysis':
+            if mode == 'rt':
                 self.status.set('Acquiring')
             else:
                 self.status.set('Analysing')
             mygui.update(self)
 
             # Begin analysis loop
-            while True:
-                            
+            while not self.stop_flag:
                 
 #========================================================================================
-#======================================Post analysis=====================================
-#========================================================================================                
+#================================Read and analyse spectra================================
+#========================================================================================
                 
-                # End loop if finished
-                if self.stop_flag == True:
-                    break
+#=====================================Post analysis======================================
+                if mode == 'post':
                     
-                # Read spectrum from file and fit
-                if rt_flag == 'post_analysis':
-
                     try:
-                        fname = spectra_files[self.loop]
-                        spec_data = read_spectrum(fname, spec_type)
-                        x, y, read_date, read_time, spec_no, skip_flag = spec_data
-
+                        # Read the spectrum
+                        fname = self.spec_fpaths[self.loop]
+                        spec_data = read_spectrum(fname, self.spec_type.get())
+                        x, y, read_date, read_time, spec_no, read_err = spec_data
+                
                     except IndexError:
+                        # Stop if reached the end of the spectra
                         self.print_output('Fitting complete')
-                        break 
+                        break
                     
-                    if skip_flag[0] == False:
+                    if read_err[0] == False:
                     
-                        # Fit
-                        results = fit_spec(common, [x, y], grid)
-                        fit_dict, err_dict, y_data, fit, gas_T, fit_flag = results
+                        # If spectrum was read ok then fit!
+                        fit_results = fit_spec(common, [x, y], common['grid'])
+                        fit_dict, err_dict, y_data, fit, gas_T, fit_flag = fit_results
+                        proceed_flag = True
                         
-                        now_fit_spec = True
-                        
-                        # Update progress bar
-                        prog = (self.loop+1)/len(spectra_files) * 100
-                        self.progress['value'] = prog
-                        
-                
-#========================================================================================
-#=======================================RT analysis======================================
-#========================================================================================  
-                        
-                
-                # Read spectrum from spectrometer and fit
-                elif rt_flag=='rt_analysis' and self.toggle_button.config('text')[-1]==\
-                'FITTING ON' and common['last_spec'].all() != 0:
-
-                    # Create results queue
-                    result_queue = Queue()
-                    
-                    # Create two threads, one to read a spectrum and one to fit
-                    t1 = Thread(target = acquire_spectrum, args=(self,
-                                                                 self.spec,
-                                                                 settings['int_time'],
-                                                                 int(self.coadds.get()),
-                                                                 True,
-                                                                 True,
-                                                                 result_queue))
-                    
-                    t2 = Thread(target = fit_spec, args = (common,
-                                                           [x, common['last_spec']],
-                                                           grid,
-                                                           result_queue))
-                    
-                    # Initiate threads
-                    t1.start()
-                    t2.start()
-                    
-                    # Join threads once finished
-                    t1.join()
-                    t2.join()
-                    
-                    # Get results from threads
-                    thread_out = {}
-                    while not result_queue.empty():
-                        result = result_queue.get()
-                        thread_out[result[0]] = result[1]
-
-                    # Get fit results
-                    fit_dict, err_dict, y_data, fit, gas_T, fit_flag = thread_out['fit']
-                   
-                    # Get spectrum
-                    x, y, header, t = thread_out['spectrum']
-                    read_date, read_time = t.split(' ')
-                    
-                    # Build file name
-                    n = str('{num:05d}'.format(num=self.loop))
-                    fname = self.rt_folder + 'spectra/spectrum_' + n + '.txt'
-                    
-                    # Save
-                    np.savetxt(fname, np.column_stack((x, y)), header = header)
-                    
-                    # Update last spec variable and spec number
-                    common['last_spec'] = y
-                    spec_no = self.loop
-                    
+                    else:
+                        # If a read error occured, skip the analysis step
+                        self.print_output('Error reading spectrum:\n' + str(read_err[1]))
+                        proceed_flag = False
+                     
                     # Update progress bar
-                    prog = self.loop + 1
-                    self.progress['value'] = prog
+                    prog = (self.loop+1)/len(self.spec_fpaths) * 100
                     
-                    
-                    now_fit_spec = True
                 
-                
-#========================================================================================
-#====================================Just read spectrum==================================
-#========================================================================================              
-                
-                # Read spectrum from spectrometer but do not fit
-                else:
-
-                    # Read spectrum
-                    x, y, header, t = acquire_spectrum(self, self.spec, 
-                                                       settings['int_time'],
-                                                       int(self.coadds.get()))
-                    read_date, read_time = t.split(' ')
+#===================================Real time analysis===================================
+                if mode == 'rt':
                     
-                    # Build file name
-                    n = str('{num:05d}'.format(num=self.loop))
-                    fname = self.rt_folder + 'spectra/spectrum_' + n + '.txt'
+                    # Measure spectrum while fitting the last if fitting is on
+                    [x, y], fit_results, spec_info = rt_analyse(self, settings, common, 
+                                                                mygui)
+                    spec_no, read_date, read_time, fname = spec_info
                     
-                    # Save
-                    np.savetxt(fname, np.column_stack((x,y)), header = header)
+                    # Unpack fit results
+                    if len(fit_results) != 0:
+                        fit_dict, err_dict, y_data, fit, gas_T, fit_flag = fit_results
+                        proceed_flag = True
                     
-                    # Update last spec variable
-                    common['last_spec'] = y
+                    # If not fitting, skip the analysis step
+                    else:
+                        proceed_flag = False
                     
-                    # Update progress bar
+                    # Set progress
                     prog = self.loop
-                    self.progress['value'] = prog
                     
-                    now_fit_spec = False
+                # Update progress bar
+                self.progress['value'] = prog
+                    
+#========================================================================================
+#===================================Look at fit results==================================
+#========================================================================================               
                 
-#========================================================================================
-#========================Unpack fit results and add to output file=======================
-#========================================================================================
-                 
-                if now_fit_spec == True and skip_flag[0] == False:                  
-                    
+                if proceed_flag == True:
+                
                     # Calculate the residual of the fit
                     if settings['resid_type'] == 'Percentage':
                         resid=np.multiply(np.divide(np.subtract(y_data,fit),y_data), 100)
@@ -1021,7 +786,7 @@ class mygui(tk.Tk):
                         common['solar_resid'] = np.add(common['solar_resid'],
                                                        np.divide(y_data, fit))
                         resid_count += 1
-
+    
                     # Check fit quality and update first guess params if required
                     if fit_flag == False:
                         fit_msg = 'Failed'
@@ -1045,14 +810,14 @@ class mygui(tk.Tk):
                                 common['params'][key][0] = val
     
                     # Write results to excel file, starting with spectrum info
-                    writer.write(str(fname)          + ',' + \
-                                 str(spec_no)        + ',' + \
-                                 str(str(read_date)) + ',' + \
-                                 str(str(read_time)))          
+                    writer.write(str(fname)     + ',' + \
+                                 str(spec_no)   + ',' + \
+                                 str(read_date) + ',' + \
+                                 str(read_time))          
         
                     # Print fit results and error for each parameter          
                     for key, val in common['params'].items():
-
+    
                         if val[1] == 'Fit':
                             writer.write(','+str(fit_dict[key])+','+str(err_dict[key]))
                         if val[1] in ['Fix', 'Pre-calc', 'File']:
@@ -1070,60 +835,37 @@ class mygui(tk.Tk):
                     except AttributeError:
                         spec_times.append(hms_to_julian(read_time, 
                                                         str_format = '%H:%M:%S'))
-                    
-                    if common['params']['so2_amt'][1] == 'Fit':
-                        gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
-                        gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
-                    if common['params']['no2_amt'][1] == 'Fit':
-                        gas['NO2_amts'].append(fit_dict['no2_amt']/2.463e15)
-                        gas['NO2_errs'].append(err_dict['no2_amt']/2.463e15)
-                    if common['params']['o3_amt'][1] == 'Fit':
-                        gas['O3_amts'].append(fit_dict['o3_amt']/2.463e15)
-                        gas['O3_errs'].append(err_dict['o3_amt']/2.463e15)
-                    if common['params']['bro_amt'][1] == 'Fit':
-                        gas['BrO_amts'].append(fit_dict['bro_amt']/2.463e15)
-                        gas['BrO_errs'].append(err_dict['bro_amt']/2.463e15)
-                    if common['params']['ring_amt'][1] == 'Fit':
-                        gas['Ring_amts'].append(fit_dict['ring_amt'])
-                        gas['Ring_errs'].append(err_dict['ring_amt'])
                         
-                    if common['params']['so2_amt'][1] == 'Fix':
-                        gas['SO2_amts'].append(common['params']['so2_amt'][0]/2.463e15)
-                        gas['SO2_errs'].append(0)
-                    if common['params']['no2_amt'][1] == 'Fix':
-                        gas['NO2_amts'].append(common['params']['no2_amt'][0]/2.463e15)
-                        gas['NO2_errs'].append(0)
-                    if common['params']['o3_amt'][1] == 'Fix':
-                        gas['O3_amts'].append(common['params']['o3_amt'][0]/2.463e15)
-                        gas['O3_errs'].append(0)
-                    if common['params']['bro_amt'][1] == 'Fix':
-                        gas['BrO_amts'].append(common['params']['bro_amt'][0]/2.463e15)
-                        gas['BrO_errs'].append(0)
-                    if common['params']['ring_amt'][1] == 'Fix':
-                        gas['Ring_amts'].append(common['params']['ring_amt'][0])
-                        gas['Ring_errs'].append(0)
+                    for parameter in ['so2', 'no2', 'o3', 'bro', 'ring']:
                         
-                    if common['params']['so2_amt'][1] == 'N/A':
-                        gas['SO2_amts'].append(0)
-                        gas['SO2_errs'].append(0)    
-                    if common['params']['no2_amt'][1] == 'N/A':
-                        gas['NO2_amts'].append(0)
-                        gas['NO2_errs'].append(0)
-                    if common['params']['o3_amt'][1] == 'N/A':
-                        gas['O3_amts'].append(0)
-                        gas['O3_errs'].append(0)
-                    if common['params']['bro_amt'][1] == 'N/A':
-                        gas['BrO_amts'].append(0)
-                        gas['BrO_errs'].append(0)
-                    if common['params']['ring_amt'][1] == 'N/A':
-                        gas['Ring_amts'].append(0)
-                        gas['Ring_errs'].append(0)
+                        # Make dictionary key
+                        key1 = parameter + '_amt'
+                        key2 = parameter + '_amts'
+                        key3 = parameter + '_errs'
+                        
+                        # Choose conversion factor
+                        if parameter == 'ring':
+                            conv = 1
+                        else:
+                            conv = 2.463e15
 
+                        if common['params'][key1][1] == 'Fit':
+                            gas[key2].append(fit_dict[key1]/conv)
+                            gas[key3].append(err_dict[key1]/conv)
+                            
+                        if common['params'][key1][1] == 'Fix':
+                            gas[key2].append(common['params'][key1][0]/conv)
+                            gas[key3].append(0)
+                            
+                        if common['params'][key1][1] == 'N/A':
+                            gas[key2].append(0)
+                            gas[key3].append(0)
+    
                     # Update quick analysis with values
                     last_amt="{0:0.2f}".format(gas[settings['analysis_gas']+'_amts'][-1])
                     last_err="{0:0.2f}".format(gas[settings['analysis_gas']+'_errs'][-1])
-                    self.last_so2_amt.set(last_amt + ' ppm.m')
-                    self.last_so2_err.set(last_err + ' ppm.m')
+                    self.last_amt.set(last_amt + ' ppm.m')
+                    self.last_err.set(last_err + ' ppm.m')
                     
                     # Cut if too long to avoid slowing program
                     if bool(settings['scroll_flag']) == True:
@@ -1145,9 +887,9 @@ class mygui(tk.Tk):
 #========================================================================================
 
                 # Replot data
-                if bool(settings['Show Graphs']) == True and skip_flag[0] == False:            
+                if bool(settings['Show Graphs']) == True:            
                     
-                    if now_fit_spec == True:
+                    if proceed_flag == True:
                         
                         # Get selected transmittance data
                         gas_tran = gas_T[settings['analysis_gas'] + '_tran']
@@ -1174,7 +916,7 @@ class mygui(tk.Tk):
                         s_hi = max(gas_spec) + (0.1*max(gas_spec))
                         t_lo, t_hi = min([t_lo, s_lo]), max([t_hi, s_hi])
                         
-                        
+                        grid = common['grid']
                         # Build data array to pass to graphing function
                         #                 x data  y data    x limits     y limits
                         data = np.array(([grid,   y_data,   'auto'     , [y_lo,y_hi]],
@@ -1185,7 +927,7 @@ class mygui(tk.Tk):
                                          [grid,   gas_spec, 'auto'     , [t_lo,t_hi]],
                                          [x_plot, gas_amts, 'auto'     , 'auto'     ]))
                     
-                    else:
+                    elif mode == 'rt':
                         
                         # Build axes and lines arrays
                         lines = [self.line2]
@@ -1205,15 +947,11 @@ class mygui(tk.Tk):
                     
                     # Make it look nice
                     plt.tight_layout()
-                
-                if skip_flag[0] == True:
-                    
-                    self.print_output('Error reading spectrum:\n' + str(skip_flag[1]))
                                
                 # Add to the count cycle
                 self.loop += 1
                 
-                # Kepp common in memory
+                # Keep common in memory
                 self.common = common
                 
                 # Force gui to update
