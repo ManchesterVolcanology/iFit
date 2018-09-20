@@ -64,12 +64,12 @@ def fit_toggle(self, settings):
         self.toggle_button.config(text = 'FITTING OFF')
         self.toggle_button.config(bg = 'red')
         self.print_output('Fitting turned off\n' +\
-                          'Spectrum number ' + str(settings['loop']))
+                          'Spectrum number ' + str(self.loop))
     else:
         self.toggle_button.config(text = 'FITTING ON')
         self.toggle_button.config(bg = 'green')
         self.print_output('Fitting turned on\n' +\
-                          'Spectrum number ' + str(settings['loop']))
+                          'Spectrum number ' + str(self.loop))
 
 #========================================================================================
 #=================================Connect to Spectrometer================================
@@ -83,19 +83,20 @@ def connect_spec(self, settings):
     
     # If no devices are connected then set string to show. Else assign first to spec
     if len(devices) == 0:
-        settings['spec'] = 0
-        settings['Spectrometer'] = 'No devices found'
-        devices = ['No devices found']
+        self.spec = 0
+        settings['Spectrometer'] = 'Not Connected'
+        devices = ['Not Connected']
+        self.print_output('No devices found')
     else:
         try:
             # Connect to spectrometer
-            settings['spec'] = sb.Spectrometer(devices[0])
+            self.spec = sb.Spectrometer(devices[0])
             
             # Set intial integration time
-            settings['spec'].integration_time_micros(float(self.int_time.get())*1000)
+            self.spec.integration_time_micros(float(self.int_time.get())*1000)
             
             # Record serial number in settings
-            settings['Spectrometer'] = str(settings['spec'].serial_number)
+            settings['Spectrometer'] = str(self.spec.serial_number)
             
             self.print_output('Spectrometer '+settings['Spectrometer']+' Connected')
             
@@ -103,11 +104,11 @@ def connect_spec(self, settings):
             results_folder = 'Results/iFit/'+str(datetime.date.today())+'/ifit_out/'
            
             # Create folder
-            settings['rt_folder'] = make_directory(results_folder, overwrite = True)
+            self.rt_folder = make_directory(results_folder, overwrite = True)
             
             # Create notes file
-            settings['notes_fname'] = settings['rt_folder'] + 'notes.txt'
-            with open(settings['notes_fname'], 'w') as w:
+            self.notes_fname = self.rt_folder + 'notes.txt'
+            with open(self.notes_fname, 'w') as w:
                 w.write('Notes file for iFit\n\n')
     
             
@@ -158,10 +159,10 @@ def update_int_time(self, settings):
     try:
         # Update integration time on spectrometer
         settings['int_time'] = float(self.int_time.get())
-        settings['spec'].integration_time_micros(settings['int_time']*1000)
+        self.spec.integration_time_micros(settings['int_time']*1000)
         
         self.print_output('Integration time updated to '+str(settings['int_time']) +\
-                          '\nSpectrum number ' + str(settings['loop']))
+                          '\nSpectrum number ' + str(self.loop))
         
     except KeyError:
         self.print_output('No spectrometer conected')
@@ -177,7 +178,7 @@ def test_spec(self, settings, mygui, line, ax):
     mygui.update(self)
     
     x, y, header, read_time = acquire_spectrum(self,
-                                               settings['spec'], 
+                                               self.spec, 
                                                settings['int_time'], 
                                                int(self.coadds.get()))
     
@@ -210,7 +211,7 @@ def read_darks(self, settings, mygui, line, ax):
         dark = np.zeros(2048)
         
         # Define dark filepath
-        dark_fp = settings['rt_folder'] + 'dark/'
+        dark_fp = self.rt_folder + 'dark/'
         
         # Create the directory  
         dark_fp = make_directory(dark_fp)
@@ -226,7 +227,7 @@ def read_darks(self, settings, mygui, line, ax):
             
             # Read spectrometer
             try:
-                spc = acquire_spectrum(self, settings['spec'], settings['int_time'],
+                spc = acquire_spectrum(self, self.spec, settings['int_time'],
                                        int(self.coadds.get()))
             except KeyError:
                 self.print_output('No spectrometer connected')
@@ -268,13 +269,13 @@ def read_darks(self, settings, mygui, line, ax):
         
         # Update notes file
         self.print_output('Dark updated\n' + \
-                          'Spectrum no: ' + str(settings['loop']) + '\n' + \
+                          'Spectrum no: ' + str(self.loop) + '\n' + \
                           'No. darks: ' + str(dark_n) + '\n' + \
                           'Integration time (ms): '+str(settings['int_time'])+'\n'+\
                           'Coadds: ' + str(self.coadds.get()))
          
         # Set dark_flag to True
-        settings['rt_dark_flag'] = True
+        self.rt_dark_flag = True
         
         # Update status
         self.status.set('Standby')
@@ -284,8 +285,8 @@ def read_darks(self, settings, mygui, line, ax):
 #========================================================================================
         
 def stop(self, settings):
-    settings['stop_flag'] = True
-    self.print_output('Loop Stopped\nSpectrum number ' + str(settings['loop']-1))
+    self.stop_flag = True
+    self.print_output('Loop Stopped\nSpectrum number ' + str(self.loop))
 
 #========================================================================================
 #====================================Advanced Setings====================================

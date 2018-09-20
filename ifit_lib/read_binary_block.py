@@ -84,7 +84,7 @@ def read_binary_block(fpath):
         
         # Define arrays
         info_block = np.ndarray([5,n_spectra])
-        spec_block = np.ndarray([2046,n_spectra])
+        spec_block = np.ndarray([n_spectra, 2046])
         
         # Loop through each scan and add data to array
         # Header is always 37 bytes and the spectrum is 4094 bytes consisting of 2047 two
@@ -119,7 +119,7 @@ def read_binary_block(fpath):
                 spec[i] = int.from_bytes([scan_data[i*2], scan_data[i*2 + 1]], 
                                          byteorder='big')
             
-            spec_block[:,n] = spec
+            spec_block[n] = spec
         
         
         return 0, wavelength, header, info_block, spec_block

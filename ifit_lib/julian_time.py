@@ -8,7 +8,7 @@ Created on Thu Jul 12 09:36:21 2018
 import numpy as np
 import datetime as dt
 
-def hms_to_julian(times, str_format = None, out_format = 'decimal days'):
+def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     
     '''
     Function to convert an array of datetime objects or strings to julian time

@@ -65,15 +65,15 @@ class mygui(tk.Tk):
         tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         
         # Create notebook to hold different frames
-        nb = ttk.Notebook(self)
-        page1 = ttk.Frame(nb)
-        page2 = ttk.Frame(nb)
+        self.nb = ttk.Notebook(self)
+        page1 = ttk.Frame(self.nb)
+        page2 = ttk.Frame(self.nb)
         
         # Create two frames, one for post analysis and one for real time acquisition
-        nb.add(page2, text = 'Real Time Acquisition')
-        nb.add(page1, text = 'Post Analysis')
+        self.nb.add(page2, text = 'Real Time Acquisition')
+        self.nb.add(page1, text = 'Post Analysis')
         
-        nb.grid(column=0, padx=10, pady=10, sticky = 'NW')
+        self.nb.grid(column=0, padx=10, pady=10, sticky = 'NW')
         
         # Create frame to hold graphs
         graph_frame = ttk.Frame(self, relief = 'groove')
@@ -203,17 +203,25 @@ class mygui(tk.Tk):
             settings['o3_temp']           = '233K'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
+            settings['Notebook page']     = 0
             settings['Spectra Filepaths'] = ''
             settings['Dark Filepaths']    = ''
  
+        # Set notebook tab, and update on change
+        def on_nb_change(event):
+            settings['Notebook page'] = self.nb.index(self.nb.select())
+            
+        self.nb.select(int(settings['Notebook page']))
+        self.nb.bind("<<NotebookTabChanged>>", func = on_nb_change)
+        
         # Create loop counter to keep track of the analysis
-        settings['loop'] = 0
+        self.loop = 0
         
         # Create flag to ensure only one output file is created per program launch
-        settings['create_out_flag'] = True
+        self.create_out_flag = True
         
         # Create flag to see if darks have been measured yet
-        settings['rt_dark_flag'] = False
+        self.rt_dark_flag = False
         
         # Create flag to control whether or not to build the forward model
         self.build_model_flag = True
@@ -475,7 +483,8 @@ class mygui(tk.Tk):
         no_darks_l = tk.Label(setup_frame2, text = 'No. Darks:', 
                               font = NORM_FONT)
         no_darks_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        no_darks_e = ttk.Entry(setup_frame2, textvariable = self.no_darks)
+        no_darks_e = tk.Spinbox(setup_frame2, textvariable=self.no_darks,
+                                width = 20, from_ = 1, to = 20)
         no_darks_e.grid(row = 3, column = 1, padx = 5, pady = 5)
         
         # Create button to connect to spectrometer
@@ -544,7 +553,7 @@ class mygui(tk.Tk):
     def handler(self):
         
         # Turn on stopping flag
-        settings['stop_flag'] = True
+        self.stop_flag = True
         
         # Open save dialouge
         if tkMessageBox.askyesno('Exit', 'Would you like to\nsave the settings?'):
@@ -573,10 +582,10 @@ class mygui(tk.Tk):
         
         # Write to notes file
         try:
-            with open(settings['notes_fname'], 'a') as a:
+            with open(self.notes_fname, 'a') as a:
                 a.write(text)
         
-        except KeyError:
+        except AttributeError:
             pass
         
         # Force gui to update
@@ -589,8 +598,13 @@ class mygui(tk.Tk):
     # Function to begin analysis loop
     def begin(self, rt_flag):
         
+        # If running real time, check if spectrometer is connected
+        if rt_flag == 'rt_analysis' and settings['Spectrometer'] == 'Not Connected':
+            self.print_output('No spectrometer connected')
+            return
+        
         # Turn off stopping flag
-        settings['stop_flag'] = False
+        self.stop_flag = False
  
         # Create flag to skip an analyis in case of spectrum read error
         skip_flag = [False, 'No error']
@@ -613,7 +627,7 @@ class mygui(tk.Tk):
         common['solar_resid_flag'] = str(settings['solar_resid_flag'])
 
         # Turn of dark flag if in real time and no darks have been taken
-        if rt_flag == 'rt_analysis' and settings['rt_dark_flag'] == False:
+        if rt_flag == 'rt_analysis' and self.rt_dark_flag == False:
             common['dark_flag'] = 0
             self.print_output('WARNING! No dark spectra aquired!')
 
@@ -689,7 +703,7 @@ class mygui(tk.Tk):
                     self.print_output('Error reading dark spectrum:\n'+str(read_err[1]))
                     return
                 
-        elif settings['rt_dark_flag'] == True and common['dark_flag'] == True:
+        elif self.rt_dark_flag == True and common['dark_flag'] == True:
             
             # Assign dark spectrum
             common['dark'] = self.dark_spec
@@ -704,11 +718,16 @@ class mygui(tk.Tk):
             spectrum_data = read_spectrum(spectra_files[0], spec_type)
             x, y, read_date, read_time, spec_no, read_err = spectrum_data
             
+            # If there is an error reading the spectrum exit loop
+            if read_err[0]:
+                self.print_output('Error reading spectrum:\n' + str(read_err[1]))
+                return
+            
         else:
 
             # Read a single spectrum to get wavelength data
             try:
-                x, y, header, t = acquire_spectrum(self, settings['spec'], 1, 1)
+                x, y, header, t = acquire_spectrum(self, self.spec, 1, 1)
                 read_date, read_time = t.split()
                 
             except KeyError:
@@ -719,10 +738,7 @@ class mygui(tk.Tk):
                 self.print_output('Spectrometer disconnected')
                 return 
         
-        # If there is an error reading the spectrum exit loop
-        if read_err[0]:
-            self.print_output('Error reading spectrum:\n' + str(read_err[1]))
-            return
+        
         
         # Find indices of desired wavelength window and add to common
         common['fit_idx'] = np.where(np.logical_and(settings['wave_start'] <= x, 
@@ -751,39 +767,39 @@ class mygui(tk.Tk):
         if rt_flag == 'rt_analysis':
             
             # Create new output folder
-            if settings['create_out_flag'] == True:
+            if self.create_out_flag == True:
                
                 # Reset loop counter
-                settings['loop'] = 0
+                self.loop = 0
                 
                 # Create filename for output file
-                out_excel_fname = settings['rt_folder'] + 'iFit_out.csv'
+                out_excel_fname = self.rt_folder + 'iFit_out.csv'
                 
                 # Open excel file and write header line
                 make_csv_file(out_excel_fname, common)
                 
                 # Create folder to hold spectra
-                if not os.path.exists(settings['rt_folder'] + 'spectra/'):
-                        os.makedirs(settings['rt_folder'] + 'spectra/')
+                if not os.path.exists(self.rt_folder + 'spectra/'):
+                        os.makedirs(self.rt_folder + 'spectra/')
                 
                 # Turn off flag to limit folders to one per program run
-                settings['create_out_flag'] = False
+                self.create_out_flag = False
                 
             else:
                 
                 # Get final spectrum number in folder
-                flist = glob.glob(settings['rt_folder'] + 'spectra/spectrum*')
+                flist = glob.glob(self.rt_folder + 'spectra/spectrum*')
                 
                 # Update loop number to append spectra to those in the folder
-                settings['loop'] = int(flist[-1][-9:-4]) + 1
+                self.loop = int(flist[-1][-9:-4]) + 1
                 
                 # Create filename for output file
-                out_excel_fname = settings['rt_folder'] + 'iFit_out.csv'
+                out_excel_fname = self.rt_folder + 'iFit_out.csv'
                 
         else:
             
             # Reset loop counter
-            settings['loop'] = 0
+            self.loop = 0
             
             # Create filepath to directory to hold program outputs
             post_results_folder = 'Results/iFit/' + str(read_date) + '/'
@@ -825,7 +841,7 @@ class mygui(tk.Tk):
 
             # Print output message to begin
             self.print_output('Loop Started\n' +\
-                              'Spectrum number ' + str(settings['loop']))  
+                              'Spectrum number ' + str(self.loop)) 
             
             # Create empty arrays to hold the loop number and so2_amt values
             gas = {}
@@ -858,14 +874,14 @@ class mygui(tk.Tk):
 #========================================================================================                
                 
                 # End loop if finished
-                if settings['stop_flag'] == True:
+                if self.stop_flag == True:
                     break
                     
                 # Read spectrum from file and fit
                 if rt_flag == 'post_analysis':
 
                     try:
-                        fname = spectra_files[settings['loop']]
+                        fname = spectra_files[self.loop]
                         spec_data = read_spectrum(fname, spec_type)
                         x, y, read_date, read_time, spec_no, skip_flag = spec_data
 
@@ -882,7 +898,7 @@ class mygui(tk.Tk):
                         now_fit_spec = True
                         
                         # Update progress bar
-                        prog = (settings['loop']+1)/len(spectra_files) * 100
+                        prog = (self.loop+1)/len(spectra_files) * 100
                         self.progress['value'] = prog
                         
                 
@@ -900,7 +916,7 @@ class mygui(tk.Tk):
                     
                     # Create two threads, one to read a spectrum and one to fit
                     t1 = Thread(target = acquire_spectrum, args=(self,
-                                                                 settings['spec'],
+                                                                 self.spec,
                                                                  settings['int_time'],
                                                                  int(self.coadds.get()),
                                                                  True,
@@ -934,18 +950,18 @@ class mygui(tk.Tk):
                     read_date, read_time = t.split(' ')
                     
                     # Build file name
-                    n = str('{num:05d}'.format(num=settings['loop']))
-                    fname = settings['rt_folder'] + 'spectra/spectrum_' + n + '.txt'
+                    n = str('{num:05d}'.format(num=self.loop))
+                    fname = self.rt_folder + 'spectra/spectrum_' + n + '.txt'
                     
                     # Save
                     np.savetxt(fname, np.column_stack((x, y)), header = header)
                     
                     # Update last spec variable and spec number
                     common['last_spec'] = y
-                    spec_no = settings['loop']
+                    spec_no = self.loop
                     
                     # Update progress bar
-                    prog = settings['loop'] + 1
+                    prog = self.loop + 1
                     self.progress['value'] = prog
                     
                     
@@ -960,14 +976,14 @@ class mygui(tk.Tk):
                 else:
 
                     # Read spectrum
-                    x, y, header, t = acquire_spectrum(self, settings['spec'], 
-                                                      settings['int_time'],
-                                                      int(self.coadds.get()))
+                    x, y, header, t = acquire_spectrum(self, self.spec, 
+                                                       settings['int_time'],
+                                                       int(self.coadds.get()))
                     read_date, read_time = t.split(' ')
                     
                     # Build file name
-                    n = str('{num:05d}'.format(num=settings['loop']))
-                    fname = settings['rt_folder'] + 'spectra/spectrum_' + n + '.txt'
+                    n = str('{num:05d}'.format(num=self.loop))
+                    fname = self.rt_folder + 'spectra/spectrum_' + n + '.txt'
                     
                     # Save
                     np.savetxt(fname, np.column_stack((x,y)), header = header)
@@ -976,7 +992,7 @@ class mygui(tk.Tk):
                     common['last_spec'] = y
                     
                     # Update progress bar
-                    prog = settings['loop']
+                    prog = self.loop
                     self.progress['value'] = prog
                     
                     now_fit_spec = False
@@ -1049,7 +1065,11 @@ class mygui(tk.Tk):
                     
                     # Add values to array for plotting
                     spec_nos.append(spec_no)
-                    spec_times.append(hms_to_julian(read_time))
+                    try:
+                        spec_times.append(hms_to_julian(read_time))
+                    except AttributeError:
+                        spec_times.append(hms_to_julian(read_time, 
+                                                        str_format = '%H:%M:%S'))
                     
                     if common['params']['so2_amt'][1] == 'Fit':
                         gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
@@ -1191,7 +1211,7 @@ class mygui(tk.Tk):
                     self.print_output('Error reading spectrum:\n' + str(skip_flag[1]))
                                
                 # Add to the count cycle
-                settings['loop'] += 1
+                self.loop += 1
                 
                 # Kepp common in memory
                 self.common = common
@@ -1225,25 +1245,17 @@ class mygui(tk.Tk):
         with open('data_bases/ifit_settings.txt', 'w') as w:
             
             # Save each setting from the gui into settings
-            settings['Spectrometer'] = str(self.spec_name.get())       
-            settings['Spectra Type'] = str(self.spec_type.get())       
-            settings['int_time']     = str(self.int_time.get())         
-            settings['coadds']       = str(self.coadds.get())
-            settings['no_darks']     = str(self.no_darks.get())
+            settings['Spectrometer']      = str(self.spec_name.get())       
+            settings['Spectra Type']      = str(self.spec_type.get())       
+            settings['int_time']          = str(self.int_time.get())         
+            settings['coadds']            = str(self.coadds.get())
+            settings['no_darks']          = str(self.no_darks.get())
+            settings['Spectra Filepaths'] = str(self.spec_fpaths)
+            settings['Dark Filepaths']    = str(self.dark_fpaths)
             
             # Add all of the settings dictionary
             for s in settings:
                 w.write(s + ';' + str(settings[s]) + '\n')
-            
-            try:
-                w.write('Spectra Filepaths;' + str(self.spec_fpaths) + '\n')
-            except AttributeError:
-                w.write('Spectra Filepaths; \n') 
-            
-            try:
-                w.write('Dark Filepaths;' + str(self.dark_fpaths))
-            except AttributeError:
-                w.write('Dark Filepaths; ')
                 
         self.print_output('Settings saved')
 
