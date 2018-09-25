@@ -795,14 +795,7 @@ def adv_settings(self, settings, version):
                                command = build_fwd_model)
     o3_temp_c.grid(row = row_n, column = 3, padx = 5, pady = 5)
     row_n += 1
-    
-    
-    
-    
-    
-    
-    
-    
+       
     # Bro xsec
     popup.bro_path = tk.StringVar(datab_frame, value = settings['bro_path'])
     bro_path_l = tk.Label(datab_frame, text = 'BrO xsec:', font = NORM_FONT)
@@ -828,8 +821,8 @@ def adv_settings(self, settings, version):
     row_n += 1    
     
     # Create a button to convert a gas cross-section to be converted
-    conv_xsec_b = ttk.Button(datab_frame, text = 'Convert Xsec', command = conv_xsec)
-    conv_xsec_b.grid(row = row_n, column = 1, padx=5, pady=5)
+    #conv_xsec_b = ttk.Button(datab_frame, text = 'Convert Xsec', command = conv_xsec)
+    #conv_xsec_b.grid(row = row_n, column = 1, padx=5, pady=5)
     
 #========================================================================================
 #====================================Graph Settings======================================
