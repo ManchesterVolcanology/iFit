@@ -549,7 +549,7 @@ class mygui(tk.Tk):
             if err == 0:
             
                 # First spectrum is the dark
-                common['dark'] = spec_block[:,0]
+                common['dark'] = spec_block[0]
                 
                 # Create output file
                 fname = fpath.split('/')[-1]
@@ -565,14 +565,14 @@ class mygui(tk.Tk):
                     w.write('\n')
                 
                     # Analyse rest (106 spectra to a scan, first is dark, last is crap)
-                    for n in range(1, len(spec_block.T)):
+                    for n in range(1, len(spec_block)):
                         
                         # End loop if finished
                         if settings['stop_flag'] == True:
                             break
     
                         # Load spectrum
-                        y = spec_block[:,n]
+                        y = spec_block[n]
 
                         # Fit the spectrum
                         fit_data = fit_spec(common, [x, y], grid)
@@ -750,7 +750,7 @@ class mygui(tk.Tk):
                             update_graph(lines, axes, self.canvas, data)
                         
                         # Update loop counter display
-                        prog = ((n+1) / len(spec_block.T)) * 100
+                        prog = ((n+1) / len(spec_block)) * 100
                         self.progress['value'] = prog
                         
                         # Force gui to update

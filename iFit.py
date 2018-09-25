@@ -679,23 +679,16 @@ class mygui(tk.Tk):
             gas = {}
             spec_nos = []
             spec_times = []
-            gas['so2_amts']  = []
-            gas['so2_errs']  = []
-            gas['no2_amts']  = []
-            gas['no2_errs']  = []
-            gas['o3_amts']   = []
-            gas['o3_errs']   = []
-            gas['bro_amts']  = []
-            gas['bro_errs']  = []
-            gas['ring_amts'] = []
-            gas['ring_errs'] = []
+            for g in ['so2', 'no2', 'o3', 'bro', 'ring']:
+                gas[g + '_amts'] = []
+                gas[g + '_errs'] = []
             
             # If forming solar residual create empty array and counter
             if common['solar_resid_flag'] == 'Generate':
                 common['solar_resid'] = np.zeros(len(common['grid']))
                 resid_count = 0
         
-            # Update status
+            # Update status bar message
             if mode == 'rt':
                 self.status.set('Acquiring')
             else:
@@ -892,8 +885,8 @@ class mygui(tk.Tk):
                     if proceed_flag == True:
                         
                         # Get selected transmittance data
-                        gas_tran = gas_T[settings['analysis_gas'] + '_tran']
-                        gas_spec = gas_T[settings['analysis_gas'] + '_spec']
+                        meas_abs = gas_T['meas_abs_' + settings['analysis_gas']]
+                        synth_abs = gas_T['synth_abs_' + settings['analysis_gas']]
                         gas_amts = gas[settings['analysis_gas'] + '_amts']
                     
                         # Build axes and lines arrays
@@ -910,22 +903,22 @@ class mygui(tk.Tk):
                         y_lo, y_hi = min([f_lo, y_lo]), max([f_hi, y_hi])
                         
                         # Limits for so2 trans spectrum
-                        t_lo = min(gas_tran) - abs((0.1*min(gas_tran)))
-                        t_hi = max(gas_tran) + (0.1*max(gas_tran)) 
-                        s_lo = min(gas_spec) - abs((0.1*min(gas_spec)))
-                        s_hi = max(gas_spec) + (0.1*max(gas_spec))
+                        t_lo = min(meas_abs) - abs((0.1*min(meas_abs)))
+                        t_hi = max(meas_abs) + (0.1*max(meas_abs)) 
+                        s_lo = min(synth_abs) - abs((0.1*min(synth_abs)))
+                        s_hi = max(synth_abs) + (0.1*max(synth_abs))
                         t_lo, t_hi = min([t_lo, s_lo]), max([t_hi, s_hi])
                         
                         grid = common['grid']
                         # Build data array to pass to graphing function
-                        #                 x data  y data    x limits     y limits
-                        data = np.array(([grid,   y_data,   'auto'     , [y_lo,y_hi]],
-                                         [grid,   fit,      'auto'     , [y_lo,y_hi]],
-                                         [x   ,   y,        'auto'     , 'auto'     ],
-                                         [grid,   resid,    'auto'     , 'auto'     ],
-                                         [grid,   gas_tran, 'auto'     , [t_lo,t_hi]],
-                                         [grid,   gas_spec, 'auto'     , [t_lo,t_hi]],
-                                         [x_plot, gas_amts, 'auto'     , 'auto'     ]))
+                        #                 x data  y data     x limits     y limits
+                        data = np.array(([grid,   y_data,    'auto'     , [y_lo,y_hi]],
+                                         [grid,   fit,       'auto'     , [y_lo,y_hi]],
+                                         [x   ,   y,         'auto'     , 'auto'     ],
+                                         [grid,   resid,     'auto'     , 'auto'     ],
+                                         [grid,   meas_abs,  'auto'     , [t_lo,t_hi]],
+                                         [grid,   synth_abs, 'auto'     , [t_lo,t_hi]],
+                                         [x_plot, gas_amts,  'auto'     , 'auto'     ]))
                     
                     elif mode == 'rt':
                         

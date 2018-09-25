@@ -20,14 +20,30 @@ def fit_spec(common, spectrum, grid, q = None):
     
     INPUTS:
     -------
-    common:   common dictionary of parameters and variables passed from the main program
-              to subroutines
-    spectrum: array, 2D; intensity data from the measured spectrum 
-    grid:     measurement wavelength grid over which the fit occurs
-    q:        Queue to which to add the output if threaded (default = None)
+    common: dictionary
+        Common dictionary of parameters and variables passed from the main program
+        to subroutines
+    spectrum: 2D array
+        Intensity data from the measured spectrum 
+    grid: 1D array
+        Measurement wavelength grid over which the fit occurs
+    q: queue      
+        Queue to which to add the output if threaded (default = None)
     
     OUTPUTS:
     --------
+    fit_dict: dictionary
+        Dictionary of optimised parameters
+    err_dict: dictionary
+        Dictionary of error in the optimised parameters
+    y_data: array 
+        Measured spectrum, corrected for dark, bias and flat response, in the fitting 
+        window
+    fit: array
+        Fitted spectrum
+    gas_T: dictionary
+        Dictionary of synthetic and measured absorbance spectra
+    fitted_flag: tuple
     popt:        resulting optimised fit parameters
     pcov:        covarience matrix
     y:           processed spectral intensity data (after extracting the desired window 
@@ -103,17 +119,10 @@ def fit_spec(common, spectrum, grid, q = None):
         # Calculate transmittance spectra
         fit = ifit_fwd_model(grid, *popt, calc_trans_flag = True)
         
-        # Form transmittance spectra
-        gas_T['so2_tran']  = -np.log(np.divide(y, com['F_no_so2']))
-        gas_T['no2_tran']  = -np.log(np.divide(y, com['F_no_no2']))
-        gas_T['o3_tran']   = -np.log(np.divide(y, com['F_no_o3']))
-        gas_T['bro_tran']  = -np.log(np.divide(y, com['F_no_bro']))
-        gas_T['ring_tran'] = np.divide(y, com['F_no_ring'])
-        gas_T['so2_spec']  = -np.log(com['so2_spec'])
-        gas_T['no2_spec']  = -np.log(com['no2_spec'])
-        gas_T['o3_spec']   = -np.log(com['o3_spec'])
-        gas_T['bro_spec']  = -np.log(com['bro_spec'])
-        gas_T['ring_spec'] = com['ring_spec']
+        # Form absorbance spectra
+        for g in ['so2', 'no2', 'o3', 'bro', 'ring']:
+            gas_T['meas_abs_' + g] = -np.log(np.divide(y, com['F_no_' + g]))
+            gas_T['synth_abs_' + g]  = -np.log(com[g + '_spec'])
         
         #################################################################################
         '''
@@ -130,23 +139,18 @@ def fit_spec(common, spectrum, grid, q = None):
     
     # If fit fails, report and carry on
     except RuntimeError:
+        # Fill returned arrays with zeros
         popt = np.zeros(len(fit_params))
         pcov = np.zeros((len(fit_params),len(fit_params)))
         
         fit = np.zeros(len(grid))
         
-        # Form transmittance spectra
-        gas_T['so2_tran']  = np.zeros(len(grid))
-        gas_T['no2_tran']  = np.zeros(len(grid))
-        gas_T['o3_tran']   = np.zeros(len(grid))
-        gas_T['bro_tran']  = np.zeros(len(grid))
-        gas_T['ring_tran'] = np.zeros(len(grid))
-        gas_T['so2_spec']  = np.zeros(len(grid))
-        gas_T['so2_spec']  = np.zeros(len(grid))
-        gas_T['o3_spec']   = np.zeros(len(grid))
-        gas_T['bro_spec']  = np.zeros(len(grid))
-        gas_T['ring_spec'] = np.zeros(len(grid))
-        
+        # Form absorbance spectra
+        for g in ['so2', 'no2', 'o3', 'bro', 'ring']:
+            gas_T['meas_abs_' + g] = np.zeros(len(grid))
+            gas_T['synth_abs_' + g]  = np.zeros(len(grid))
+            
+        # Turn off fitted flag
         fitted_flag = False
 
     # Unpack fit results
