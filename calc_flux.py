@@ -28,7 +28,7 @@ import folium
 from ifit_lib.find_nearest import extract_window
 from ifit_lib.read_gps import read_txt_gps, gps_vector, haversine
 from ifit_lib.center_of_grav import cog
-from ifit_lib.julian_time import hms_to_julian
+from ifit_lib.julian_time import hms_to_julian, julian_to_hms
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -152,7 +152,7 @@ class mygui(tk.Tk):
         self.vline0 = self.ax0.axvline(0, color = 'r')
         self.vline1 = self.ax0.axvline(1, color = 'r')
         self.fill   = self.ax0.fill_between([0], [0], [1])
-        self.ax0.set_xlabel('Julian Time (Fraction of Day)', fontsize=10)
+        self.ax0.set_xlabel('Time (From Spectra)', fontsize=10)
         self.ax0.set_ylabel('SO2 column amount (ppm.m)', fontsize=10)
         
         # Get origional limits
@@ -466,6 +466,7 @@ class mygui(tk.Tk):
         common['loop'] = 1
         
         # Reset flux amount array
+        common['times'] = []
         common['fluxes'] = []
         common['flux_errs'] = []
         
@@ -606,18 +607,18 @@ class mygui(tk.Tk):
         # If wind error is absolute, turn into %
         if self.error_unit.get() == 'abs':
             wind_err = wind_err / wind_speed * 100
-        
-        # Correct for time difference
-        gps_time = np.subtract(gps_time, int(self.time_diff.get()))
-        
-        # Check for change of day
-        for n, t in enumerate(gps_time):
-            if t > 24:
-                gps_time[n] = t - 24
             
         # Get indices of selected data
         time_grid, idx0, idx1 = extract_window(time, self.t0, self.t1)
         idx1 += 1
+        
+        # Correct for time difference
+        gps_time = np.add(gps_time, int(self.time_diff.get()))
+        
+        # Check for change of day
+        for n, t in enumerate(time):
+            if t > 24:
+                time[n] = t - 24
         
         # Catch error if bounds are the wrong way around
         if idx0 > idx1:
@@ -725,7 +726,7 @@ class mygui(tk.Tk):
         flux_err = int(flux * delta_F)
         
         self.text_output('Peak ' + str(common['loop']) + \
-                         'Flux = '+str(flux)+' (+/- ' + str(flux_err)+') tonnes/day')
+                         ': Flux = '+str(flux)+' (+/- ' + str(flux_err)+') tonnes/day')
 
 #========================================================================================
 #=============================Plot selected SO2 and GPS data=============================
@@ -738,6 +739,7 @@ class mygui(tk.Tk):
         # Create dictionary to pass to plotting function
         d = {}
         d['time']              = time
+        d['time_diff']         = self.time_diff.get()
         d['so2_amt']           = so2_amt
         d['so2_err']           = so2_err
         d['peak_idx']          = peak_idx
@@ -775,12 +777,13 @@ def make_graph(d):
         fig.savefig(common['out_folder'] + 'traverse_' + str(common['loop']) + '.png')
         
         # Append flux and error to list
+        common['times'].append(julian_to_hms(d['time'][d['peak_idx']] - d['time_diff']))
         common['fluxes'].append(d['flux'])
         common['flux_errs'].append(d['flux_err']) 
 
         # Make string of cog position
         cog_pos = str(d['modlon'][d['peak_idx']])+','+str(d['modlat'][d['peak_idx']])
-        volc_loc = str(d['volc_lon']) + '/' + str(d['volc_lat'])
+        volc_loc = str(d['volc_lon']) + ',' + str(d['volc_lat'])
 
         with open(common['out_fname'], 'a') as writer:
             # Write header information to the file
@@ -794,8 +797,8 @@ def make_graph(d):
                          'Plume Stop Time,' + str(d['time'][-1])              + '\n' )
              
             # Write column headers            
-            writer.write('Julian Time (GMT),SO2 Amount,Error,Longitude,Latitude,' + \
-                         'Bearing,Distance,Correction Factor,Cumulative Distance\n')
+            writer.write('Julian Time,SO2 Amount,Error,Longitude,Latitude,Bearing,' + \
+                         'Distance,Correction Factor,Cumulative Distance\n')
             
             # Write information to the file
             for i in range(1,len(d['modlon'])):
@@ -833,20 +836,22 @@ def make_graph(d):
         trav_map.save(common['out_folder'] + 'Map_' + str(common['loop']) + '.html')
         
         # Update text results file
-        
-        # Calculate the average flux and uncertainty
-        av_flux = np.average(common['fluxes'])
-        av_err  = np.average(np.power(common['flux_errs'], 2)**0.5)
-        
-        # Save the fluxes in a text file for ease of access
-        header = 'Results from calc_flux.py\n' + \
-                 'NOTE errors are from SO2 fitting and wind speed only\n' + \
-                 'Flux (tonnes/day),     Error (+/- t/d)'
-        data = np.column_stack((common['fluxes'], common['flux_errs']))
-        np.savetxt(common['out_folder'] + 'flux_results.txt', data, header = header)
-        
-        with open(common['out_folder'] + 'flux_results.txt', 'a') as r:
-            r.write('Average flux = ' + str(int(av_flux)) + ' +/- ' + \
+        with open(common['out_folder'] + 'flux_results.txt', 'w') as w:
+            
+            # Write header lines
+            w.write('Results from calc_flux.py\n' + \
+                    'NOTE errors are from SO2 fitting and wind speed only\n\n' + \
+                    'Time (UTC)    Flux (t/day)\n')
+            
+            # Write each time, flux and error
+            for n, t in enumerate(common['times']):
+                w.write(str(t)[:12] + '  ' +  str(common['fluxes'][n]) + '(+/- ' + \
+                        str(common['flux_errs'][n]) + ')\n')
+            
+            # Calculate the average flux and uncertainty and write
+            av_flux = np.average(common['fluxes'])
+            av_err  = np.average(np.power(common['flux_errs'], 2)**0.5)
+            w.write('\nAverage flux = ' + str(int(av_flux)) + ' +/- ' + \
                     str(int(av_err)) + ' (t/day)')
     
         # Add to the loop counter

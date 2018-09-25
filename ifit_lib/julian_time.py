@@ -33,6 +33,9 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     # If single value, convert to list
     if type(times) in [str, dt.datetime, dt.time]:
         times = [times]
+        single_flag = True
+    else:
+        single_flag = False
     
     # Make julian time array object to populate
     jul_time = np.zeros(len(times))
@@ -62,11 +65,14 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
             jul_time[n] = (hours/24) + (mins/1440) + (secs/86400) + (usecs/8.64e10)
         if out_format == 'decimal hours':
             jul_time[n] = (hours) + (mins/60) + (secs/3600) + (usecs/3.6e+9)
-        
-    return jul_time
+    
+    if single_flag:
+        return jul_time[0]
+    else:
+        return jul_time
             
         
-def julian_to_hms(time_arr, input_format = 'decimal days'):
+def julian_to_hms(time_arr, input_format = 'decimal hours'):
 
     '''
     Function to convert an array of Julian times into hh:mm:ss datetime objects
@@ -87,6 +93,13 @@ def julian_to_hms(time_arr, input_format = 'decimal days'):
         msg = 'input_format value is not supported. Only supported values are:\n' + \
               '    decimal days\n    decimal hours'
         raise ValueError(msg) 
+    
+    # If single value, convert to list
+    if type(time_arr) not in [list, np.array]:
+        time_arr = [time_arr]
+        single_flag = True
+    else:
+        single_flag = False
         
     # Make array to hold datetime objects
     time = []
@@ -104,7 +117,7 @@ def julian_to_hms(time_arr, input_format = 'decimal days'):
         if input_format == 'decimal hours':
             
             h = int(t)
-            delta_h = hours - h
+            delta_h = t - h
         
         # Extract minute, second and microsecond info 
         mins = delta_h * 60
@@ -119,6 +132,9 @@ def julian_to_hms(time_arr, input_format = 'decimal days'):
         u = int(usecs)
         
         # Combine to form a time object
-        time.append(dt.datetime(1900, 1, 1, h, m, s, u))
-            
-    return time
+        time.append(dt.datetime(1900, 1, 1, h, m, s, u).time())
+    
+    if single_flag:
+        return time[0]
+    else:
+        return time
