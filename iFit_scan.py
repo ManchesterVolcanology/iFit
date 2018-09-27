@@ -158,9 +158,6 @@ class mygui(tk.Tk):
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['Scan Filepaths'] = ''
- 
-        # Create loop counter to keep track of the analysis
-        settings['loop'] = 0
         
 #========================================================================================
 #====================================Create plot canvas==================================
@@ -502,7 +499,7 @@ class mygui(tk.Tk):
 #========================================================================================
             
         # Reset loop counter
-        settings['loop'] = 1
+        self.loop = 1
         
         # Get date
         meas_date = scan_files[0].split('/')[-1][:6]
@@ -530,14 +527,9 @@ class mygui(tk.Tk):
             # Create empty arrays to hold the loop number and so2_amt values
             gas = {}
             spec_nos = []
-            gas['SO2_amts'] = []
-            gas['SO2_errs'] = []
-            gas['O3_amts']  = []
-            gas['O3_errs']  = []
-            gas['BrO_amts'] = []
-            gas['BrO_errs'] = []
-            gas['Ring_amts'] = []
-            gas['Ring_errs'] = []
+            for g in ['so2', 'no2', 'o3', 'bro', 'ring']:
+                gas[g + '_amts'] = []
+                gas[g + '_errs'] = []
             
             # End loop if finished
             if settings['stop_flag'] == True:
@@ -596,44 +588,30 @@ class mygui(tk.Tk):
                         # Add values to array for plotting
                         spec_nos.append(spec_no)
                         
-                        if common['params']['so2_amt'][1] == 'Fit':
-                            gas['SO2_amts'].append(fit_dict['so2_amt']/2.463e15)
-                            gas['SO2_errs'].append(err_dict['so2_amt']/2.463e15)
-                        if common['params']['o3_amt'][1] == 'Fit':
-                            gas['O3_amts'].append(fit_dict['o3_amt']/2.463e15)
-                            gas['O3_errs'].append(err_dict['o3_amt']/2.463e15)
-                        if common['params']['bro_amt'][1] == 'Fit':
-                            gas['BrO_amts'].append(fit_dict['bro_amt']/2.463e15)
-                            gas['BrO_errs'].append(err_dict['bro_amt']/2.463e15)
-                        if common['params']['ring_amt'][1] == 'Fit':
-                            gas['Ring_amts'].append(fit_dict['ring_amt'])
-                            gas['Ring_errs'].append(err_dict['ring_amt'])
+                        for parameter in ['so2', 'no2', 'o3', 'bro', 'ring']:
+                        
+                            # Make dictionary key
+                            key1 = parameter + '_amt'
+                            key2 = parameter + '_amts'
+                            key3 = parameter + '_errs'
                             
-                        if common['params']['so2_amt'][1] == 'Fix':
-                            gas['SO2_amts'].append(common['params']['so2_amt'][0]/2.463e15)
-                            gas['SO2_errs'].append(0)
-                        if common['params']['o3_amt'][1] == 'Fix':
-                            gas['O3_amts'].append(common['params']['o3_amt'][0]/2.463e15)
-                            gas['O3_errs'].append(0)
-                        if common['params']['bro_amt'][1] == 'Fix':
-                            gas['BrO_amts'].append(common['params']['bro_amt'][0]/2.463e15)
-                            gas['BrO_errs'].append(0)
-                        if common['params']['ring_amt'][1] == 'Fix':
-                            gas['Ring_amts'].append(common['params']['ring_amt'][0])
-                            gas['Ring_errs'].append(0)
-                            
-                        if common['params']['so2_amt'][1] == 'N/A':
-                            gas['SO2_amts'].append(0)
-                            gas['SO2_errs'].append(0)
-                        if common['params']['o3_amt'][1] == 'N/A':
-                            gas['O3_amts'].append(0)
-                            gas['O3_errs'].append(0)
-                        if common['params']['bro_amt'][1] == 'N/A':
-                            gas['BrO_amts'].append(0)
-                            gas['BrO_errs'].append(0)
-                        if common['params']['ring_amt'][1] == 'N/A':
-                            gas['Ring_amts'].append(0)
-                            gas['Ring_errs'].append(0)
+                            # Choose conversion factor
+                            if parameter == 'ring':
+                                conv = 1
+                            else:
+                                conv = 2.463e15
+    
+                            if common['params'][key1][1] == 'Fit':
+                                gas[key2].append(fit_dict[key1]/conv)
+                                gas[key3].append(err_dict[key1]/conv)
+                                
+                            if common['params'][key1][1] == 'Fix':
+                                gas[key2].append(common['params'][key1][0]/conv)
+                                gas[key3].append(0)
+                                
+                            if common['params'][key1][1] == 'N/A':
+                                gas[key2].append(0)
+                                gas[key3].append(0)
     
                         # Update quick analysis with values
                         last_amt="{0:0.2f}".format(gas[settings['analysis_gas']+'_amts'][-1])
@@ -712,8 +690,8 @@ class mygui(tk.Tk):
                             
                             
                             # Get selected transmittance data
-                            gas_tran = gas_T[settings['analysis_gas'] + '_tran']
-                            gas_spec = gas_T[settings['analysis_gas'] + '_spec']
+                            meas_abs = gas_T['meas_abs_' + settings['analysis_gas']]
+                            synth_abs = gas_T['synth_abs_' + settings['analysis_gas']]
                             gas_amts = gas[settings['analysis_gas'] + '_amts']
                         
                             # Build axes and lines arrays
@@ -730,21 +708,21 @@ class mygui(tk.Tk):
                             y_lo, y_hi = min([f_lo, y_lo]), max([f_hi, y_hi])
                             
                             # Limits for so2 trans spectrum
-                            t_lo = min(gas_tran) - abs((0.1*min(gas_tran)))
-                            t_hi = max(gas_tran) + (0.1*max(gas_tran)) 
-                            s_lo = min(gas_spec) - abs((0.1*min(gas_spec)))
-                            s_hi = max(gas_spec) + (0.1*max(gas_spec))
+                            t_lo = min(meas_abs) - abs((0.1*min(meas_abs)))
+                            t_hi = max(meas_abs) + (0.1*max(meas_abs)) 
+                            s_lo = min(synth_abs) - abs((0.1*min(synth_abs)))
+                            s_hi = max(synth_abs) + (0.1*max(synth_abs))
                             t_lo, t_hi = min([t_lo, s_lo]), max([t_hi, s_hi])
 
                             # Build data array to pass to graphing function
-                            #                 x data    y data    x limits   y limits
-                            data = np.array(([grid,     y_data,   'auto',  [y_lo,y_hi]],
-                                             [grid,     fit,      'auto',  [y_lo,y_hi]],
-                                             [x   ,     y,        'auto',  'auto'     ],
-                                             [grid,     resid,    'auto',  'auto'     ],
-                                             [grid,     gas_tran, 'auto',  'auto'],
-                                             [grid,     gas_spec, 'auto',  'auto'],
-                                             [spec_nos, gas_amts, 'auto',  'auto'     ]))
+                            #                 x data    y data     x lims  y lims
+                            data = np.array(([grid,     y_data,    'auto', [y_lo,y_hi]],
+                                             [grid,     fit,       'auto', [y_lo,y_hi]],
+                                             [x   ,     y,         'auto', 'auto'     ],
+                                             [grid,     resid,     'auto', 'auto'     ],
+                                             [grid,     meas_abs,  'auto', 'auto'     ],
+                                             [grid,     synth_abs, 'auto', 'auto'     ],
+                                             [spec_nos, gas_amts,  'auto', 'auto'     ]))
                            
                             # Update graph
                             update_graph(lines, axes, self.canvas, data)
@@ -760,11 +738,11 @@ class mygui(tk.Tk):
                 self.print_output('Error in file ' + str(settings['loop']))  
            
             # Update loop counter display
-            msg = str(settings['loop']) + ' / ' + str(len(scan_files))
+            msg = str(self.loop) + ' / ' + str(len(scan_files))
             self.scan_count.set(msg)
                      
             # Add to the count cycle
-            settings['loop'] += 1   
+            self.loop += 1   
                 
         self.print_output('Analysis Complete!')        
                 
