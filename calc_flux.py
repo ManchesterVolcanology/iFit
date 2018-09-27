@@ -16,6 +16,7 @@ matplotlib.use('TkAgg')
 from tkinter import ttk
 import tkinter as tk
 from tkinter import filedialog as fd
+from math import degrees
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -82,9 +83,6 @@ class mygui(tk.Tk):
         
         # Create loop counter to hold traverse number
         common['loop'] = 1
-        
-        # Create array to hold fluxes
-        common['fluxes'] = []
         
         # Read in settings file
         choice = ['--select--']
@@ -396,7 +394,7 @@ class mygui(tk.Tk):
             lims = self.ax0.get_xlim()
             
             # Get current data
-            idx = np.where(np.logical_and(common['time']>lims[0], common['time']<lims[1]))
+            idx = np.where(np.logical_and(common['time']>lims[0],common['time']<lims[1]))
             y = common['so2_amt'][idx]
             
             # Find 5% of the range of data
@@ -466,8 +464,10 @@ class mygui(tk.Tk):
         common['loop'] = 1
         
         # Reset flux amount array
-        common['times'] = []
-        common['fluxes'] = []
+        common['times']     = []
+        common['locations'] = []
+        common['azimuths']  = []
+        common['fluxes']    = []
         common['flux_errs'] = []
         
         self.text_output('Reading traverse data...', add_line = False)
@@ -528,10 +528,13 @@ class mygui(tk.Tk):
             self.text_output('ERROR: Wrong GPS file format')
             return
         
-        self.text_output('Done!')        
+        self.text_output('Done!')    
+        
+        # Get date of the data
+        common['analysis_date'] = str(data['Date'][0])
         
         # Create output folder
-        common['out_folder'] = 'Results/calc_flux/' + str(data['Date'][0]) + '/'
+        common['out_folder'] = 'Results/calc_flux/' + common['analysis_date'] + '/'
         if not os.path.exists(common['out_folder']):
             os.makedirs(common['out_folder'])
             
@@ -652,16 +655,20 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # Define wind vector as the vector from the volcano to the CoM
-        wind_vector = haversine(volc_lon, volc_lat, modlon[peak_idx], modlat[peak_idx])
-
+        wind_dist, wind_az = haversine(volc_lon, volc_lat, modlon[peak_idx], modlat[peak_idx])
+        
+        # Add plume peak location and azimuths to arrays
+        common['locations'].append([modlat[peak_idx], modlon[peak_idx]])
+        common['azimuths'].append(degrees(wind_az))
+        
         # Find the distance-bearing vectors between each reading. Bearing is radians 
         #  anticlockwise from East from 0 to 2pi
-        displacement, bearing, dir_corr = gps_vector(modlon, modlat, wind_vector[1])
+        displacement, bearing, dir_corr = gps_vector(modlon, modlat, wind_az)
         
         # Correction factor to account for the non-orthogonality of the plume
         orthog_correction = np.ones(len(bearing))
         for n, i in enumerate(bearing):
-            correction = abs(np.cos((np.pi / 2) - (wind_vector[1] - i)))
+            correction = abs(np.cos((np.pi / 2) - (wind_az - i)))
             orthog_correction[n] = correction
             
         # Correct for if going the wrong way
@@ -714,12 +721,10 @@ class mygui(tk.Tk):
 #==================================Calculate flux error==================================
 #========================================================================================
     
-        # Calculate error in so2 amount
-        total_err = np.sum(so2_err)
-        total_so2 = np.sum(so2_amt)
-        
-        delta_A = total_err / total_so2
-        
+        # Get error in column densities
+        xsec_err = np.sum(np.power(so2_err, 2)) ** 0.5
+        delta_A = xsec_err / np.sum(so2_amt)
+
         # Combine with wind speed error
         delta_F = ( (delta_A)**2 + (wind_err/100)**2 )**0.5
         
@@ -752,6 +757,7 @@ class mygui(tk.Tk):
         d['flux']              = flux
         d['flux_err']          = flux_err
         d['wind_speed']        = wind_speed
+        d['wind_az']           = wind_az
         d['bearing']           = bearing
         d['displacement']      = displacement
         d['orthog_correction'] = orthog_correction
@@ -839,15 +845,25 @@ def make_graph(d):
         with open(common['out_folder'] + 'flux_results.txt', 'w') as w:
             
             # Write header lines
-            w.write('Results from calc_flux.py\n' + \
+            w.write('Results from calc_flux.py for ' + common['analysis_date'] + '\n' + \
                     'NOTE errors are from SO2 fitting and wind speed only\n\n' + \
-                    'Time (UTC)    Flux (t/day)\n')
+                    'Time (UTC)    Centre Location (lat/lon)   Plume Azimuth    '+\
+                    'Flux (t/day)\n')
             
             # Write each time, flux and error
             for n, t in enumerate(common['times']):
-                w.write(str(t)[:12] + '  ' +  str(common['fluxes'][n]) + '(+/- ' + \
-                        str(common['flux_errs'][n]) + ')\n')
             
+                # Create central location string
+                c_lat = f"{common['locations'][n][0]:.4f}"
+                c_lon = f"{common['locations'][n][1]:.4f}"
+                cent_loc = '{0: <28}'.format(c_lat + ' / ' + c_lon)
+            
+                w.write(str(t)[:12] + '  ' +  \
+                        cent_loc + \
+                        '{0: <17}'.format(f"{common['azimuths'][n]:.1f}") + \
+                        str(common['fluxes'][n]) + '(+/- ' + \
+                        str(common['flux_errs'][n]) + ')\n')
+
             # Calculate the average flux and uncertainty and write
             av_flux = np.average(common['fluxes'])
             av_err  = np.average(np.power(common['flux_errs'], 2)**0.5)
