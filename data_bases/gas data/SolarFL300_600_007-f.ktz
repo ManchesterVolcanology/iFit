@@ -1,15 +1,15 @@
-;
-; High resolution cross section file : F:\Mydata\Rohdaten\solar_fl_300_600.txt
-; Calibration file : F:\Mydata\Rohdaten\solar_fl300-600_0005.clb
-; Shift applied :  nm
-; Convolution type : Standard convolution
-; Slit function type : Gaussian
-; Gaussian FWHM : 0.070
-;
-; Columns description :
-; Column 1 : calibration;
-; Column 2 : convoluted cross section;
-;
+#
+# High resolution cross section file : F:\Mydata\Rohdaten\solar_fl_300_600.txt
+# Calibration file : F:\Mydata\Rohdaten\solar_fl300-600_0005.clb
+# Shift applied :  nm
+# Convolution type : Standard convolution
+# Slit function type : Gaussian
+# Gaussian FWHM : 0.070
+#
+# Columns description :
+# Column 1 : calibration;
+# Column 2 : convoluted cross section;
+#
 3.00000000000000e+02 3.70905553504817e+04
 3.00005000000000e+02 3.62256172964851e+04
 3.00010000000000e+02 3.52388803655642e+04

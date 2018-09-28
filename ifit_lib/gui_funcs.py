@@ -19,6 +19,7 @@ from seabreeze.cseabreeze.wrapper import SeaBreezeError
 from ifit_lib.file_control import make_directory
 from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.update_graph import update_graph
+from ifit_lib.build_gui import make_input
 
 #========================================================================================
 #=======================================Read Setttings===================================
@@ -360,6 +361,13 @@ def adv_settings(self, settings, version):
         settings['analysis_gas']     = gas.get()
         
         if version == 'iFit':
+        
+            # Translate gas choice to parameter names and graph print
+            gas_choice = {'so2' : r'SO$_2$',
+                          'no2' : r'NO$_2$',
+                          'o3'  : r'O$_3$' ,
+                          'bro' : 'BrO'    ,
+                          'ring': 'Ring'   }
             
             # Update graph
             if settings['resid_type'] == 'Percentage':
@@ -369,9 +377,9 @@ def adv_settings(self, settings, version):
             if settings['resid_type'] == 'Spec/Fit':
                 self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
                 
-            self.ax3.set_ylabel(settings['analysis_gas'] + ' Absorbance', fontsize=10)
+            self.ax3.set_ylabel(gas_choice[gas.get()] + ' Absorbance', fontsize=10)
+            self.ax4.set_ylabel(gas_choice[gas.get()] + ' amt (ppm.m)', fontsize = 10)
             
-            self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
             if settings['x_plot'] == 'Number':
                 self.ax4.set_xlabel('Spectrum number', fontsize=10)
             if settings['x_plot'] == 'Time':
@@ -457,49 +465,61 @@ def adv_settings(self, settings, version):
     fit_range_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
     
     popup.wave_start = tk.DoubleVar(wl_frame, value = settings['wave_start'])
-    wave_start_e = ttk.Entry(wl_frame, textvariable = popup.wave_start, width = 12, 
-                             validate="focusout", validatecommand = build_fwd_model)
-    wave_start_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = wl_frame, 
+               text = 'Fit Range:', 
+               row = row_n, column = col_n, 
+               var = popup.wave_start, 
+               input_type = 'Entry',
+               width = 12,
+               command = build_fwd_model)
     
     popup.wave_stop = tk.DoubleVar(wl_frame, value = settings['wave_stop'])
-    wave_stop_l = tk.Label(wl_frame, text = 'to:', font = NORM_FONT)
-    wave_stop_l.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
-    wave_stop_e = ttk.Entry(wl_frame, textvariable = popup.wave_stop, width = 12, 
-                            validate="focusout",validatecommand = build_fwd_model)
-    wave_stop_e.grid(row = row_n, column = col_n+3, padx = 5, pady = 5)
+    make_input(frame = wl_frame, 
+               text = 'to:', 
+               row = row_n, column = col_n+2, 
+               var = popup.wave_stop, 
+               input_type = 'Entry',
+               width = 12,
+               command = build_fwd_model)
     
     # Set model grid padding
     popup.model_pad = tk.DoubleVar(wl_frame, value = settings['model_pad'])
-    model_pad_l = tk.Label(wl_frame, text='Model Grid\nPadding (nm):', font=NORM_FONT)
-    model_pad_l.grid(row = row_n, column = col_n+4, padx = 5, pady = 5)
-    model_pad_e = ttk.Entry(wl_frame, textvariable = popup.model_pad, width = 12,
-                            validate="focusout", validatecommand = build_fwd_model)
-    model_pad_e.grid(row = row_n, column = col_n+5, padx = 5, pady = 5)
+    make_input(frame = wl_frame, 
+               text = 'Model Grid\nPadding (nm):', 
+               row = row_n, column = col_n+4, 
+               var = popup.model_pad, 
+               input_type = 'Entry',
+               width = 12,
+               command = build_fwd_model)
     
     # Set resolution of model grid
     popup.model_res = tk.DoubleVar(wl_frame, value = settings['model_res'])
-    model_res_l = tk.Label(wl_frame, text='Model Grid\nSpacing (nm):', font=NORM_FONT)
-    model_res_l.grid(row = row_n, column = col_n+6, padx = 5, pady = 5)
-    model_res_e = ttk.Entry(wl_frame, textvariable = popup.model_res, width = 12,
-                            validate="focusout", validatecommand = build_fwd_model)
-    model_res_e.grid(row = row_n, column = col_n+7, padx = 5, pady = 5)
+    make_input(frame = wl_frame, 
+               text = 'Model Grid\nSpacing (nm):', 
+               row = row_n, column = col_n+6, 
+               var = popup.model_res, 
+               input_type = 'Entry',
+               width = 12,
+               command = build_fwd_model)
     row_n += 1
     
     # Control whether or not to remove dark spectra
     popup.dark_b = tk.BooleanVar(model_frame, value = settings['dark_flag'])
-    dark_l = tk.Label(model_frame, text = 'Remove Dark\nSpectrum?', font = NORM_FONT)
-    dark_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    dark_c = ttk.Checkbutton(model_frame, variable = popup.dark_b)
-    dark_c.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'Remove Dark\nSpectrum?', 
+               row = row_n, column = col_n, 
+               var = popup.dark_b, 
+               input_type = 'Checkbutton')
     row_n += 1
     
     # Control whether or not to remove flat spectra
     popup.flat_b = tk.BooleanVar(model_frame, value = settings['flat_flag'])
-    flat_l = tk.Label(model_frame, text = 'Remove Flat\nSpectrum?', font = NORM_FONT)
-    flat_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    flat_c = ttk.Checkbutton(model_frame, variable = popup.flat_b, 
-                             command = build_fwd_model)
-    flat_c.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'Remove Flat\nSpectrum?', 
+               row = row_n, column = col_n, 
+               var = popup.flat_b, 
+               input_type = 'Checkbutton',
+               command = build_fwd_model)
     row_n += 1
     
     # Control how fit weighting is applied
@@ -508,10 +528,12 @@ def adv_settings(self, settings, version):
                       'Noise',
                       'None']
     popup.fit_weight = tk.StringVar(model_frame, value = settings['fit_weight'])
-    fit_weight_l = tk.Label(model_frame, text = 'Fit\nWeighting:', font = NORM_FONT)
-    fit_weight_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    fit_weight_c = ttk.OptionMenu(model_frame, popup.fit_weight, *weight_options)
-    fit_weight_c.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'Fit\nWeighting:', 
+               row = row_n, column = col_n, 
+               var = popup.fit_weight, 
+               input_type = 'OptionMenu',
+               options = weight_options)
     row_n += 1
     
     # Control whether or not to remove, form or ignore the solar residual spectrum
@@ -520,28 +542,32 @@ def adv_settings(self, settings, version):
                      'Generate',
                      'Remove']
     popup.resid_b = tk.StringVar(model_frame, value = settings['solar_resid_flag'])
-    resid_l = tk.Label(model_frame, text = 'Solar\nresidual:', font = NORM_FONT)
-    resid_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    resid_c = ttk.OptionMenu(model_frame, popup.resid_b, *resid_options, 
-                             command = build_fwd_model)
-    resid_c.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'Solar\nresidual:', 
+               row = row_n, column = col_n, 
+               var = popup.resid_b, 
+               input_type = 'OptionMenu',
+               options = resid_options,
+               command = build_fwd_model)
     row_n += 1
     
     # Control whether or not to update fit parameter guesses with the last fit values
     popup.update_b = tk.BooleanVar(model_frame, value = settings['update_params'])
-    update_l = tk.Label(model_frame, text='Auto-update\nfit parameters?', font=NORM_FONT)
-    update_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    update_c = ttk.Checkbutton(model_frame, variable = popup.update_b)
-    update_c.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'Auto-update\nfit parameters?', 
+               row = row_n, column = col_n, 
+               var = popup.update_b, 
+               input_type = 'Checkbutton')
     row_n += 1
     
     # Control bound of goodness of fit
     popup.fit_bound = tk.DoubleVar(model_frame, value = settings['good_fit_bound'])
-    fit_bound_l = tk.Label(model_frame, text = 'Good Fit\nBound (%):', font = NORM_FONT)
-    fit_bound_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    fit_bound_e = ttk.Entry(model_frame, textvariable = popup.fit_bound, width = 12)
-    fit_bound_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
-    row_n += 1
+    make_input(frame = model_frame, 
+               text = 'Good Fit\nBound (%):', 
+               row = row_n, column = col_n, 
+               var = popup.fit_bound, 
+               input_type = 'Entry',
+               width = 12)
     
     # Create separator
     sep = ttk.Separator(model_frame, orient='vertical')
@@ -558,10 +584,12 @@ def adv_settings(self, settings, version):
     
     # Gas Amounts
     popup.so2_amt = tk.DoubleVar(model_frame, value = settings['so2_amt'])
-    so2_amt_l = tk.Label(model_frame, text = 'SO2:', font = NORM_FONT)
-    so2_amt_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    so2_amt_e = ttk.Entry(model_frame, textvariable = popup.so2_amt, width = 12)
-    so2_amt_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'SO2:', 
+               row = row_n, column = col_n, 
+               var = popup.so2_amt, 
+               input_type = 'Entry',
+               width = 12)
     popup.so2_amt_c = tk.StringVar(model_frame, value = settings['Fit so2'])
     fit_options[0] = settings['Fit so2']
     so2_c = ttk.OptionMenu(model_frame, popup.so2_amt_c, *fit_options)
@@ -569,10 +597,12 @@ def adv_settings(self, settings, version):
     row_n += 1
     
     popup.no2_amt = tk.DoubleVar(model_frame, value = settings['no2_amt'])
-    no2_amt_l = tk.Label(model_frame, text = 'NO2:', font = NORM_FONT)
-    no2_amt_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    no2_amt_e = ttk.Entry(model_frame, textvariable = popup.no2_amt, width = 12)
-    no2_amt_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'NO2:', 
+               row = row_n, column = col_n, 
+               var = popup.no2_amt, 
+               input_type = 'Entry',
+               width = 12)
     popup.no2_amt_c = tk.StringVar(model_frame, value = settings['Fit no2'])
     fit_options[0] = settings['Fit no2']
     no2_c = ttk.OptionMenu(model_frame, popup.no2_amt_c, *fit_options)
@@ -580,10 +610,12 @@ def adv_settings(self, settings, version):
     row_n += 1
     
     popup.o3_amt = tk.DoubleVar(model_frame, value = settings['o3_amt'])
-    o3_amt_l = tk.Label(model_frame, text = 'O3:', font = NORM_FONT)
-    o3_amt_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    o3_amt_e = ttk.Entry(model_frame, textvariable = popup.o3_amt, width = 12)
-    o3_amt_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'O3:', 
+               row = row_n, column = col_n, 
+               var = popup.o3_amt, 
+               input_type = 'Entry',
+               width = 12)
     popup.o3_amt_c = tk.StringVar(model_frame, value = settings['Fit o3'])
     fit_options[0] = settings['Fit o3']
     o3_c = ttk.OptionMenu(model_frame, popup.o3_amt_c, *fit_options)
@@ -591,10 +623,12 @@ def adv_settings(self, settings, version):
     row_n += 1
    
     popup.bro_amt = tk.DoubleVar(model_frame, value = settings['bro_amt'])
-    bro_amt_l = tk.Label(model_frame, text = 'BrO:', font = NORM_FONT)
-    bro_amt_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    bro_amt_e = ttk.Entry(model_frame, textvariable = popup.bro_amt, width = 12)
-    bro_amt_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'BrO:', 
+               row = row_n, column = col_n, 
+               var = popup.bro_amt, 
+               input_type = 'Entry',
+               width = 12)
     popup.bro_amt_c = tk.StringVar(model_frame, value = settings['Fit bro'])
     fit_options[0] = settings['Fit bro']
     bro_c = ttk.OptionMenu(model_frame, popup.bro_amt_c, *fit_options)
@@ -603,10 +637,12 @@ def adv_settings(self, settings, version):
     
     # Spectrometer ILS width
     popup.ils_width = tk.DoubleVar(model_frame, value = settings['ils_width'])
-    ils_width_l = tk.Label(model_frame, text = 'ILS\nWidth:', font = NORM_FONT)
-    ils_width_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    ils_width_e = ttk.Entry(model_frame, textvariable = popup.ils_width, width = 12)
-    ils_width_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    ils_width_l, ils_width_e = make_input(frame = model_frame, 
+                                          text = 'ILS\nWidth:', 
+                                          row = row_n, column = col_n, 
+                                          var = popup.ils_width, 
+                                          input_type = 'Entry',
+                                          width = 12)
     ils_width_e.config(state='disabled')
     
     def ils_activate_check(*args):
@@ -631,12 +667,12 @@ def adv_settings(self, settings, version):
      
     # ILS Gaussian weighting
     popup.gauss_weight = tk.DoubleVar(model_frame, value = settings['gauss_weight'])
-    gauss_weight_l = tk.Label(model_frame, text = 'ILS Gauss\nWeight:', 
-                              font = NORM_FONT)
-    gauss_weight_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    gauss_weight_e = ttk.Entry(model_frame, textvariable = popup.gauss_weight,
-                               width = 12)
-    gauss_weight_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'ILS Gauss\nWeight:', 
+               row = row_n, column = col_n, 
+               var = popup.gauss_weight, 
+               input_type = 'Entry',
+               width = 12)
     row_n += 1 
     
     # Create separator
@@ -651,21 +687,24 @@ def adv_settings(self, settings, version):
     
     # Polynomial coefficents
     popup.poly_n = tk.IntVar(model_frame, value = int(settings['poly_n']))
-    poly_n_vals = [0,1,2,3,4,5,6,7,8,9,10]
-    poly_n_l = tk.Label(model_frame, text = 'Poly\nOrder:', font = NORM_FONT)
-    poly_n_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    poly_n_e = tk.Spinbox(model_frame, values = poly_n_vals, width = 12,
-                          textvariable = popup.poly_n)
-    poly_n_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'Poly\nOrder:', 
+               row = row_n, column = col_n, 
+               var = popup.poly_n, 
+               input_type = 'Spinbox',
+               vals = [0, 10],
+               width = 12)
     popup.poly_n.set(settings['poly_n'])
     row_n += 1
 
     # Spectrometer wavelength shift
     popup.shift = tk.DoubleVar(model_frame, value = settings['shift'])
-    shift_l = tk.Label(model_frame, text = 'Shift:', font = NORM_FONT)
-    shift_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    shift_e = ttk.Entry(model_frame, textvariable = popup.shift, width = 12)
-    shift_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    shift_l, shift_e = make_input(frame = model_frame, 
+                                  text = 'Shift:', 
+                                  row = row_n, column = col_n, 
+                                  var = popup.shift, 
+                                  input_type = 'Entry',
+                                  width = 12)
     
     def shift_activate_check(*args):
         if popup.shift_c.get() == 'Pre-calc':
@@ -683,10 +722,12 @@ def adv_settings(self, settings, version):
     
     # Spectrometer wavelength stretch
     popup.stretch = tk.DoubleVar(model_frame, value = settings['stretch'])
-    stretch_l = tk.Label(model_frame, text = 'Stretch:', font = NORM_FONT)
-    stretch_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    stretch_e = ttk.Entry(model_frame, textvariable = popup.stretch, width = 12)
-    stretch_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'Stretch:', 
+               row = row_n, column = col_n, 
+               var = popup.stretch, 
+               input_type = 'Entry',
+               width = 12)
     popup.stretch_c = tk.StringVar(model_frame, value = settings['Fit stretch'])
     fit_options[0] = settings['Fit stretch']
     stretch_c = ttk.OptionMenu(model_frame, popup.stretch_c, *fit_options)
@@ -695,10 +736,12 @@ def adv_settings(self, settings, version):
     
     # Ring effect
     popup.ring_amt = tk.DoubleVar(model_frame, value = settings['ring_amt'])
-    ring_amt_l = tk.Label(model_frame, text = 'Ring:', font = NORM_FONT)
-    ring_amt_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    ring_amt_e = ttk.Entry(model_frame, textvariable = popup.ring_amt, width = 12)
-    ring_amt_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'Ring:', 
+               row = row_n, column = col_n, 
+               var = popup.ring_amt, 
+               input_type = 'Entry',
+               width = 12)
     popup.ring_amt_c = tk.StringVar(model_frame, value = settings['Fit ring'])
     fit_options[0] = settings['Fit ring']
     ring_c = ttk.OptionMenu(model_frame, popup.ring_amt_c, *fit_options)
@@ -707,10 +750,12 @@ def adv_settings(self, settings, version):
     
     # Light dilution factor
     popup.ldf = tk.DoubleVar(model_frame, value = settings['ldf'])
-    ldf_l = tk.Label(model_frame, text = 'LDF:', font = NORM_FONT)
-    ldf_l.grid(row = row_n, column = col_n, padx = 5, pady = 5)
-    ldf_e = ttk.Entry(model_frame, textvariable = popup.ldf, width = 12)
-    ldf_e.grid(row = row_n, column = col_n+1, padx = 5, pady = 5)
+    make_input(frame = model_frame, 
+               text = 'LDF:', 
+               row = row_n, column = col_n, 
+               var = popup.ldf, 
+               input_type = 'Entry',
+               width = 12)
     popup.ldf_c = tk.StringVar(model_frame, value = settings['Fit LDF'])
     fit_options[0] = settings['Fit LDF']
     ils_width_c = ttk.OptionMenu(model_frame, popup.ldf_c, *fit_options)
@@ -728,13 +773,17 @@ def adv_settings(self, settings, version):
      
     # Create row number counter
     row_n = 0
+    col_n = 0
     
     # Solar spectrum
     popup.sol_path = tk.StringVar(datab_frame, value = settings['sol_path'])
-    sol_path_l = tk.Label(datab_frame, text = 'Solar spectrum:', font = NORM_FONT)
-    sol_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    sol_path_e = ttk.Entry(datab_frame, text=popup.sol_path, font=NORM_FONT, width=40)
-    sol_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = datab_frame, 
+               text = 'Solar Spectrum:', 
+               row = row_n, column = col_n, 
+               var = popup.sol_path, 
+               input_type = 'Entry',
+               width = 40,
+               command = build_fwd_model)
     sol_path_b = ttk.Button(datab_frame, text = "Browse", 
                             command = lambda: update_fp(popup.sol_path))
     sol_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
@@ -742,11 +791,13 @@ def adv_settings(self, settings, version):
     
     # Ring spectrum
     popup.ring_path = tk.StringVar(datab_frame, value = settings['ring_path'])
-    ring_path_l = tk.Label(datab_frame, text = 'Ring Spectrum:', font = NORM_FONT)
-    ring_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    ring_path_e = ttk.Entry(datab_frame, textvariable=popup.ring_path, font=NORM_FONT, 
-                            width=40)
-    ring_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = datab_frame, 
+               text = 'Ring Spectrum:', 
+               row = row_n, column = col_n, 
+               var = popup.ring_path, 
+               input_type = 'Entry',
+               width = 40,
+               command = build_fwd_model)
     ring_path_b = ttk.Button(datab_frame, text = "Browse", 
                              command = lambda: update_fp(popup.ring_path))
     ring_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
@@ -754,11 +805,13 @@ def adv_settings(self, settings, version):
     
     # SO2 xsec
     popup.so2_path = tk.StringVar(datab_frame, value = settings['so2_path'])
-    so2_path_l = tk.Label(datab_frame, text = 'SO2 xsec:', font = NORM_FONT)
-    so2_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    so2_path_e = ttk.Entry(datab_frame, textvariable = popup.so2_path, font = NORM_FONT,
-                           width = 40)
-    so2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = datab_frame, 
+               text = 'SO2 xsec:', 
+               row = row_n, column = col_n, 
+               var = popup.so2_path, 
+               input_type = 'Entry',
+               width = 40,
+               command = build_fwd_model)
     so2_path_b = ttk.Button(datab_frame, text = "Browse", 
                             command = lambda: update_fp(popup.so2_path))
     so2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
@@ -766,11 +819,13 @@ def adv_settings(self, settings, version):
     
     # NO2 xsec
     popup.no2_path = tk.StringVar(datab_frame, value = settings['no2_path'])
-    no2_path_l = tk.Label(datab_frame, text = 'NO2 xsec:', font = NORM_FONT)
-    no2_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    no2_path_e = ttk.Entry(datab_frame, textvariable = popup.no2_path, font = NORM_FONT,
-                           width = 40)
-    no2_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = datab_frame, 
+               text = 'NO2 xsec:', 
+               row = row_n, column = col_n, 
+               var = popup.no2_path, 
+               input_type = 'Entry',
+               width = 40,
+               command = build_fwd_model)
     no2_path_b = ttk.Button(datab_frame, text = "Browse", 
                             command = lambda: update_fp(popup.no2_path))
     no2_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
@@ -778,11 +833,13 @@ def adv_settings(self, settings, version):
     
     # O3 xsec
     popup.o3_path = tk.StringVar(datab_frame, value = settings['o3_path'])
-    o3_path_l = tk.Label(datab_frame, text = 'O3 xsec:', font = NORM_FONT)
-    o3_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    o3_path_e = ttk.Entry(datab_frame, textvariable = popup.o3_path, font = NORM_FONT,
-                          width = 40)
-    o3_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = datab_frame, 
+               text = 'O3 Path:', 
+               row = row_n, column = col_n, 
+               var = popup.o3_path, 
+               input_type = 'Entry',
+               width = 40,
+               command = build_fwd_model)
     o3_path_b = ttk.Button(datab_frame, text = "Browse", 
                            command = lambda: update_fp(popup.o3_path))
     o3_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
@@ -798,11 +855,13 @@ def adv_settings(self, settings, version):
        
     # Bro xsec
     popup.bro_path = tk.StringVar(datab_frame, value = settings['bro_path'])
-    bro_path_l = tk.Label(datab_frame, text = 'BrO xsec:', font = NORM_FONT)
-    bro_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    bro_path_e = ttk.Entry(datab_frame, textvariable = popup.bro_path, font = NORM_FONT,
-                           width = 40)
-    bro_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
+    make_input(frame = datab_frame, 
+               text = 'BrO xsec:', 
+               row = row_n, column = col_n, 
+               var = popup.bro_path, 
+               input_type = 'Entry',
+               width = 40,
+               command = build_fwd_model) 
     bro_path_b = ttk.Button(datab_frame, text = "Browse", 
                             command = lambda: update_fp(popup.bro_path))
     bro_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
@@ -810,11 +869,13 @@ def adv_settings(self, settings, version):
     
     # Solar residual
     popup.solar_resid_path = tk.StringVar(datab_frame,value=settings['solar_resid_path'])
-    solar_resid_path_l = tk.Label(datab_frame, text = 'Solar Residual:', font=NORM_FONT)
-    solar_resid_path_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    solar_resid_path_e = ttk.Entry(datab_frame, textvariable = popup.solar_resid_path,
-                                   font = NORM_FONT, width = 40)
-    solar_resid_path_e.grid(row = row_n, column = 1, padx = 5, pady = 5) 
+    make_input(frame = datab_frame, 
+               text = 'Solar Residual:', 
+               row = row_n, column = col_n, 
+               var = popup.solar_resid_path, 
+               input_type = 'Entry',
+               width = 40,
+               command = build_fwd_model)
     solar_resid_path_b = ttk.Button(datab_frame, text = "Browse", 
                                     command = lambda: update_fp(popup.solar_resid_path))
     solar_resid_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
@@ -834,10 +895,11 @@ def adv_settings(self, settings, version):
     
     # Control graph display settings
     graph_b = tk.BooleanVar(graph_frame, value = settings['Show Graphs'])
-    graph_l = tk.Label(graph_frame, text = 'Show Graphs?', font = NORM_FONT)
-    graph_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    graph_c = ttk.Checkbutton(graph_frame, variable = graph_b)
-    graph_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = graph_frame, 
+               text = 'Show Graphs?', 
+               row = row_n, column = col_n, 
+               var = graph_b, 
+               input_type = 'Checkbutton')
     row_n += 1
     
     # Select which gas to analyse
@@ -848,10 +910,12 @@ def adv_settings(self, settings, version):
                    'bro',
                    'ring']
     gas = tk.StringVar(graph_frame, value = settings['scroll_flag'])
-    gas_l = tk.Label(graph_frame, text = 'Parameter\nto analyse:', font = NORM_FONT)
-    gas_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    gas_c = ttk.OptionMenu(graph_frame, gas, *gas_options)
-    gas_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = graph_frame, 
+               text = 'Parameter\nto View:', 
+               row = row_n, column = col_n, 
+               var = gas, 
+               input_type = 'OptionMenu',
+               options = gas_options)
     row_n += 1
     
     # Set x-axis for time series
@@ -859,7 +923,13 @@ def adv_settings(self, settings, version):
                       'Time',
                       'Number']
     x_plot = tk.StringVar(graph_frame, value = settings['resid_type'])
-    x_plot_l = tk.Label(graph_frame, text = 'Time Series\nx-axix', font = NORM_FONT)
+    make_input(frame = graph_frame, 
+               text = 'Time Series\nx-axis:', 
+               row = row_n, column = col_n, 
+               var = x_plot, 
+               input_type = 'OptionMenu',
+               options = x_plot_options)
+    x_plot_l = tk.Label(graph_frame, text = 'Time Series\nx-axis', font = NORM_FONT)
     x_plot_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
     x_plot_m = ttk.OptionMenu(graph_frame, x_plot, *x_plot_options)
     x_plot_m.grid(row = row_n, column = 1, padx = 5, pady = 5)
@@ -867,18 +937,20 @@ def adv_settings(self, settings, version):
     
     # Turn on/off graph scrolling
     scroll_b = tk.BooleanVar(graph_frame, value = settings['scroll_flag'])
-    scroll_l = tk.Label(graph_frame, text = 'Scroll Graph?', font = NORM_FONT)
-    scroll_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    scroll_c = ttk.Checkbutton(graph_frame, variable = scroll_b)
-    scroll_c.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = graph_frame, 
+               text = 'Show Graphs?', 
+               row = row_n, column = col_n, 
+               var = graph_b, 
+               input_type = 'Checkbutton')
     row_n += 1
     
     # Set number of spectra to display on graph
     popup.spec_no = tk.IntVar(graph_frame, value = settings['scroll_spec_no'])
-    spec_no_l = tk.Label(graph_frame, text = 'No. Spectra to display', font = NORM_FONT)
-    spec_no_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    spec_no_e = ttk.Entry(graph_frame, textvariable = popup.spec_no, font = NORM_FONT)
-    spec_no_e.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = graph_frame, 
+               text = 'No. Spectra\nto display', 
+               row = row_n, column = col_n, 
+               var = popup.spec_no, 
+               input_type = 'Entry')
     row_n += 1
     
     # Set format of residual
@@ -887,10 +959,12 @@ def adv_settings(self, settings, version):
                      'Percentage',
                      'Spec/Fit']
     resid_type = tk.StringVar(graph_frame, value = settings['resid_type'])
-    resid_type_l = tk.Label(graph_frame, text = 'Residual Display', font = NORM_FONT)
-    resid_type_l.grid(row = row_n, column = 0, padx = 5, pady = 5, sticky = 'W')
-    resid_type_m = ttk.OptionMenu(graph_frame, resid_type, *resid_options)
-    resid_type_m.grid(row = row_n, column = 1, padx = 5, pady = 5)
+    make_input(frame = graph_frame, 
+               text = 'Residual Display:', 
+               row = row_n, column = col_n, 
+               var = resid_type, 
+               input_type = 'OptionMenu',
+               options = resid_options)
     row_n += 1
 
 #========================================================================================   

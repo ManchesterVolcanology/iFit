@@ -21,6 +21,7 @@ from collections import OrderedDict
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 
 from ifit_lib.build_fwd_data import build_fwd_data
+from ifit_lib.build_gui import make_input
 from ifit_lib.fit import fit_spec
 from ifit_lib.read_spectrum import read_spectrum
 from ifit_lib.julian_time import hms_to_julian
@@ -76,64 +77,12 @@ class mygui(tk.Tk):
         graph_frame.columnconfigure(index=0, weight=1)
         graph_frame.rowconfigure(index = 0, weight = 1)
         
-        # Create frame to hold text output
-        text_frame = ttk.Frame(self, relief = 'groove')
-        text_frame.grid(row=2, column=0, padx=10, pady=10, rowspan=10, sticky="NW")
-        
         # Frame for quick analysis
-        quick_frame = tk.LabelFrame(self, text = 'Quick Analysis', font = LARG_FONT)
+        quick_frame = tk.LabelFrame(self, text = 'Control', font = LARG_FONT)
         quick_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW")
         
         mygui.columnconfigure(index=1, weight=1, self = self)
         mygui.rowconfigure(index = 5, weight = 1, self = self)
-        
-#========================================================================================
-#====================================Create text output==================================
-#========================================================================================        
-                 
-        # Build text box
-        self.text_box = tkst.ScrolledText(text_frame, width = 55, height = 10)
-        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
-                           columnspan = 2)
-        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')  
-        
-        # Create button for advanced settings
-        adv_set_b = ttk.Button(text_frame, text = 'Adv. Settings', 
-                            command = lambda: adv_settings(self, settings, 'iFit'))
-        adv_set_b.grid(row = 0, column = 0, padx = 5, pady = 5)
-
-        # Create button to save settings
-        save_b = ttk.Button(text_frame, text = 'Save Settings', command = self.save)
-        save_b.grid(row = 0, column = 1, padx = 5, pady = 5)
-        
-#========================================================================================
-#==============================Create quick analysis outputs=============================
-#========================================================================================
-        
-        # Create progress bar
-        self.progress = ttk.Progressbar(quick_frame, orient = tk.HORIZONTAL, length=350,
-                                        mode = 'determinate')
-        self.progress.grid(row = 0, column = 0, padx = 5, pady = 5, columnspan = 4)
-        
-        # Create status indicator
-        self.status = tk.StringVar(quick_frame, value = 'Standby')
-        self.status_e = tk.Label(quick_frame, textvariable = self.status)
-        self.status_e.grid(row=0, column=4, padx=5, pady=5, sticky="EW")
-        
-        # Create ouput for last so2 amount
-        self.last_amt = tk.StringVar(self, value = '-')
-        last_amt_l = tk.Label(quick_frame, text = 'Last amt:', font = NORM_FONT)
-        last_amt_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        last_amt_e = tk.Label(quick_frame, textvariable = self.last_amt)
-        last_amt_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
-        
-        # Create ouput for last so2 error
-        self.last_err = tk.StringVar(self, value = '-')
-        last_err_l = tk.Label(quick_frame, text = '+/-', 
-                                  font = NORM_FONT)
-        last_err_l.grid(row = 1, column = 2, pady = 5, sticky = 'W')
-        last_err_e = tk.Label(quick_frame, textvariable = self.last_err)
-        last_err_e.grid(row = 1, column = 3, padx = 5, pady = 5, sticky = 'W')
         
 #========================================================================================
 #===================================Set program settings=================================
@@ -225,7 +174,14 @@ class mygui(tk.Tk):
 #========================================================================================
 #====================================Create plot canvas==================================
 #========================================================================================        
-                    
+            
+        # Translate gas choice to parameter names and graph print
+        gas_choice = {'so2' : r'SO$_2$',
+                      'no2' : r'NO$_2$',
+                      'o3'  : r'O$_3$' ,
+                      'bro' : 'BrO'    ,
+                      'ring': 'Ring'   }
+        
         # Create figure to hold the graphs
         plt.rcParams.update({'font.size': 8} )
         self.fig = plt.figure(figsize = (8,6))
@@ -257,10 +213,12 @@ class mygui(tk.Tk):
             self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
         self.ax2.set_xlabel('Wavelength (nm)', fontsize=10)
         
-        self.ax3.set_ylabel(settings['analysis_gas'] + ' Absorbance', fontsize = 10)
+        self.ax3.set_ylabel(gas_choice[settings['analysis_gas']] + ' Absorbance', 
+                            fontsize = 10)
         self.ax3.set_xlabel('Wavelength (nm)', fontsize=10)
         
-        self.ax4.set_ylabel(settings['analysis_gas'] + ' amt (ppm.m)', fontsize = 10)
+        self.ax4.set_ylabel(gas_choice[settings['analysis_gas']] + ' amt (ppm.m)',
+                            fontsize = 10)
         if settings['x_plot'] == 'Number':
             self.ax4.set_xlabel('Spectrum number', fontsize=10)
         if settings['x_plot'] == 'Time':
@@ -277,15 +235,15 @@ class mygui(tk.Tk):
         self.line2, = self.ax1.plot(0, 0)
         
         # Residual
-        self.line3, = self.ax2.plot(0, 0, 'r')
+        self.line3, = self.ax2.plot(0, 0)
         
         # SO2 transmittance data
-        self.line4, = self.ax3.plot(0, 0, label = 'Spec / F_no_gas')
-        self.line5, = self.ax3.plot(0, 0, label = 'Gas abs')
+        self.line4, = self.ax3.plot(0, 0, label = 'Meas Abs')
+        self.line5, = self.ax3.plot(0, 0, label = 'Synth Abs')
         self.ax3.legend(loc = 0)
         
         # SO2 Time series and error bars
-        self.line6, = self.ax4.plot(0, 0, 'g')
+        self.line6, = self.ax4.plot(0, 0)
         
         # Make it look nice
         plt.tight_layout()
@@ -323,11 +281,8 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # Create frames for diferent sections for post analysis     
-        setup_frame = tk.LabelFrame(page1, text = 'Program Setup', font = LARG_FONT)
+        setup_frame = tk.LabelFrame(page1, text = 'Setup', font = LARG_FONT)
         setup_frame.grid(row=0, column=0, padx = 10, pady = 10, sticky="ew")
-        
-        button_frame = tk.LabelFrame(page1, text='Control', font = LARG_FONT)
-        button_frame.grid(row=1, column=0, padx = 10, pady = 10, sticky="ew")
       
 #========================================================================================
 #==================================Create control inputs=================================
@@ -345,11 +300,13 @@ class mygui(tk.Tk):
         
         # Create entry to select spectrometer
         self.spec_name = tk.StringVar(setup_frame, value = options[0])
-        spectro_l = tk.Label(setup_frame, text = 'Spectrometer:', font = NORM_FONT)
-        spectro_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        spectro_c = ttk.OptionMenu(setup_frame, self.spec_name, *options, 
-                                   command = on_change)
-        spectro_c.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
+        make_input(frame = setup_frame, 
+                   text = 'Spectrometer:', 
+                   row = 0, column = 0, 
+                   var = self.spec_name, 
+                   input_type = 'OptionMenu',
+                   options = options, 
+                   sticky = 'W')
         
         # Create entry to select spectra type
         spec_options = [settings['Spectra Type'],
@@ -361,10 +318,13 @@ class mygui(tk.Tk):
                         'Ind']
         
         self.spec_type = tk.StringVar(setup_frame, value = spec_options[0])
-        spec_l = tk.Label(setup_frame, text = 'Spectra Type:', font = NORM_FONT)
-        spec_l.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
-        spec_c = ttk.OptionMenu(setup_frame, self.spec_type, *spec_options)
-        spec_c.grid(row = 0, column = 3, padx = 5, pady = 5, sticky = 'W')
+        make_input(frame = setup_frame, 
+                   text = 'Spectra Type:', 
+                   row = 1, column = 0, 
+                   var = self.spec_type, 
+                   input_type = 'OptionMenu',
+                   options = spec_options, 
+                   sticky = 'W')
         
 #========================================================================================
 #==================================Create file dialouges=================================
@@ -384,13 +344,13 @@ class mygui(tk.Tk):
         else:
             message = str(len(self.spec_fpaths))+' spectra selected'
         self.spec_ent = tk.StringVar(value = message)
-        self.specfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 40, 
+        self.specfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 30,
                                  text = self.spec_ent)
-        self.specfp_l.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W', 
-                      columnspan = 3)
+        self.specfp_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W', 
+                      columnspan = 2)
         specfp_b = ttk.Button(setup_frame, text="Select Spectra", 
                               command = lambda: spec_fp(self))
-        specfp_b.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+        specfp_b.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'W')
         
         # File dialouge for darks
         if self.dark_fpaths == ['']:
@@ -398,27 +358,13 @@ class mygui(tk.Tk):
         else:
             message = str(len(self.dark_fpaths))+' spectra selected'
         self.dark_ent = tk.StringVar(value = message)
-        self.darkfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 40, 
+        self.darkfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 30,
                                  text = self.dark_ent)
-        self.darkfp_l.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W', 
-                      columnspan = 3)
+        self.darkfp_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W', 
+                      columnspan = 2)
         darkfp_b = ttk.Button(setup_frame, text = "Select Darks",
                               command = lambda: dark_fp(self))
-        darkfp_b.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-               
-#========================================================================================
-#===================================Create start button==================================
-#========================================================================================         
-        
-        # Create button to start
-        start_b = ttk.Button(button_frame, text = 'Begin!', 
-                             command = lambda: self.begin('post'))
-        start_b.grid(row = 0, column = 0, padx = 40, pady = 5, columnspan = 2)
-        
-        # Create button to stop
-        stop_b = ttk.Button(button_frame, text = 'Stop', 
-                            command = lambda: stop(self, settings))
-        stop_b.grid(row = 0, column = 2, padx = 40, pady = 5, columnspan = 2)
+        darkfp_b.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'W')
         
 
         
@@ -440,11 +386,8 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # Create frames for diferent sections for post analysis     
-        setup_frame2 = tk.LabelFrame(page2, text='Spectrometer Setup', font = LARG_FONT)
+        setup_frame2 = tk.LabelFrame(page2, text='Setup', font = LARG_FONT)
         setup_frame2.grid(row=0, column=0, padx = 10, pady = 10, sticky="ew")
-        
-        button_frame2 = tk.LabelFrame(page2, text='Control', font = LARG_FONT)
-        button_frame2.grid(row=1, column=0, padx = 10, pady = 10, sticky="ew")
 
 #========================================================================================
 #==================================Create control inputs=================================
@@ -452,35 +395,42 @@ class mygui(tk.Tk):
         
         # Create label to display the spectrometer name
         self.c_spec = tk.StringVar(setup_frame2, value = 'Not Connected')
-        c_spec_l = ttk.Label(setup_frame2, text="Device: ", font = NORM_FONT)
-        c_spec_l.grid(row=0, column=0, pady=5, padx=5, sticky='W')
-        c_spec_e = ttk.Label(setup_frame2, textvariable = self.c_spec)
-        c_spec_e.grid(row = 0, column = 1, padx = 5, pady = 5)
+        make_input(frame = setup_frame2, 
+                   text = 'Device:', 
+                   row = 0, column = 0, 
+                   var = self.c_spec, 
+                   input_type = 'Label',
+                   sticky = ['W', None])
         
         # Integration Time
         self.int_time = tk.DoubleVar(self, value = settings['int_time'])
-        int_time_l = tk.Label(setup_frame2, text = 'Integration time (ms):', 
-                              font = NORM_FONT)
-        int_time_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        int_time_e = ttk.Entry(setup_frame2, textvariable = self.int_time)
-        int_time_e.grid(row = 1, column = 1, padx = 5, pady = 5)
+        make_input(frame = setup_frame2, 
+                   text = 'Integration\ntime (ms):', 
+                   row = 1, column = 0, 
+                   var = self.int_time, 
+                   input_type = 'Spinbox',
+                   width = 15,
+                   vals = list(range(50, 1000, 50)))
         
         # Coadds
         self.coadds = tk.DoubleVar(self, value = settings['coadds'])
-        coadds_l = tk.Label(setup_frame2, text = 'Coadds:', 
-                              font = NORM_FONT)
-        coadds_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        coadds_e = ttk.Entry(setup_frame2, textvariable = self.coadds)
-        coadds_e.grid(row = 2, column = 1, padx = 5, pady = 5)
+        make_input(frame = setup_frame2, 
+                   text = 'Scans to\nAverage', 
+                   row = 2, column = 0, 
+                   var = self.coadds, 
+                   input_type = 'Spinbox',
+                   width = 15,
+                   vals = [1, 100])
         
         # Number of darks to get
         self.no_darks = tk.DoubleVar(self, value = settings['no_darks'])
-        no_darks_l = tk.Label(setup_frame2, text = 'No. Darks:', 
-                              font = NORM_FONT)
-        no_darks_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        no_darks_e = tk.Spinbox(setup_frame2, textvariable=self.no_darks,
-                                width = 20, from_ = 1, to = 20)
-        no_darks_e.grid(row = 3, column = 1, padx = 5, pady = 5)
+        make_input(frame = setup_frame2, 
+                   text = 'Number\nof Darks', 
+                   row = 3, column = 0, 
+                   var = self.no_darks, 
+                   input_type = 'Spinbox',
+                   width = 15,
+                   vals = [1, 100])
         
         # Create button to connect to spectrometer
         connect_spec_b = ttk.Button(setup_frame2, text = 'Connect',
@@ -504,25 +454,105 @@ class mygui(tk.Tk):
                                                                self.line2, self.ax1))
         read_darks_b.grid(row = 3, column = 2, padx = 5, pady = 5)
         
-#========================================================================================
-#==============================Create start and exit buttons=============================
-#========================================================================================         
-        
-        # Create button to start
-        start_aq_b = ttk.Button(button_frame2, text = 'Begin!', 
-                                command = lambda: self.begin('rt'))
-        start_aq_b.grid(row = 0, column = 0, padx = 40, pady = 5)
-        
-        # Create button to stop
-        stop_aq_b = ttk.Button(button_frame2, text = 'Stop', 
-                               command = lambda: stop(self, settings))
-        stop_aq_b.grid(row = 0, column = 1, padx = 40, pady = 5)
-        
         # Create switch to toggle fitting on or off
-        self.toggle_b = tk.Button(button_frame2, text = 'FITTING OFF', width = 12, 
+        self.toggle_b = tk.Button(setup_frame2, text = 'FITTING OFF', width = 12, 
                                   height = 1, bg = 'red', font = LARG_FONT,
                                   command = lambda: fit_toggle(self, settings))
-        self.toggle_b.grid(row=1, column=0, padx=5, pady=5, columnspan=2)
+        self.toggle_b.grid(row=4, column=0, padx=5, pady=5, columnspan=3)
+        
+        
+        
+        
+        
+        
+        
+ 
+#========================================================================================       
+#========================================================================================
+#=============================Program start/stop and analysis============================
+#========================================================================================
+#========================================================================================
+               
+#========================================================================================
+#==================================Create control buttons================================
+#========================================================================================         
+        
+        # Frame to hold the buttons
+        button_frame = ttk.Frame(quick_frame)
+        button_frame.grid(row=0, column=0, padx = 10, pady = 10, columnspan = 5,
+                          sticky="ew")        
+        
+        # Create button to start
+        start_b = ttk.Button(button_frame, command = self.begin, text = 'Begin!')
+        start_b.grid(row = 0, column = 0, padx = 25, pady = 5)
+        
+        # Create button to stop
+        stop_b = ttk.Button(button_frame, command = lambda: stop(self, settings),
+                            text = 'Stop')
+        stop_b.grid(row = 0, column = 1, padx = 25, pady = 5)
+        
+        # Create button for advanced settings
+        adv_set_b = ttk.Button(button_frame, text = 'Adv. Settings', 
+                            command = lambda: adv_settings(self, settings, 'iFit'))
+        adv_set_b.grid(row = 1, column = 0, padx = 25, pady = 5)
+
+        # Create button to save settings
+        save_b = ttk.Button(button_frame, text = 'Save Settings', command = self.save)
+        save_b.grid(row = 1, column = 1, padx = 25, pady = 5)
+               
+#========================================================================================
+#==================================Progress and Analysis=================================
+#======================================================================================== 
+        
+        # Create progress bar
+        self.progress = ttk.Progressbar(quick_frame, orient = tk.HORIZONTAL, length=300,
+                                        mode = 'determinate')
+        self.progress.grid(row = 1, column = 0, padx = 5, pady = 5, columnspan = 4)
+        
+        # Create status indicator
+        self.status = tk.StringVar(quick_frame, value = 'Standby')
+        self.status_e = tk.Label(quick_frame, textvariable = self.status)
+        self.status_e.grid(row=1, column=4, padx=5, pady=5, sticky="EW")
+        
+        # Create ouput for last so2 amount
+        self.last_amt = tk.StringVar(self, value = '-')
+        make_input(frame = quick_frame, 
+                   text = 'Last amt:', 
+                   row = 2, column = 0, 
+                   var = self.last_amt, 
+                   input_type = 'Label',
+                   sticky = 'W')
+        
+        # Create ouput for last so2 error
+        self.last_err = tk.StringVar(self, value = '-')
+        make_input(frame = quick_frame, 
+                   text = '+/-', 
+                   row = 2, column = 2, 
+                   var = self.last_err, 
+                   input_type = 'Label',
+                   sticky = 'W')
+        
+#========================================================================================
+#====================================Create text output==================================
+#========================================================================================  
+        
+        # Create frame to hold text output
+        text_frame = ttk.Frame(quick_frame)
+        text_frame.grid(row=3, column=0, padx=10, pady=10, columnspan=5, sticky="NW")      
+                 
+        # Build text box
+        self.text_box = tkst.ScrolledText(text_frame, width = 42, height = 8)
+        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
+                           columnspan = 2)
+        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')  
+        
+        
+        
+        
+        
+        
+        
+        
         
         
 
@@ -591,7 +621,13 @@ class mygui(tk.Tk):
 #========================================================================================
      
     # Function to begin analysis loop
-    def begin(self, mode):
+    def begin(self):
+        
+        # get program mode from notebook frame
+        if self.nb.index(self.nb.select()) == 0:
+            mode = 'rt'
+        else:
+            mode = 'post'
         
         # Turn off stopping flag
         self.stop_flag = False
@@ -661,7 +697,8 @@ class mygui(tk.Tk):
             return
         
         # Read in xsecs and flat spectrum
-        common = build_fwd_data(common, settings, self)
+        if self.build_model_flag:
+            common = build_fwd_data(common, settings, self)
         
             
 #========================================================================================
@@ -703,6 +740,7 @@ class mygui(tk.Tk):
 #========================================================================================
                 
 #=====================================Post analysis======================================
+               
                 if mode == 'post':
                     
                     try:
@@ -733,6 +771,7 @@ class mygui(tk.Tk):
                     
                 
 #===================================Real time analysis===================================
+                
                 if mode == 'rt':
                     
                     # Measure spectrum while fitting the last if fitting is on
@@ -864,10 +903,14 @@ class mygui(tk.Tk):
                     if bool(settings['scroll_flag']) == True:
                         lim = int(settings['scroll_spec_no'])
                         if len(spec_nos) > lim:
-                            spec_nos = spec_nos[1:]
-                            spec_times = spec_times[1:]
+                            # Find the difference
+                            diff = len(spec_nos) - lim
+                            
+                            # Extract that range
+                            spec_nos = spec_nos[diff:]
+                            spec_times = spec_times[diff:]
                             for m in gas:
-                                gas[m] = gas[m][1:]
+                                gas[m] = gas[m][diff:]
                                 
                     # Select whether to show so2 time series in time or number
                     if settings['x_plot'] == 'Number':
