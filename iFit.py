@@ -404,13 +404,16 @@ class mygui(tk.Tk):
         
         # Integration Time
         self.int_time = tk.DoubleVar(self, value = settings['int_time'])
+        print(settings['int_time'])
         make_input(frame = setup_frame2, 
                    text = 'Integration\ntime (ms):', 
                    row = 1, column = 0, 
                    var = self.int_time, 
                    input_type = 'Spinbox',
                    width = 15,
-                   vals = list(range(50, 1000, 50)))
+                   vals = [50, 1000],
+                   increment = 50)
+                   #vals = list(range(50, 1000, 50)))
         
         # Coadds
         self.coadds = tk.DoubleVar(self, value = settings['coadds'])

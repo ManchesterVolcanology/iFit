@@ -9,9 +9,9 @@ Created on Thu Sep 27 12:00:05 2018
 from tkinter import ttk
 import tkinter as tk
 
-def make_input(frame, text, var, input_type, row, column, padx = 5,
-               pady = 5, command = None, sticky = ['NSEW', None], label_font = ('Verdana', 8),
-               width = None, options = None, vals = [0, 10]):
+def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5, 
+               command = None, sticky = ['NSEW', None], label_font = ('Verdana', 8),
+               width = None, options = None, vals = [0, 10], increment = 1):
     
     '''
     Function to build GUI inputs consisting of a label and an input.
@@ -29,7 +29,8 @@ def make_input(frame, text, var, input_type, row, column, padx = 5,
         Variable to assosiate with the input
         
     input_type, str
-        Type of input to use. Must be one of Entry, Spinbox, OptionMenu, Checkbutton or Label
+        Type of input to use. Must be one of Entry, Spinbox, OptionMenu, Checkbutton or
+        Label
         
     row, int
         Row number, will be the same for label and input
@@ -61,7 +62,10 @@ def make_input(frame, text, var, input_type, row, column, padx = 5,
         
     values, tuple or list (optional)
         Sets the range of values for a spinbox. If two values are give it sets the limits
-        (from, to). 
+        (from, to)
+        
+    increment, int
+        Value spacing for a spinbox
         
     OUTPUTS
     -------
@@ -108,11 +112,14 @@ def make_input(frame, text, var, input_type, row, column, padx = 5,
         # Check if range is from:to or a list
         if len(vals) == 2:
             entry = tk.Spinbox(frame, textvariable = var, width = width, from_ = vals[0],
-                               to = vals[1], command = command)
+                               to = vals[1], command = command, increment = increment)
             
         else:
             entry = tk.Spinbox(frame, textvariable = var, width = width, values = vals, 
-                               command = command)
+                               command = command, increment = increment)
+            
+        # Set first value
+        #entry.update(var.get())
             
             
     # Option Menu
