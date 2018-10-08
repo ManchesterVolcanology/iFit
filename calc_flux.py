@@ -151,7 +151,7 @@ class mygui(tk.Tk):
         self.vline1 = self.ax0.axvline(1, color = 'r')
         self.fill   = self.ax0.fill_between([0], [0], [1])
         self.ax0.set_xlabel('Time (From Spectra)', fontsize=10)
-        self.ax0.set_ylabel('SO2 column amount (ppm.m)', fontsize=10)
+        self.ax0.set_ylabel(r'SO$_2$ column amount (ppm.m)', fontsize=10)
         
         # Get origional limits
         common['lims'] = self.ax0.get_xlim()
@@ -222,7 +222,7 @@ class mygui(tk.Tk):
         gps_path_b.grid(row=1, column=3, padx=5, pady=5, columnspan=2, sticky='W')
         
         # Create inputs for wind speed and units
-        self.wind_speed = tk.IntVar(value = 0)
+        self.wind_speed = tk.DoubleVar(value = 0)
         wind_speed_l = tk.Label(trav_frame, text = 'Wind Speed:', font = NORM_FONT)
         wind_speed_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
         wind_speed_e = tk.Entry(trav_frame, font = NORM_FONT, width = 15, 
@@ -467,6 +467,7 @@ class mygui(tk.Tk):
         common['times']     = []
         common['locations'] = []
         common['azimuths']  = []
+        common['w_speeds']  = []
         common['fluxes']    = []
         common['flux_errs'] = []
         
@@ -600,8 +601,8 @@ class mygui(tk.Tk):
             lat        = common['lat']
             volc_lon   = self.volc_lon.get()
             volc_lat   = self.volc_lat.get()
-            wind_speed = float(self.wind_speed.get())
-            wind_err   = float(self.wind_error.get())
+            wind_speed = self.wind_speed.get()
+            wind_err   = self.wind_error.get()
             
         except KeyError:
             self.text_output('Please import data first')
@@ -689,6 +690,9 @@ class mygui(tk.Tk):
         # If wind speed is in knotts, convert to m/s
         if self.wind_unit.get() == 'knots':
             wind_speed = wind_speed * 0.5144444444
+            
+        # Add wind speed to array
+        common['w_speeds'].append([wind_speed, wind_speed * (wind_err / 100) ])
 
         # Convert so2 amounts from ppm.m to molecules.cm-2
         so2_amt_molec = np.multiply(so2_amt, 2.463e15)
@@ -848,7 +852,7 @@ def make_graph(d):
             w.write('Results from calc_flux.py for ' + common['analysis_date'] + '\n' + \
                     'NOTE errors are from SO2 fitting and wind speed only\n\n' + \
                     'Time (UTC)    Centre Location (lat/lon)   Plume Azimuth    '+\
-                    'Flux (t/day)\n')
+                    'Wind speed (m/s)    Flux (t/day)\n')
             
             # Write each time, flux and error
             for n, t in enumerate(common['times']):
@@ -857,10 +861,15 @@ def make_graph(d):
                 c_lat = f"{common['locations'][n][0]:.4f}"
                 c_lon = f"{common['locations'][n][1]:.4f}"
                 cent_loc = '{0: <28}'.format(c_lat + ' / ' + c_lon)
+                
+                # Create wind speed string
+                w_spd = f"{common['w_speeds'][n][0]:.2f}"
+                w_err = f"{common['w_speeds'][n][1]:.1f}"
             
                 w.write(str(t)[:12] + '  ' +  \
                         cent_loc + \
                         '{0: <17}'.format(f"{common['azimuths'][n]:.1f}") + \
+                        '{0: <19}'.format(w_spd + ' (+/- ' + w_err + ')') + \
                         str(common['fluxes'][n]) + '(+/- ' + \
                         str(common['flux_errs'][n]) + ')\n')
 
