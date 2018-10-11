@@ -2,12 +2,12 @@ wave_start;305.0
 wave_stop;320.0
 Spectrometer;USB2+H15972
 Spectra Type;iFit
-int_time;50.0
+int_time;100.0
 coadds;10.0
 no_darks;10.0
 ils_width;0.7
 gauss_weight;1.0
-Fit ILS;Fix
+Fit ILS;File
 ldf;0.0
 Fit LDF;N/A
 dark_flag;True
@@ -18,11 +18,11 @@ fit_weight;Noise
 Show Graphs;True
 analysis_gas;so2
 scroll_flag;True
-scroll_spec_no;300
+scroll_spec_no;300.0
 x_plot;Time
 resid_type;Percentage
 solar_resid_flag;Ignore
-poly_n;3
+poly_n;3.0
 shift;-0.2
 stretch;0.05
 ring_amt;1.0

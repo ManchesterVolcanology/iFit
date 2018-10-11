@@ -35,21 +35,25 @@ def read_settings(fname, settings):
         
         # Unpack and save to dictionary
         for i in data:
-            name, val = i.strip().split(';')
+            name, val, dtype = i.strip().split(';')
             
-            # Check if float
-            try:
+            # Get the parameter value and change to correct variable type
+            if dtype == "<class 'float'>":
                 settings[name] = float(val)
-            except ValueError:
                 
-                # Check if boolean
-                if val in ['True', 'False']:
-                    # Convert to boolian
-                    settings[name] = bool(val)
-               
-                else:
-                    # Set as string
-                    settings[name] = val
+            
+            if dtype == "<class 'int'>":
+                settings[name] = int(val)
+                
+                
+            if dtype == "<class 'bool'>":
+                if val == 'True':
+                    settings[name] = True
+                if val == 'False':
+                    settings[name] = False
+                             
+            if dtype == "<class 'str'>":
+                settings[name] = str(val)
                     
     return settings
 
@@ -413,7 +417,7 @@ def adv_settings(self, settings, version):
 #========================================================================================
 #======================================Make frames=======================================
 #========================================================================================        
-        
+    print(settings['flat_flag'], settings['dark_flag'])
     # Create notebook to hold different frames
     nb = ttk.Notebook(popup)
     model_frame = ttk.Frame(nb)

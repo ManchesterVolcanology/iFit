@@ -109,7 +109,10 @@ class mygui(tk.Tk):
         # Read in settings file
         try:
             settings = read_settings('data_bases/ifit_scan_settings.txt', settings)
-   
+            
+            print(settings['flat_flag'], settings['dark_flag'])
+            
+        
         except FileNotFoundError:
             self.print_output('No settings file found, reverting to origional')
             settings['wave_start']        = 305
@@ -387,14 +390,12 @@ class mygui(tk.Tk):
         # Create or overright settings file
         with open('data_bases/ifit_scan_settings.txt', 'w') as w:
             
+            # Add scan fpaths to settings
+            settings['Scan Filepaths'] = str(self.scan_fpaths)
+            
             # Add all of the settings dictionary
             for s in settings:
-                w.write(s + ';' + str(settings[s]) + '\n')
-            
-            try:
-                w.write('Scan Filepaths;' + str(self.scan_fpaths) + '\n')
-            except AttributeError:
-                w.write('Scan Filepaths; \n') 
+                w.write(s + ';' + str(settings[s]) + ';' + str(type(settings[s])) + '\n')
                 
         self.print_output('Settings saved')  
         
@@ -406,7 +407,7 @@ class mygui(tk.Tk):
     def begin(self):
         
         # Turn off stopping falg
-        settings['stop_flag'] = False
+        self.stop_flag = False
         
         # Create common dictionary
         common = {}
@@ -532,7 +533,7 @@ class mygui(tk.Tk):
                 gas[g + '_errs'] = []
             
             # End loop if finished
-            if settings['stop_flag'] == True:
+            if self.stop_flag == True:
                 break
 
             # Read in scan block
@@ -560,7 +561,7 @@ class mygui(tk.Tk):
                     for n in range(1, len(spec_block)):
                         
                         # End loop if finished
-                        if settings['stop_flag'] == True:
+                        if self.stop_flag == True:
                             break
     
                         # Load spectrum
@@ -576,7 +577,7 @@ class mygui(tk.Tk):
                                     str(int(info_block[2][n])) + ':' + \
                                     str(int(info_block[3][n]))
                         motor_pos = str(info_block[4][n])
-                        view_ang  = str(float(motor_pos) * 0.06 - 102)
+                        view_ang  = str(float(motor_pos) * 0.06 - 90)
                             
                         # Add the data to the results file
                         w.write(str(spec_no) + ','+timestamp+','+motor_pos+','+view_ang)

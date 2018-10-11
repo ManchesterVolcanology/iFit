@@ -1031,7 +1031,7 @@ class mygui(tk.Tk):
             
             # Add all of the settings dictionary
             for s in settings:
-                w.write(s + ';' + str(settings[s]) + '\n')
+               w.write(s + ';' + str(settings[s]) + ';' + str(type(settings[s])) + '\n')
                 
         self.print_output('Settings saved')
 
