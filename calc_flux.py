@@ -363,7 +363,8 @@ class mygui(tk.Tk):
         lim_range = lims[1] - lims[0]
         
         # Update axis limits
-        new_lims = [lims[0] + lim_range * pos[0], lims[0] + lim_range * pos[1]]
+        new_lims = [lims[0] + lim_range * pos[0],
+                    lims[0] + lim_range * pos[1]]
         self.ax0.set_xlim(new_lims)
         self.rescale()
         
@@ -394,11 +395,12 @@ class mygui(tk.Tk):
             lims = self.ax0.get_xlim()
             
             # Get current data
-            idx = np.where(np.logical_and(common['time']>lims[0],common['time']<lims[1]))
+            idx = np.where(np.logical_and(common['time'] > lims[0],
+                                          common['time'] < lims[1]))
             y = common['so2_amt'][idx]
             
             # Find 5% of the range of data
-            y_pad = (max(y) - min(y))*0.05
+            y_pad = (max(y) - min(y)) * 0.05
             
             # Set limits 
             y_lims = [min(y) - y_pad, max(y) + y_pad]
@@ -851,7 +853,7 @@ def make_graph(d):
             # Write header lines
             w.write('Results from calc_flux.py for ' + common['analysis_date'] + '\n' + \
                     'NOTE errors are from SO2 fitting and wind speed only\n\n' + \
-                    'Time (UTC)    Centre Location (lat/lon)   Plume Azimuth    '+\
+                    'Time (UTC)    Centre Location (lat/lon)   Plume Azimuth    ' + \
                     'Wind speed (m/s)    Flux (t/day)\n')
             
             # Write each time, flux and error
@@ -869,7 +871,7 @@ def make_graph(d):
                 w.write(str(t)[:12] + '  ' +  \
                         cent_loc + \
                         '{0: <17}'.format(f"{common['azimuths'][n]:.1f}") + \
-                        '{0: <19}'.format(w_spd + ' (+/- ' + w_err + ')') + \
+                        '{0: <20}'.format(w_spd + ' (+/- ' + w_err + ')') + \
                         str(common['fluxes'][n]) + '(+/- ' + \
                         str(common['flux_errs'][n]) + ')\n')
 
