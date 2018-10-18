@@ -85,6 +85,20 @@ class mygui(tk.Tk):
         mygui.rowconfigure(index = 5, weight = 1, self = self)
         
 #========================================================================================
+#=================================== Create text output =================================
+#========================================================================================  
+        
+        # Create frame to hold text output
+        text_frame = ttk.Frame(quick_frame)
+        text_frame.grid(row=3, column=0, padx=10, pady=10, columnspan=5, sticky="NW")      
+                 
+        # Build text box
+        self.text_box = tkst.ScrolledText(text_frame, width = 42, height = 8)
+        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
+                           columnspan = 2)
+        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')  
+        
+#========================================================================================
 #================================== Set program settings ================================
 #========================================================================================
 
@@ -97,7 +111,7 @@ class mygui(tk.Tk):
             settings = read_settings('data_bases/ifit_settings.txt', settings)
    
         except FileNotFoundError:
-            self.print_output('No settings file found, reverting to origional')
+            self.print_output('No settings file found\nReverting to origional')
             settings['wave_start']        = 305
             settings['wave_stop']         = 318
             settings['Spectrometer']      = '-select-'
@@ -533,20 +547,6 @@ class mygui(tk.Tk):
                    var = self.last_err, 
                    input_type = 'Label',
                    sticky = 'W')
-        
-#========================================================================================
-#=================================== Create text output =================================
-#========================================================================================  
-        
-        # Create frame to hold text output
-        text_frame = ttk.Frame(quick_frame)
-        text_frame.grid(row=3, column=0, padx=10, pady=10, columnspan=5, sticky="NW")      
-                 
-        # Build text box
-        self.text_box = tkst.ScrolledText(text_frame, width = 42, height = 8)
-        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
-                           columnspan = 2)
-        self.text_box.insert('1.0', 'Welcome to iFit! Written by Ben Esse\n\n')  
         
         
         

@@ -417,7 +417,7 @@ def adv_settings(self, settings, version):
 #========================================================================================
 #======================================Make frames=======================================
 #========================================================================================        
-    print(settings['flat_flag'], settings['dark_flag'])
+
     # Create notebook to hold different frames
     nb = ttk.Notebook(popup)
     model_frame = ttk.Frame(nb)
