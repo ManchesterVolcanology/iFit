@@ -1006,7 +1006,7 @@ class mygui(tk.Tk):
                            np.column_stack((grid,common['solar_resid'])))
                 
                 self.print_output('Solar residual spectrum updated')
-                
+   
             # Update status
             self.status.set('Standby')
             

@@ -942,9 +942,9 @@ def adv_settings(self, settings, version):
     # Turn on/off graph scrolling
     scroll_b = tk.BooleanVar(graph_frame, value = settings['scroll_flag'])
     make_input(frame = graph_frame, 
-               text = 'Show Graphs?', 
+               text = 'Scoll Graphs?', 
                row = row_n, column = col_n, 
-               var = graph_b, 
+               var = scroll_b, 
                input_type = 'Checkbutton')
     row_n += 1
     
