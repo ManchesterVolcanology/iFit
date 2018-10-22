@@ -1,16 +1,8 @@
 import numpy as np
 
 #========================================================================================
-#======================================find_nearest======================================
+#===================================== find_nearest =====================================
 #========================================================================================
-
-# Function to find the nearest value in an array given a desired value
-
-# INPUTS: array: array to search through
-#         value: desired value to find in the array
-
-# OUTPUTS: idx: index of the nearest array value
-#          array[idx]: the true array value
 
 def find_nearest(array, value):
     
@@ -19,21 +11,26 @@ def find_nearest(array, value):
     
     INPUTS
     ------
-    array: array to search
-    value: value to find in array
+    array, array of floats/integers
+        Array to search
+        
+    value, float
+        Value to find in array
     
     OUTPUTS
     -------
-    idx: index of nearest value
-    val: value of nearest value in array
-    
+    idx, int
+        Index of nearest value
+        
+    val, float
+        Value of nearest value in array
     '''
     
     idx = (np.abs(array-value)).argmin()
     return idx, array[idx]
 
 #========================================================================================
-#=====================================extract window=====================================
+#==================================== extract window ====================================
 #========================================================================================
  
 # Function to extract a window from an ordered array
@@ -45,6 +42,32 @@ def find_nearest(array, value):
 #          ind1/ind2     ; indicies of the window
  
 def extract_window(array, start, stop, ordered = True):
+    
+    '''
+    Function to extract a window from an array
+    
+    INPUTS
+    ------
+    array, array
+        The array to extract from.
+        
+    start, float
+        Lower window bound
+    
+    stop, float
+        Upper window bound
+        
+    ordered, bool (optional)
+        Flag to use if the input array is ordered or not (default = True)
+        
+    OUTPUT
+    ------
+    windowed_array, array
+        The origional array cut to the desired window
+        
+    cond, tuple
+        The upper and lower bound indices
+    '''
     
     if ordered:
     

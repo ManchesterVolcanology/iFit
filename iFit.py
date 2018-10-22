@@ -503,7 +503,7 @@ class mygui(tk.Tk):
         start_b.grid(row = 0, column = 0, padx = 25, pady = 5)
         
         # Create button to stop
-        stop_b = ttk.Button(button_frame, command = lambda: stop(self, settings),
+        stop_b = ttk.Button(button_frame, command = lambda: stop(self),
                             text = 'Stop')
         stop_b.grid(row = 0, column = 1, padx = 25, pady = 5)
         

@@ -11,7 +11,7 @@ from scipy.interpolate import griddata
 from ifit_lib.make_ils import make_ils
 
 #========================================================================================
-#=======================================Get Shift========================================
+#====================================== get_shift =======================================
 #========================================================================================
 
 def get_shift(grid, spec, common):
@@ -23,14 +23,22 @@ def get_shift(grid, spec, common):
     
     INPUTS
     ------
-    grid:   Wavelength grid (must be evenly spaced)
-    spec:   Spectrum
-    common: Common dictionary of parameters form the main program
+    grid, array
+        Wavelength grid (must be evenly spaced)
+        
+    spec, array
+        Measured spectrum
+        
+    common, dict
+        Common dictionary of parameters from the main program
     
     OUTPUTS
     -------
-    shift: Calculated wavelength shift
+    shift, float
+        Calculated wavelength shift
     
+    err, bool
+        Flag showing sensibility of the fit. If 1 there is a problem.
     '''
     
     # Find spectral spacing
@@ -58,33 +66,3 @@ def get_shift(grid, spec, common):
         err = 0
     
     return shift, err
-
-
-
-#########################################################################################
-'''    
-common = {}
-
-common['model_grid'] = np.arange(start = 302, stop = 321 + 0.02, step = 0.02)
-common['ils_width'] = 0.51
-sol_path = 'C:/Users/mqbpwbe2/Dropbox/python_scripts/iFit/data_bases/gas data/sao2010.txt'
-sol_x, sol_y = np.loadtxt(sol_path, unpack = True)    
-conv_factor = sol_y.max() / 70000
-sol_y = np.divide(sol_y, conv_factor)
-common['sol'] = griddata(sol_x, sol_y, common['model_grid'], method = 'cubic')
-common['ils_gauss_weight'] = 1.0
-
-from ifit_lib.read_spectrum import read_spectrum
-spec_path = 'C:/Users/mqbpwbe2/Dropbox/Fieldwork/2018 01 Central America/14-01-2018/ifrit_out/spectra/spectrum_00350.txt'
-x, y, date, time, n, err = read_spectrum(spec_path)
-
-shift = get_shift(x, y, common)
-'''
-
-    
-    
-    
-    
-#########################################################################################    
-    
-    

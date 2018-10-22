@@ -4,10 +4,14 @@ import numpy as np
 from ifit_lib.julian_time import hms_to_julian
 
 #========================================================================================
-#========================================read_nmea=======================================
+#======================================= read_nmea ======================================
 #========================================================================================
 
 def read_nmea(fpath, time_diff):
+    
+    '''
+    Function to read in raw NMEA data (not functional)
+    '''
     
     # Load file
     with open(fpath, 'r') as r:
@@ -80,29 +84,30 @@ def read_nmea(fpath, time_diff):
     return time, lat, lon
 
 #========================================================================================
-#======================================read_txt_gps======================================
+#===================================== read_txt_gps =====================================
 #========================================================================================
-
-# Function to read a GPS text file and return the time and coordinates of the readings
-
-# INPUTS:  gps_fname; filepath to the gps text file
-
-# OUTPUTS: date, time, latitude, longitude and altitude of readings
 
 def read_txt_gps(gps_fname):
 
     '''
-    Function to read in gps .txt file
+    Function to read in gps .txt file 
+    (e.g. converted from .nmea by http://www.gpsvisualizer.com)
     
     INPUTS
     ------
-    gps_fname: string, file path to the gps file to load
+    gps_fname, str
+        File path to the gps file to load
     
     OUTPUTS
     -------
-    time: array, time values in decimal hours
-    lat:  array, point latitudes
-    lon:  array, point longitudes
+    time, array
+        Time values in decimal hours
+        
+    lat, array
+        Point latitudes
+        
+    lon, array
+        Point longitudes
     '''
     
     # Create empty arrays to hold the outputs
@@ -145,7 +150,7 @@ def read_txt_gps(gps_fname):
 
     
 #========================================================================================
-#=======================================gps_vector=======================================
+#====================================== gps_vector ======================================
 #========================================================================================
 
 
@@ -157,13 +162,19 @@ def haversine(lon1, lat1, lon2, lat2):
     
     INPUTS
     ------
-    lon1, lat1: longitude and latitude of first point
-    lon2, lat2: longitude and latitude of second point
+    lon1, lat1, floats
+        Longitude and latitude of first point
+        
+    lon2, lat2, floats
+        Longitude and latitude of second point
     
     OUTPUTS
     -------
-    dist: distance between two points in meters
-    bearing: bearing between points (0 - 2pi clockwise from North)
+    dist, float
+        Distance between two points in meters
+        
+    bearing, float
+        Bearing between points (0 - 2pi clockwise from North)
     '''
 
     # Convert decimal degrees to radians

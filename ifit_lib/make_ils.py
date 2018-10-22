@@ -8,7 +8,7 @@ Created on Wed May 10 14:16:04 2017
 import numpy as np
 
 #========================================================================================
-#=========================================make_ils=======================================
+#======================================== make_ils ======================================
 #========================================================================================
  
 def make_gauss(interval, fwhm):
@@ -18,12 +18,16 @@ def make_gauss(interval, fwhm):
     
     INPUTS
     ------
-    interval: Model grid spacing
-    fwhm: The full width half maximum of the Gaussain curve
+    interval, float
+        Model grid spacing
+        
+    fwhm, float
+        The full width half maximum of the desired Gaussain
     
     OUTPUTS
     -------
-    gauss: Outputted normalised gaussian lineshape
+    gauss, array
+        Outputted normalised gaussian lineshape
     '''
     
     # Create grid 5 times bigger than FWHM
@@ -44,7 +48,7 @@ def make_gauss(interval, fwhm):
     return gauss
     
 #========================================================================================
-#=========================================make_ils=======================================
+#======================================== make_ils ======================================
 #========================================================================================    
 
 def make_ils(fit_res, interval, ils_gauss_weight):
@@ -54,14 +58,20 @@ def make_ils(fit_res, interval, ils_gauss_weight):
     
     INPUTS
     ------
-    fit_res: Resolution of the fit (FWHM for a pure gaussian ILS)
-    interval: Model grid spacing
-    ils_gaus_weight: Weighting of gaussian contributio to ILS. Float from 0-1. Boxcar 
-                     contribution is caclulated as 1 - ils_gauss_wieght
+    fit_res, float
+        Resolution of the fit (FWHM for a pure gaussian ILS)
+        
+    interval, float
+        Model grid spacing
+        
+    ils_gaus_weight, float (0 - 1)
+        Weighting of gaussian contributio to ILS. Boxcar contribution is caclulated as 
+        1 - ils_gauss_wieght
     
     OUTPUTS
     -------
-    ils: the instrument line shape (ILS) of the spectrometer
+    ils, array
+        The instrument line shape (ILS) of the spectrometer
     '''
     
     # Calculate pure Gaussian lineshape

@@ -9,7 +9,7 @@ import os
 from glob import glob
 
 #========================================================================================
-#=====================================make_directory=====================================
+#==================================== make_directory ====================================
 #========================================================================================
 
 def make_directory(fpath, overwrite = False):
@@ -20,12 +20,16 @@ def make_directory(fpath, overwrite = False):
     
     INPUTS
     ------
-    fpath: desired file path to the directory
-    overwrite: Boolian flag controlling if an existing directory is overwritten
+    fpath, str
+        Desired file path to the directory
+        
+    overwrite, bool (optional)
+    Flag controlling if an existing directory is overwritten (default = False)
     
     OUTPUTS
     -------
-    new_fpath: actual filepath to the new directory
+    new_fpath, str
+        Actual filepath to the new directory
     '''
     
     # To avoid overwriting data, create a new directory if one already exists
@@ -61,18 +65,21 @@ def make_directory(fpath, overwrite = False):
     return new_fpath
 
 #========================================================================================
-#=====================================make_directory=====================================
+#==================================== make_csv_file =====================================
 #========================================================================================
 
 def make_csv_file(fname, common):
     
     '''
-    Function used to build a new file directory, automatically changing the filepath to
-    avoid overwriting existing data
+    Function used to build a new csv file (not functional yet)
     
     INPUTS
     ------
-    fpath: desired file path to the directory
+    fname, str
+        File path to the csv output file
+        
+    common, dict
+        Common dictionary of program settings and parameters
     '''
     
     # Open excel file and write header line

@@ -8,7 +8,7 @@ Created on Mon Jun 11 16:43:49 2018
 import numpy as np
 
 #========================================================================================
-#==================================read_binary_block=====================================
+#================================= read_binary_block ====================================
 #======================================================================================== 
 
 def read_binary_block(fpath):
@@ -18,15 +18,25 @@ def read_binary_block(fpath):
     
     INPUTS
     ------
-    fpath: file path to data block
+    fpath, str
+        File path to data block
     
     OUTPUTS
     -------
-    error:      an error code, 0 if all is OK, 1 if an error was produced
-    wavelength: array of wavelength calculated from the calibration coefficients
-    header:     header parameters: Vbatt, Vpanel, IBatt, Temp.
-    info_block: spectra info: spec no, hours, minutes, seconds, motor position
-    spec_block: array of the measured spectra for the scan block
+    error, bool
+        An error code, 0 if all is OK, 1 if an error was produced
+        
+    wavelength, array
+        Wavelength grid calculated from the calibration coefficients
+        
+    header, str
+        Header parameters: Vbatt, Vpanel, IBatt, Temp.
+        
+    info_block, array
+        Spectra info: spec no, hours, minutes, seconds, motor position
+        
+    spec_block, array
+        Array of the measured spectra for the scan block
     
     Written by Ben Esse, June 2018
     '''
@@ -128,7 +138,7 @@ def read_binary_block(fpath):
         return 1, 1, 1, 1, 1
     
 #========================================================================================
-#===================================get_spec_details=====================================
+#================================== get_spec_details ====================================
 #========================================================================================    
     
 def get_spec_details(fpath):
@@ -138,16 +148,22 @@ def get_spec_details(fpath):
     
     INPUTS
     ------
-    fpath: filename of the spectra block, containing the station name
+    fpath, str
+        Filename of the spectra block, containing the station name
     
     OUTPUTS
     -------
-    scanner:   scanner station name
-    spec_name: spectrometer name
-    intercept: intercept
-    c1:        coef 1
-    c2:        coef 2
-    c3:        coef 3   
+    scanner, str
+        Scanner station name
+        
+    spec_name, str
+        Spectrometer serial number
+        
+    intercept, float
+        Intercept
+        
+    c1, c2, c3, floats
+        Calibration coeficents
     
     Written by Ben Esse, June 2018
     '''

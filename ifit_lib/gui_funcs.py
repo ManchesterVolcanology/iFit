@@ -22,10 +22,27 @@ from ifit_lib.update_graph import update_graph
 from ifit_lib.build_gui import make_input
 
 #========================================================================================
-#=======================================Read Setttings===================================
+#====================================== read_setttings ==================================
 #========================================================================================
 
 def read_settings(fname, settings):
+    
+    '''
+    Fuction to read in the settings file
+    
+    INPUTS
+    ------
+    fname, str
+        File path to settings file
+    
+    settings, dict
+        Dictionary of GUI settings
+        
+    OUTPUTS
+    -------
+    settings, dict
+        Setting dictionary updated with setings from the file
+    '''
     
     # Open the settings file 
     with open(fname, 'r') as r:
@@ -58,11 +75,27 @@ def read_settings(fname, settings):
     return settings
 
 #========================================================================================
-#=======================================Toggle fitting===================================
+#====================================== fit_toggle ======================================
 #========================================================================================
             
 # Function to toggle fitting on and off
 def fit_toggle(self, settings):
+    
+    '''
+    Function to toggle fitting on or off for real time analysis
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    settings, dict
+        Contains the GUI settings
+        
+    OUTPUTS
+    -------
+    None
+    '''
     
     # Toggle button text and colour
     if self.toggle_b.config('text')[-1] == 'FITTING ON':
@@ -77,11 +110,27 @@ def fit_toggle(self, settings):
                           'Spectrum number ' + str(self.loop))
 
 #========================================================================================
-#=================================Connect to Spectrometer================================
+#================================ Connect to Spectrometer ===============================
 #========================================================================================
         
 # Function to connect to the attached spectrometer
 def connect_spec(self, settings):
+    
+    '''
+    Fuction to connect to a spectrometer
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    settings, dict
+        Contains the GUI settings
+        
+    OUTPUTS
+    -------
+    None
+    '''
     
     # Find connected spectrometers
     devices = sb.list_devices()
@@ -124,11 +173,24 @@ def connect_spec(self, settings):
     self.c_spec.set(settings['Spectrometer'])
         
 #========================================================================================
-#=====================================Filepath Buttons===================================
+#==================================== Filepath Buttons ==================================
 #========================================================================================
    
 # Function to select spectra to analyse
 def spec_fp(self):
+    
+    '''
+    Function to get plume spectra file paths
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    OUTPUTS
+    -------
+    None
+    '''
         
     # Open dialouge to get files
     fpaths = fd.askopenfilenames()
@@ -143,6 +205,19 @@ def spec_fp(self):
 
 # Function to select dark spectra
 def dark_fp(self):
+    
+    '''
+    Function to get dark spectra file paths
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    OUTPUTS
+    -------
+    None
+    '''
         
     # Open dialouge to get files
     fpaths = fd.askopenfilenames()
@@ -156,10 +231,26 @@ def dark_fp(self):
         self.dark_ent.set(str(len(self.dark_fpaths)) + ' spectra selected')
         
 #========================================================================================
-#=================================Update Integration Time================================
+#================================ Update Integration Time ===============================
 #========================================================================================
 
 def update_int_time(self, settings):
+    
+    '''
+    Function to update the spectrometer integration time
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    settings, dict
+        Dictionary of GUI settings
+        
+    OUTPUTS
+    -------
+    None
+    '''
     
     try:
         # Update integration time on spectrometer
@@ -173,10 +264,35 @@ def update_int_time(self, settings):
         self.print_output('No spectrometer conected')
         
 #========================================================================================
-#===============================Read a single test spectrum==============================
+#============================== Read a single test spectrum =============================
 #========================================================================================
 
 def test_spec(self, settings, mygui, line, ax):
+    
+    '''
+    Function to take a test spectrum
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    settings, dict
+        Dictionary of GUI settings
+        
+    my_gui, tk.Tk() object
+        Main GUI object
+        
+    line, pyplot.plot object
+        Line on which to plot the test spectrum
+        
+    ax, pyplot.axis object
+        Axis containing the line
+        
+    OUTPUTS
+    -------
+    None
+    '''
     
     # Update status
     self.status.set('Acquiring')
@@ -197,10 +313,35 @@ def test_spec(self, settings, mygui, line, ax):
     self.status.set('Standby')        
 
 #========================================================================================
-#========================================Read Darks======================================
+#======================================= Read Darks =====================================
 #========================================================================================
 
 def read_darks(self, settings, mygui, line, ax):
+    
+    '''
+    Function to take a dark spectrum
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    settings, dict
+        Dictionary of GUI settings
+        
+    my_gui, tk.Tk() object
+        Main GUI object
+        
+    line, pyplot.plot object
+        Line on which to plot the dark spectrum
+        
+    ax, pyplot.axis object
+        Axis containing the line
+        
+    OUTPUTS
+    -------
+    None
+    '''
     
     if tkMessageBox.askyesno('Record Darks', 'Ready to begin measuring darks?'):
     
@@ -286,15 +427,29 @@ def read_darks(self, settings, mygui, line, ax):
         self.status.set('Standby')
         
 #========================================================================================
-#===========================================Stop=========================================
+#========================================== Stop ========================================
 #========================================================================================
         
-def stop(self, settings):
+def stop(self):
+    
+    '''
+    Function to stop acquisition and/or analysis
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    OUTPUTS
+    -------
+    None
+    '''
+    
     self.stop_flag = True
     self.print_output('Loop Stopped\nSpectrum number ' + str(self.loop))
 
 #========================================================================================
-#====================================Advanced Setings====================================
+#=================================== Advanced Setings ===================================
 #========================================================================================
 
 # Define some fonts to use in the program
@@ -303,6 +458,25 @@ MED_FONT  = ('Veranda', 11)
 LARG_FONT = ('Verdana', 12, 'bold')
 
 def adv_settings(self, settings, version):
+    
+    '''
+    Function to take a test spectrum
+    
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+        
+    settings, dict
+        Dictionary of GUI settings
+        
+    version, str
+        Version of the program. Controls whether plot labels are updated or not
+        
+    OUTPUTS
+    -------
+    None
+    '''
     
     # Make popup window
     popup = tk.Tk()
@@ -415,7 +589,7 @@ def adv_settings(self, settings, version):
         self.build_model_flag = True
         
 #========================================================================================
-#======================================Make frames=======================================
+#===================================== Make frames ======================================
 #========================================================================================        
 
     # Create notebook to hold different frames
@@ -451,10 +625,10 @@ def adv_settings(self, settings, version):
     b3.grid(row = 0, column = 2, padx = 70, pady = 5, sticky = "EW")
 
 #========================================================================================
-#=====================================Model Settings=====================================
+#==================================== Model Settings ====================================
 #========================================================================================
 
-#======================================Model Setup=======================================
+#===================================== Model Setup ======================================
 
     # Create frame to hold wavelength settings
     wl_frame = ttk.Frame(model_frame)
@@ -577,7 +751,7 @@ def adv_settings(self, settings, version):
     sep = ttk.Separator(model_frame, orient='vertical')
     sep.grid(column=2, row = 1, rowspan=7, sticky='ns', padx=10, pady=5)
 
-#=======================================Parameters=======================================
+#====================================== Parameters ======================================
     
     # Reset row counter
     row_n = 1
@@ -683,7 +857,7 @@ def adv_settings(self, settings, version):
     sep = ttk.Separator(model_frame, orient='vertical')
     sep.grid(column=6, row = 1, rowspan=7, sticky='ns', padx=10, pady=5)
     
-#=======================================New Column=======================================
+#====================================== New Column ======================================
     
     # Reset row counter
     row_n = 1
@@ -772,7 +946,7 @@ def adv_settings(self, settings, version):
     
     
 #========================================================================================
-#==================================Data base file paths==================================
+#================================= Data base file paths =================================
 #========================================================================================
      
     # Create row number counter
@@ -890,7 +1064,7 @@ def adv_settings(self, settings, version):
     #conv_xsec_b.grid(row = row_n, column = 1, padx=5, pady=5)
     
 #========================================================================================
-#====================================Graph Settings======================================
+#=================================== Graph Settings =====================================
 #========================================================================================
 
 
@@ -972,10 +1146,13 @@ def adv_settings(self, settings, version):
     row_n += 1
 
 #========================================================================================   
-#===================================Gas Xsec analyser====================================
+#================================== Gas Xsec analyser ===================================
 #======================================================================================== 
 
 def conv_xsec():
+    '''
+    Function to convert a gas cross section. Not functional yet
+    '''
     
     # Make popup window
     win = tk.Tk()
@@ -1005,7 +1182,7 @@ def conv_xsec():
     for i in range(101):
         choices.append(i)
    
-#===================================Filepath controls====================================
+#================================== Filepath controls ===================================
     
     # Load spectrum fpath
     win.load_path = tk.StringVar(fpath_frame)
@@ -1027,7 +1204,7 @@ def conv_xsec():
                              command = lambda: update_fp(win.save_path))
     save_path_b.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
    
-#====================================Program controls====================================
+#=================================== Program controls ===================================
     
     # Create inputs for number of header and footer rows to ignore
     win.head_rows = tk.IntVar(setup_frame, value = 0)
@@ -1075,7 +1252,7 @@ def conv_xsec():
     delimiter_e = ttk.OptionMenu(setup_frame, win.delimiter, *delim_options)
     delimiter_e.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
 
-#====================================Convert button======================================
+#=================================== Convert button =====================================
     
     # Create frame to hold the button
     button_frame = ttk.Frame(win)
@@ -1085,7 +1262,7 @@ def conv_xsec():
     conv_b = ttk.Button(button_frame, text = 'Convert', command = convert)
     conv_b.grid()
 
-#=====================================Graph control======================================
+#==================================== Graph control =====================================
     
     # Create graph for display
     fig = plt.figure(figsize = (6,4))

@@ -8,6 +8,10 @@ Created on Thu Jul 12 09:36:21 2018
 import numpy as np
 import datetime as dt
 
+#========================================================================================
+#==================================== hms_to_julian =====================================
+#========================================================================================
+
 def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     
     '''
@@ -15,13 +19,20 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     
     INPUTS
     ------
-    times     : array; origional time objects
-    str_format: string; time format if converting from strings. Default is None
-    out_format: string; Format of output:
+    times, array
+        Origional time objects
+        
+    str_format, str (optional)
+        Time format if converting from strings. Default is None
+        
+    out_format, str (optional)
+        Format of output. Must be either "decimal hours" or "decimal days". Default is 
+        decimal hours
                    
     OUTPUTS
     -------
-    jul_time: Array of julian time values calculated form the input array
+    jul_time, array
+        Array of julian time values calculated form the input array
     '''
     
     # Check if output format is correct
@@ -71,6 +82,9 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     else:
         return jul_time
             
+#========================================================================================
+#==================================== julian_to_hms =====================================
+#========================================================================================
         
 def julian_to_hms(time_arr, input_format = 'decimal hours'):
 
@@ -79,14 +93,18 @@ def julian_to_hms(time_arr, input_format = 'decimal hours'):
     
     INPUTS
     ------
-    time_arr:     array of julan time values
-    input_format: string describing the format of the input Julian time values.
-                    Either "decimal days" (default) or "decimal hours"
+    time_arr, arrray
+        Origional julan time values
+        
+    input_format, str
+        Describes the format of the input Julian time values. Either "decimal days" 
+        (default) or "decimal hours"
                     
     OUTPUTS
     -------
-    time: array of datetime objects
-    '''    
+    time, array
+        Datetime objects
+    '''
 
     # Check if output format is correct
     if input_format not in ['decimal days', 'decimal hours']:

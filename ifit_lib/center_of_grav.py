@@ -2,7 +2,7 @@ import numpy as np
 from ifit_lib.find_nearest import find_nearest
 
 #========================================================================================
-#=====================================centre_of_grav=====================================
+#==================================== centre_of_grav ====================================
 #========================================================================================
 
 def cog(array):
@@ -13,12 +13,13 @@ def cog(array):
 
     INPUTS
     ------
-    array: array of values to find the centre of gravity of
+    array, array
+        Array of values to find the centre of gravity of
     
     OUTPUTS
     -------
-    index: index of the centre of gravity in the input array
-        
+    index, int
+        Index of the centre of gravity in the input array 
     '''
     
     cul_freq = np.zeros(len(array))

@@ -8,7 +8,7 @@ from ifit_lib.get_shift import get_shift
 from ifit_lib.smooth import smooth
 
 #========================================================================================
-#=========================================fit_spec=======================================
+#======================================== fit_spec ======================================
 #========================================================================================
 
 def fit_spec(common, spectrum, grid, q = None):
@@ -23,32 +23,36 @@ def fit_spec(common, spectrum, grid, q = None):
     common: dictionary
         Common dictionary of parameters and variables passed from the main program
         to subroutines
+        
     spectrum: 2D array
         Intensity data from the measured spectrum 
+        
     grid: 1D array
         Measurement wavelength grid over which the fit occurs
-    q: queue      
+        
+    q: queue (optional)
         Queue to which to add the output if threaded (default = None)
     
     OUTPUTS:
     --------
     fit_dict: dictionary
         Dictionary of optimised parameters
+        
     err_dict: dictionary
         Dictionary of error in the optimised parameters
-    y_data: array 
+        
+    y: array 
         Measured spectrum, corrected for dark, bias and flat response, in the fitting 
         window
+        
     fit: array
         Fitted spectrum
+        
     gas_T: dictionary
         Dictionary of synthetic and measured absorbance spectra
-    fitted_flag: tuple
-    popt:        resulting optimised fit parameters
-    pcov:        covarience matrix
-    y:           processed spectral intensity data (after extracting the desired window 
-                   and correction for dark, flat and stray light)
-    fitted_flag: boolian variable to tell the main program if the fit was achieved
+        
+    fitted_flag: bool
+        Flag showing if the fit was successful or not
 
     ''' 
             
@@ -180,7 +184,7 @@ def fit_spec(common, spectrum, grid, q = None):
 
 
 #========================================================================================
-#=========================================ifit_fwd=======================================
+#======================================== ifit_fwd ======================================
 #========================================================================================
 
 def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
@@ -190,14 +194,20 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
     
     INPUTS:
     -------
-    grid:            measurement wavelength grid
-    *args:           forward model state vector 
-    calc_trans_flag: flag whether or not to calculate transmission spectra. Not required 
-                     for fitting, but helpful for analysis of fit quality
+    grid, array
+        Measurement wavelength grid
+        
+    *args, list
+        Forward model state vector 
+        
+    calc_trans_flag, bool (optional)
+        Flag whether or not to calculate transmission spectra. Not required for fitting,
+        but helpful for analysis of fit quality
 
     OUTPUTS:
     --------
-    F: Fitted spectrum interpolated onto the  spectrometer wavelength grid             
+    F, array
+        Fitted spectrum interpolated onto the spectrometer wavelength grid             
     '''
 
     # Unpack params

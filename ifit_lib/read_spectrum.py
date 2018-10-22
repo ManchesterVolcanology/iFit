@@ -11,7 +11,7 @@ import datetime
 from pandas import read_csv
 
 #========================================================================================
-#======================================read_spectrum=====================================
+#===================================== read_spectrum ====================================
 #========================================================================================
 
 # Reads spectrum file from spectro_gui
@@ -23,21 +23,33 @@ def read_spectrum(fname, spec_type='iFit'):
     
     INPUTS
     ------
-    fname:     String, Path to spectrum file
-    spec_type: String, format of spectrum file. Choices: iFit, Master.Scope, Jai Spec,
-               Spectrasuite, GSJ.
+    fname, str
+        File path to spectrum file
+        
+    spec_type, str
+        Format of spectrum file. Choices: iFit, Master.Scope, Jai Spec, Spectrasuite, GSJ
                
     OUTPUTS
     -------
-    x:        Numpy array; spectrum wavelength data
-    y:        Numpy array; spectrum intensity data
-    date:     Datetime date; date of measurement
-    time:     Datetime time; time of measurement
-    spec_no:  Float; spectrum number, used for display and recording results
-    read_err: Tuple; error message to flag if reading the spectrum fails. Has the format:
-              (Boolian, Message), where Boolian = False for no error and True if an error
-              occurs. Message is 'No error' for no error, and the error message if an
-              error occurs.
+    x, numpy array
+        Spectrum wavelength data
+        
+    y, numpy array
+        Spectrum intensity data
+        
+    date, datetime.date object
+        Date of measurement
+        
+    time, datetime.time object
+        Time of measurement
+        
+    spec_no, float
+        Spectrum number, used for display and recording results
+        
+    read_err, tuple
+        Error message to flag if reading the spectrum fails. Has the format:
+        (bool, str), where Boolian = False for no error and True if an error occurs. The 
+        string is 'No error' for no error, and the error message if an error occurs.
     '''
     
     try:
@@ -170,15 +182,41 @@ def read_spectrum(fname, spec_type='iFit'):
     return x, y, date, time, spec_no, read_err
   
 #========================================================================================
-#=====================================average_spectra====================================
+#==================================== average_spectra ===================================
 #========================================================================================
   
 def average_spectra(files, spec_type):
     
+    '''
+    Fuction to average a selection of spectra
+    
+    INPUTS
+    ------
+    files, list
+        List of file paths to spectra to read in
+        
+    spec_type, str
+        Format of spectrum file. Choices: iFit, Master.Scope, Jai Spec, Spectrasuite, GSJ
+        
+    OUTPUTS
+    -------
+    grid, array
+        Wavelength grid of the spectra
+        
+    spec, array
+        The resulting averaged spectrum
+        
+    read_err, tuple
+        Error message to flag if reading the spectrum fails. Has the format:
+        (bool, str), where Boolian = False for no error and True if an error occurs. The 
+        string is 'No error' for no error, and the error message if an error occurs.
+    
+    '''
+    
     for fname in files:
         
         # Load spectrum
-        grid,y,spec_date,spec_time,spec_no,read_err = read_spectrum(fname,spec_type)
+        grid, y, spec_date, spec_time, spec_no, read_err = read_spectrum(fname,spec_type)
         
         # Check if spectra were read correctly
         if not read_err[0]:

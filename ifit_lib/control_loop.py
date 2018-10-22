@@ -19,7 +19,7 @@ from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.file_control import make_csv_file
 
 #========================================================================================
-#=====================================Real Time Setup====================================
+#==================================== Real Time Setup ===================================
 #========================================================================================
 
 def rt_setup(self, settings, common, mygui):
@@ -29,13 +29,22 @@ def rt_setup(self, settings, common, mygui):
     
     INPUTS
     ------
-    settings: dictionary, contains program settings
-    common:   dictionary, contains fitting info and parameters
-    mygui:    tk.tk(),    Main GUI object
+    self,
+        Program object holding parameters
+        
+    settings, dictionary
+        Contains program settings
+        
+    common, dictionary
+        Contains fitting info and parameters
+        
+    mygui, tk.tk() object
+        Main GUI object
     
     OUTPUTS
     -------
-    setup:    boolean,    Reports True is setup was succsessful
+    setup, bool
+        Reports True if setup was succsessful
     '''
     
     # Check to see if a spectrometer is connected
@@ -54,7 +63,7 @@ def rt_setup(self, settings, common, mygui):
     else:
         common['dark'] = self.dark_spec
 
-#===================================Get wavelength info==================================
+#================================== Get wavelength info =================================
 
     # Read a single spectrum to get wavelength data
     try:
@@ -83,7 +92,7 @@ def rt_setup(self, settings, common, mygui):
     else:
         common['stray_flag'] = True
 
-#===================================Create output folder=================================
+#================================== Create output folder ================================
             
     # Create new output folder
     if self.create_out_flag == True:
@@ -115,7 +124,7 @@ def rt_setup(self, settings, common, mygui):
         # Create filename for output file
         self.out_excel_fname = self.results_folder + 'iFit_out.csv'                
 
-#==================================Begin analysis loop===================================
+#================================= Begin analysis loop ==================================
 
     # Set progress bar to the correct format   
     self.progress['mode'] = 'indeterminate'
@@ -125,7 +134,7 @@ def rt_setup(self, settings, common, mygui):
 
 
 #========================================================================================
-#===================================Post analysis setup==================================
+#================================== Post analysis setup =================================
 #========================================================================================
 
 def post_setup(self, settings, common, mygui):
@@ -135,19 +144,28 @@ def post_setup(self, settings, common, mygui):
     
     INPUTS
     ------
-    settings: dictionary, contains program settings
-    common:   dictionary, contains fitting info and parameters
-    mygui:    tk.tk(),    Main GUI object
+    self, 
+        Program object holding parameters
+    
+    settings, dictionary
+        Contains program settings
+        
+    common, dictionary
+        Contains fitting info and parameters
+        
+    mygui, tk.tk() object
+        Main GUI object
     
     OUTPUTS
     -------
-    setup:    boolean,    Reports True is setup was succsessful
+    setup_flag, boolean
+        Reports True is setup was succsessful
     '''
     
     # Get spectrometer serial number to get flat and ILS
     common['spec_name'] = str(self.spec_name.get())
 
-#====================================Read dark spectra===================================
+#=================================== Read dark spectra ==================================
     
     # Read format of spectra
     spec_type = self.spec_type.get()
@@ -161,7 +179,7 @@ def post_setup(self, settings, common, mygui):
             self.print_output('Error reading dark spectrum:\n'+str(read_err[1]))
             return False
 
-#===================================Get wavelength info==================================
+#================================== Get wavelength info =================================
 
     # Read first spectrum to get date of data and define stray light indices
     spectrum_data = read_spectrum(self.spec_fpaths[0], spec_type)
@@ -186,7 +204,7 @@ def post_setup(self, settings, common, mygui):
     else:
         common['stray_flag'] = True
 
-#===================================Create output folder=================================
+#================================== Create output folder ================================
             
      # Reset loop counter
     self.loop = 0
@@ -211,7 +229,7 @@ def post_setup(self, settings, common, mygui):
         self.build_model_flag = True
         return False                              
 
-#=====================================Set progress bar===================================
+#==================================== Set progress bar ==================================
 
     # Set progress bar to the correct format   
     self.progress['mode'] = 'determinate'
@@ -222,7 +240,7 @@ def post_setup(self, settings, common, mygui):
 
 
 #========================================================================================
-#====================================Real time Analysis==================================
+#=================================== Real time Analysis =================================
 #========================================================================================        
 
 def rt_analyse(self, settings, common, mygui):
@@ -232,13 +250,28 @@ def rt_analyse(self, settings, common, mygui):
     
     INPUTS
     ------
-    common:   dict,     contains fitting info and parameters
-    mygui:    tk.tk(),  main GUI object
+    self, 
+        Program object holding parameters
+    
+    settings, dictionary
+        Contains program settings
+        
+    common, dictionary
+        Contains fitting info and parameters
+        
+    mygui, tk.tk() object
+        Main GUI object
     
     OUTPUTS
     -------
-    spectrum: 2D array, recorded spectrum
-    results:  list,     results of the fit
+    spectrum, 2D array
+        Recorded spectrum [wavelength, intensity]
+        
+    results, list
+        Results of the fit
+        
+    fit_details, list
+        Details of the fit in the form [loop number, date, time, file name]
     '''
 
     # Simultaneously read a spectrum and fit the previous one

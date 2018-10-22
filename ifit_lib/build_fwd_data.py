@@ -9,14 +9,8 @@ import numpy as np
 from scipy.interpolate import griddata
 
 #========================================================================================
-#=====================================build_fwd_data=====================================
+#==================================== build_fwd_data ====================================
 #========================================================================================
-
-# Function to build the gas cross sections and place them on a model grid that extends 
-#  2 nm beyond the measurement grid
-
-# INPUTS: common: common dictionary of parameters and constants passed from the program 
-#                   to subroutines. Also contains the filepaths to the required data
 
 def build_fwd_data(common, settings, self):
 
@@ -26,14 +20,17 @@ def build_fwd_data(common, settings, self):
 
     INPUTS
     ------
-    self: requirement from tkinter
-    common: common dictionary including file paths to spectra and constants used in the
-            program
-    settings: dictionary of settings determined by the user
+    common, dict
+        Common dictionary including file paths to spectra and constants used in the
+        program
+        
+    settings, dict
+        Dictionary of GUI settings determined by the user
     
     OUTPUTS
     -------
-    common: inputted common array updated with required spectra etc
+    common, dict
+        Inputted common array updated with required spectra etc
         
     '''
 

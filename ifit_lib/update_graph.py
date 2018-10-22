@@ -1,7 +1,7 @@
 import numpy as np
 
 #========================================================================================
-#======================================update graph======================================
+#===================================== update graph =====================================
 #========================================================================================
 
 # Function to update a figure
@@ -14,6 +14,25 @@ import numpy as np
 
 
 def update_graph(lines, axes, canvas, new_data):
+    
+    '''
+    Function to update a figure
+    
+    INPUTS
+    ------
+    lines, list
+        The plots to update
+    
+    axes, list
+        Axes that correspond to the lines (must be same length and order as lines)
+    
+    canvas, tkagg canvas object
+        Canvas that holds the axes
+        
+    new_data, array
+        New data to plot. Has the form [[x1, y1, x1lims, y1lims], 
+                                        [x2, y2, x2lims, y2lims],...]
+    '''
 
     # Unpack new data
     if len(np.shape(new_data)) > 1:

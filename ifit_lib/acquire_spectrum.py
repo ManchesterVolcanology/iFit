@@ -10,7 +10,7 @@ import datetime
 from seabreeze.cseabreeze.wrapper import SeaBreezeError
 
 #========================================================================================
-#======================================read_spectro======================================
+#===================================== read_spectro =====================================
 #========================================================================================
 
 def acquire_spectrum(self, spec, integration_time_ms, coadds, dk_flag = True, 
@@ -21,19 +21,38 @@ def acquire_spectrum(self, spec, integration_time_ms, coadds, dk_flag = True,
 
     INPUTS: 
     -------
-    spec:                the spectrometer object
-    integration_time_ms: integration time in milliseconds
-    coadds:              number of spectra to average per reading. 
-    dk_flag:             boolian flag to controll the correction of the electronic dark
-    nonlin_flag:         boolian flag to controll the correction of non-linearity 
-    q:                   Queue to which to add the output if threaded (default = None)
+    self,
+        Program object containing parameters
+        
+    spec, Seabreeze device
+        The spectrometer object
+        
+    integration_time_ms, int
+        Integration time in milliseconds
+        
+    coadds, int
+        Number of spectra to average per reading 
+        
+    dk_flag, bool (optional)
+        Flag to control the correction of the electronic dark (default = True)
+        
+    nonlin_flag, bool (optional)
+        Flag to control the correction of non-linearity (default = True)
+        
+    q, queue object (optional)
+        Queue to which to add the output if threaded (default = None)
     
     OUTPUTS:
     --------
-    x:      wavelength array
-    y:      intensity array
-    header: text string containing the information of the reading, formatted as a header 
-              for a text file
+    x, numpy array
+        Wavelength grid
+        
+    y, numpy array
+        Intensity array
+        
+    header, str
+        Text string containing the information of the reading, formatted as a header for 
+        a text file
     '''
     
     # Read wavelength grid
