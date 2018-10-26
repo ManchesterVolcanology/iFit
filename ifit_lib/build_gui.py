@@ -125,6 +125,7 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
     # Option Menu
     if input_type == 'OptionMenu':
         entry = ttk.OptionMenu(frame, var, *options, command = command)
+        entry.config(width = width)
         
     
     # Label

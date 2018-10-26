@@ -711,7 +711,8 @@ def adv_settings(self, settings, version):
                row = row_n, column = col_n, 
                var = popup.fit_weight, 
                input_type = 'OptionMenu',
-               options = weight_options)
+               options = weight_options,
+               width = 8)
     row_n += 1
     
     # Control whether or not to remove, form or ignore the solar residual spectrum
@@ -726,7 +727,8 @@ def adv_settings(self, settings, version):
                var = popup.resid_b, 
                input_type = 'OptionMenu',
                options = resid_options,
-               command = build_fwd_model)
+               command = build_fwd_model,
+               width = 8)
     row_n += 1
     
     # Control whether or not to update fit parameter guesses with the last fit values
@@ -771,6 +773,7 @@ def adv_settings(self, settings, version):
     popup.so2_amt_c = tk.StringVar(model_frame, value = settings['Fit so2'])
     fit_options[0] = settings['Fit so2']
     so2_c = ttk.OptionMenu(model_frame, popup.so2_amt_c, *fit_options)
+    so2_c.config(width = 6)
     so2_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
     row_n += 1
     
@@ -784,6 +787,7 @@ def adv_settings(self, settings, version):
     popup.no2_amt_c = tk.StringVar(model_frame, value = settings['Fit no2'])
     fit_options[0] = settings['Fit no2']
     no2_c = ttk.OptionMenu(model_frame, popup.no2_amt_c, *fit_options)
+    no2_c.config(width = 6)
     no2_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
     row_n += 1
     
@@ -797,6 +801,7 @@ def adv_settings(self, settings, version):
     popup.o3_amt_c = tk.StringVar(model_frame, value = settings['Fit o3'])
     fit_options[0] = settings['Fit o3']
     o3_c = ttk.OptionMenu(model_frame, popup.o3_amt_c, *fit_options)
+    o3_c.config(width = 6)
     o3_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
     row_n += 1
    
@@ -810,6 +815,7 @@ def adv_settings(self, settings, version):
     popup.bro_amt_c = tk.StringVar(model_frame, value = settings['Fit bro'])
     fit_options[0] = settings['Fit bro']
     bro_c = ttk.OptionMenu(model_frame, popup.bro_amt_c, *fit_options)
+    bro_c.config(width = 6)
     bro_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5) 
     row_n += 1   
     
@@ -826,7 +832,7 @@ def adv_settings(self, settings, version):
     def ils_activate_check(*args):
         
         # Enable/disable the ils width input
-        if popup.ils_width_c.get() == 'File':
+        if popup.ils_width_c.get() in ['File', 'Shape']:
             ils_width_e.config(state='disabled')
         
             # Turn on fwd model creation
@@ -836,9 +842,10 @@ def adv_settings(self, settings, version):
             ils_width_e.config(state='normal')
     
     popup.ils_width_c = tk.StringVar(model_frame, value = settings['Fit ILS'])
-    ils_fit_options = [settings['Fit ILS'], 'Fit', 'Fix', 'File']
+    ils_fit_options = [settings['Fit ILS'], 'Fit', 'Fix', 'File', 'Shape']
     ils_width_c = ttk.OptionMenu(model_frame, popup.ils_width_c, *ils_fit_options,
                                  command = ils_activate_check)
+    ils_width_c.config(width = 6)
     ils_width_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
     row_n += 1
     ils_activate_check()
@@ -850,8 +857,10 @@ def adv_settings(self, settings, version):
                row = row_n, column = col_n, 
                var = popup.gauss_weight, 
                input_type = 'Entry',
-               width = 12)
+               width = 12)    
     row_n += 1 
+    
+    
     
     # Create separator
     sep = ttk.Separator(model_frame, orient='vertical')
@@ -894,6 +903,7 @@ def adv_settings(self, settings, version):
     shift_options = [settings['Fit shift'], 'Fit', 'Fix', 'N/A', 'Pre-calc']
     shift_c = ttk.OptionMenu(model_frame, popup.shift_c, *shift_options,
                              command = shift_activate_check)
+    shift_c.config(width = 6)
     shift_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
     row_n += 1 
     shift_activate_check() 
@@ -909,6 +919,7 @@ def adv_settings(self, settings, version):
     popup.stretch_c = tk.StringVar(model_frame, value = settings['Fit stretch'])
     fit_options[0] = settings['Fit stretch']
     stretch_c = ttk.OptionMenu(model_frame, popup.stretch_c, *fit_options)
+    stretch_c.config(width = 6)
     stretch_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
     row_n += 1
     
@@ -923,6 +934,7 @@ def adv_settings(self, settings, version):
     popup.ring_amt_c = tk.StringVar(model_frame, value = settings['Fit ring'])
     fit_options[0] = settings['Fit ring']
     ring_c = ttk.OptionMenu(model_frame, popup.ring_amt_c, *fit_options)
+    ring_c.config(width = 6)
     ring_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
     row_n += 1
     
@@ -936,8 +948,9 @@ def adv_settings(self, settings, version):
                width = 12)
     popup.ldf_c = tk.StringVar(model_frame, value = settings['Fit LDF'])
     fit_options[0] = settings['Fit LDF']
-    ils_width_c = ttk.OptionMenu(model_frame, popup.ldf_c, *fit_options)
-    ils_width_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
+    ldf_c = ttk.OptionMenu(model_frame, popup.ldf_c, *fit_options)
+    ldf_c.config(width = 6)
+    ldf_c.grid(row = row_n, column = col_n+2, padx = 5, pady = 5)
     row_n += 1 
     
     

@@ -265,11 +265,14 @@ def ifit_fwd_model(grid, *fit_params, calc_trans_flag = False):
     plume_F = np.multiply(plume_F, 1-p['ldf'])
     raw_F = np.add(plume_F, light_d)
     
-    # Make sure ILS is sensible, then form and convolve with high res raw_F
-    ils = make_ils(p['ils_width'], (com['model_grid'][1] - com['model_grid'][0]),
-                   com['gauss_weight'])
+    # Form the ILS and convolve with high res raw_F
+    if com['params']['ils_width'][1] in ['Fit', 'Fix', 'File']:
+        ils = make_ils(p['ils_width'], (com['model_grid'][1] - com['model_grid'][0]),
+                       com['gauss_weight'])
+    else:
+        ils = com['ils']
+        
     F_conv = np.convolve(raw_F, ils, 'same')
-
     
     # Apply shift and stretch to the model_grid
     shift_model_grid = np.add(com['model_grid'], p['shift'])

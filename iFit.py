@@ -58,7 +58,10 @@ class mygui(tk.Tk):
         
         # Add a title and icon
         tk.Tk.wm_title(self, 'iFit-2-4')
-        tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+        try:
+            tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+        except tk.TclError:
+            pass
         
         # Create notebook to hold different frames
         self.nb = ttk.Notebook(self)
@@ -158,7 +161,7 @@ class mygui(tk.Tk):
             settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
             settings['o3_path']           = 'data_bases/gas data/O3_xsec.dat'
-            settings['o3_temp']           = '233K'
+            settings['o3_temp']           = '223K'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['Notebook page']     = 0
@@ -307,6 +310,9 @@ class mygui(tk.Tk):
 
         for i, name in enumerate(glob.glob('data_bases/Spectrometer/flat_*')):
             options.append(name[29:-4])
+            
+        # Add option for unknown spectrometer
+        options.append('Unknown')
             
         # Create function to turn on the fwd model flag if the spectrometer is changed
         def on_change(event):

@@ -55,22 +55,40 @@ def build_fwd_data(common, settings, self):
             
             self.print_output('Flat spectrum imported', add_line = False)
             
-        except FileNotFoundError:
+        except OSError:
             self.print_output('No flat spectrum found', add_line = False)
             common['flat_flag'] = False    
     
-    # Try importing ils. 
+    # Try importing ils
     if settings['Fit ILS'] == 'File':
         self.print_output('Importing ILS width', add_line = False)
         try:
             # Import ils width
-            ils_path = 'data_bases/Spectrometer/ils_' + common['spec_name'] + '.txt'
-            common['params']['ils_width'][0] = np.loadtxt(ils_path)
+            ils_path = 'data_bases/Spectrometer/ils_width_'+common['spec_name']+'.txt'
+            common['params']['ils_width'][0] = np.loadtxt(ils_path)           
             
             self.print_output('ILS width imported', add_line = False)
             
-        except FileNotFoundError:
+        except OSError:
             self.print_output('No ILS file found', add_line = False)  
+    
+    if settings['Fit ILS'] == 'Shape':
+        self.print_output('Importing ILS', add_line = False)
+        
+        try:
+            
+            # Read in measured ILS shape
+            ils_path = 'data_bases/Spectrometer/ils_' + common['spec_name'] + '.txt'
+            x_ils, y_ils = np.loadtxt(ils_path, unpack = True)
+            
+            # Interpolate the measured ILS onto the model grid spacing
+            grid_ils = np.arange(x_ils[0], x_ils[-1], settings['model_res'])
+            common['ils'] = griddata(x_ils, y_ils, grid_ils, 'cubic')
+            common['ils'] = common['ils'] / np.sum(common['ils'])
+            
+        except OSError:
+            self.print_output('No ILS file found', add_line = False) 
+            
     
     # Import solar reference spectrum
     self.print_output('Importing solar reference spectrum...', add_line = False)
