@@ -27,9 +27,10 @@ from ifit_lib.read_csv import read_csv
 import folium
 
 from ifit_lib.find_nearest import extract_window
-from ifit_lib.read_gps import read_txt_gps, gps_vector, haversine
+from ifit_lib.read_gps import read_gps, gps_vector, haversine
 from ifit_lib.center_of_grav import cog
 from ifit_lib.julian_time import hms_to_julian, julian_to_hms
+from ifit_lib.build_gui import make_input
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -60,18 +61,24 @@ class mygui(tk.Tk):
         except tk.TclError:
             pass
 
+        # Create a left and right master frame
+        left = ttk.Frame(self)
+        left.grid(row=0, column=0)
+        right = ttk.Frame(self)
+        right.grid(row=0, column=1)
+
         # Create control Frame
-        cont_frame = ttk.Frame(self)
+        cont_frame = ttk.Frame(left)
         cont_frame.grid(row=0, column=0, padx=10, pady=10, rowspan=2)
         
         # Create frame to hold graphs
-        graph_frame = ttk.Frame(self, relief = 'groove')
-        graph_frame.grid(row=1, column=1, padx=10, pady=10, rowspan=2)
+        graph_frame = ttk.Frame(right, relief = 'groove')
+        graph_frame.grid(row=1, column=2, padx=10, pady=10, rowspan=2)
         graph_frame.columnconfigure(index=0, weight=1)
         graph_frame.rowconfigure(index = 0, weight = 1)
         
         # Create frame to hold text output
-        text_frame = ttk.Frame(self, relief = 'groove')
+        text_frame = ttk.Frame(left, relief = 'groove')
         text_frame.grid(row=2, column=0, padx=10, pady=10, sticky = 'W')
         
         # Create flag to controll whether or not to save outputs on loading new data
@@ -182,8 +189,8 @@ class mygui(tk.Tk):
         self.slide_hi.on_changed(update)
         
         # Add buttons to zoom and reset
-        button_frame = tk.Frame(self)
-        button_frame.grid(row=0, column=1, padx=10, pady=10)
+        button_frame = tk.Frame(right)
+        button_frame.grid(row=0, column=2, padx=10, pady=10)
         zoom_b = ttk.Button(button_frame, text = 'Zoom', command = self.zoom)
         zoom_b.grid(row=0, column=0, sticky='E', padx=10)
         reset_b = ttk.Button(button_frame, text = 'Reset', command = self.reset)
@@ -199,63 +206,45 @@ class mygui(tk.Tk):
         
         # Create inputs for iFit output file
         self.ifit_path = tk.StringVar(value = 'No file selected')
-        ifit_path_l = tk.Label(trav_frame, text = 'iFit file:', font = NORM_FONT)
-        ifit_path_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        ifit_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 30, 
-                               text = self.ifit_path)
-        ifit_path_e.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W',
-                         columnspan = 2)
-        ifit_path_b = ttk.Button(trav_frame, text="Select iFit output", 
-                                 command = lambda: self.get_fp(self.ifit_path))
-        ifit_path_b.grid(row = 0, column=3, padx=5, pady=5, columnspan=2, sticky='W')
+        tk.Label(trav_frame, text = 'SO2 data:', font = NORM_FONT
+                 ).grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
+        tk.Entry(trav_frame, font = NORM_FONT, width = 30, text = self.ifit_path
+                 ).grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W',
+                        columnspan = 2)
+        ttk.Button(trav_frame, text="Select SO2 File", 
+                   command = lambda: self.get_fp(self.ifit_path)
+                   ).grid(row = 1, column=2, padx=5, pady=5, sticky='W')
+        
+        # Control whether or not to remove poor fits
+        self.de_spike = tk.BooleanVar(trav_frame, value = True)
+        make_input(frame = trav_frame, 
+                   text = 'Remove Bad\nSpectra?', 
+                   row = 1, column = 0, 
+                   var = self.de_spike, 
+                   input_type = 'Checkbutton')
         
         # Create inputs for gps file
         self.gps_path = tk.StringVar(value = 'No file selected')
-        gps_path_l = tk.Label(trav_frame, text = 'GPS file:', font = NORM_FONT)
-        gps_path_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
+        gps_path_l = tk.Label(trav_frame, text = 'GPS data:', font = NORM_FONT)
+        gps_path_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
         gps_path_e = tk.Entry(trav_frame, font = NORM_FONT, width = 30, 
                               text = self.gps_path)
-        gps_path_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W',
+        gps_path_e.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W',
                         columnspan = 2)
         gps_path_b = ttk.Button(trav_frame, text="Select GPS file", 
                                 command = lambda: self.get_fp(self.gps_path))
-        gps_path_b.grid(row=1, column=3, padx=5, pady=5, columnspan=2, sticky='W')
+        gps_path_b.grid(row=3, column=2, padx=5, pady=5, sticky='W')
         
-        # Create inputs for wind speed and units
-        self.wind_speed = tk.DoubleVar(value = 0)
-        wind_speed_l = tk.Label(trav_frame, text = 'Wind Speed:', font = NORM_FONT)
-        wind_speed_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        wind_speed_e = tk.Entry(trav_frame, font = NORM_FONT, width = 15, 
-                                text = self.wind_speed)
-        wind_speed_e.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
-        self.wind_unit = tk.StringVar(value = 'm/s')
-        wind_speed_u = ttk.OptionMenu(trav_frame, self.wind_unit, 
-                                      *['m/s','m/s','knots'])
-        wind_speed_u.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'EW')
-        
-        # Create inputs for wind error and units
-        self.wind_error = tk.DoubleVar(value = 0)
-        wind_error_l = tk.Label(trav_frame, text = 'Wind Error:', font = NORM_FONT)
-        wind_error_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')        
-        wind_error_e = tk.Entry(trav_frame, font = NORM_FONT, width = 15, 
-                                text = self.wind_error)
-        wind_error_e.grid(row = 3, column = 1, padx = 5, pady = 5, sticky = 'W')
-        self.error_unit = tk.StringVar(value = '%')
-        wind_error_u = ttk.OptionMenu(trav_frame, self.error_unit, 
-                                      *['%','%','abs'])
-        wind_error_u.grid(row = 3, column = 2, padx = 5, pady = 5, sticky = 'EW')
-        
-        # Create button to read in files
-        read_b = ttk.Button(trav_frame, text="Read Traverse Data", 
-                            command = self.read_trav_data)
-        read_b.grid(row = 2, column = 3, padx = 5, pady = 5, columnspan=2, sticky = 'W')
-        
-        # Control whether or not to remove flat spectra
-        self.de_spike = tk.BooleanVar(trav_frame, value = True)
-        de_spike_l = tk.Label(trav_frame, text='Remove Bad\nSpectra?', font=NORM_FONT)
-        de_spike_l.grid(row = 3, column = 3, padx = 5, pady = 5)
-        de_spike_c = ttk.Checkbutton(trav_frame, variable = self.de_spike)
-        de_spike_c.grid(row = 3, column = 4, padx = 5, pady = 5)
+        # Control type of GPS data
+        gps_types = ['text', 'text', 'NMEA']
+        self.gps_dtype = tk.StringVar(trav_frame, value = 'text')
+        make_input(frame = trav_frame, 
+                   text = 'GPS Data\nType', 
+                   row = 3, column = 0, 
+                   var = self.gps_dtype, 
+                   input_type = 'OptionMenu',
+                   options = gps_types,
+                   width = 6)
         
 #========================================================================================
 #================================== Volcano controls ====================================
@@ -263,32 +252,7 @@ class mygui(tk.Tk):
         
         # Create frame
         volc_frame = tk.LabelFrame(cont_frame, text='Volcano Settings', font=LARG_FONT)
-        volc_frame.grid(row=1, column=0, padx=10, pady=6, sticky="NW")
-        
-        # Create inputs for volcano lonitude
-        self.volc_lon = tk.DoubleVar(value = 0.0)
-        volc_lon_l = tk.Label(volc_frame, text = 'Volcano Lon:', font = NORM_FONT)
-        volc_lon_l.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W')
-        volc_lon_e = tk.Entry(volc_frame, font = NORM_FONT, width = 20, 
-                                 text = self.volc_lon)
-        volc_lon_e.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = 'W')
-        
-        # Create inputs for volcano latitude
-        self.volc_lat = tk.DoubleVar(value = 0.0)
-        volc_lat_l = tk.Label(volc_frame, text = 'Volcano Lat:', font = NORM_FONT)
-        volc_lat_l.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = 'W')
-        volc_lat_e = tk.Entry(volc_frame, font = NORM_FONT, width = 20, 
-                                 text = self.volc_lat)
-        volc_lat_e.grid(row = 2, column = 1, padx = 5, pady = 5, sticky = 'W')
-        
-        # Create input for time difference
-        self.time_diff = tk.DoubleVar(value = 0.0)
-        time_diff_l = tk.Label(volc_frame, text = 'Time Difference\n(hours):',
-                               font = NORM_FONT)
-        time_diff_l.grid(row = 3, column = 0, padx = 5, pady = 5, sticky = 'W')
-        time_diff_e = tk.Entry(volc_frame, font = NORM_FONT, width = 20, 
-                                 text = self.time_diff)
-        time_diff_e.grid(row = 3, column = 1, padx = 5, pady = 5, sticky = 'W')
+        volc_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW", columnspan=2)
         
         # Update parameters on choice
         def volc_update(event):
@@ -298,12 +262,76 @@ class mygui(tk.Tk):
         
         # Create choice of imported volcanos
         self.volc_name = tk.StringVar(volc_frame, value = choice[0])
-        self.volc_name_l = tk.Label(volc_frame, text = 'Select Volcano:', 
-                                    font = NORM_FONT)
-        self.volc_name_l.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W')
-        self.volc_name_c = ttk.OptionMenu(volc_frame, self.volc_name, *choice,
-                                          command = volc_update)
-        self.volc_name_c.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = 'W')
+        make_input(frame = volc_frame, 
+                   text = 'Volcano:', 
+                   row = 0, column = 0, 
+                   var = self.volc_name, 
+                   input_type = 'OptionMenu',
+                   options = choice,
+                   width = 13,
+                   command = volc_update,
+                   columnspan = 3,
+                   sticky = 'W')
+        
+        # Create inputs for volcano latitude
+        self.volc_lat = tk.DoubleVar(value = 0.0)
+        make_input(frame = volc_frame, 
+                   text = 'Volcano\nLatitude:', 
+                   row = 1, column = 0, 
+                   var = self.volc_lat, 
+                   input_type = 'Entry',
+                   width = 15,
+                   sticky = 'W')
+        
+        # Create inputs for volcano lonitude
+        self.volc_lon = tk.DoubleVar(value = 0.0)
+        make_input(frame = volc_frame, 
+                   text = 'Volcano\nLongitude:', 
+                   row = 2, column = 0, 
+                   var = self.volc_lon, 
+                   input_type = 'Entry',
+                   width = 15,
+                   sticky = 'W')
+        
+        # Create input for time difference
+        self.time_diff = tk.DoubleVar(value = 0.0)
+        make_input(frame = volc_frame, 
+                   text = 'Time\nDifference:', 
+                   row = 3, column = 0, 
+                   var = self.time_diff, 
+                   input_type = 'Entry',
+                   width = 15,
+                   sticky = 'W')
+        
+        # Create inputs for wind speed and units
+        self.wind_speed = tk.DoubleVar(value = 0)
+        make_input(frame = volc_frame, 
+                   text = 'Wind\nSpeed:', 
+                   row = 1, column = 2, 
+                   var = self.wind_speed, 
+                   input_type = 'Entry',
+                   width = 10,
+                   sticky = 'W')
+        self.wind_unit = tk.StringVar(value = 'm/s')
+        wind_speed_u = ttk.OptionMenu(volc_frame, self.wind_unit,
+                                      *['m/s','m/s','knots'])
+        wind_speed_u.config(width = 6)
+        wind_speed_u.grid(row = 1, column = 4, padx = 5, pady = 5, sticky = 'EW')
+        
+        # Create inputs for wind error and units
+        self.wind_error = tk.DoubleVar(value = 0)
+        make_input(frame = volc_frame, 
+                   text = 'Wind\nError:', 
+                   row = 2, column = 2, 
+                   var = self.wind_error, 
+                   input_type = 'Entry',
+                   width = 10,
+                   sticky = 'W')
+        self.error_unit = tk.StringVar(value = '%')
+        wind_error_u = ttk.OptionMenu(volc_frame, self.error_unit,
+                                      *['%','%','abs'])
+        wind_error_u.config(width = 6)
+        wind_error_u.grid(row = 2, column = 4, padx = 5, pady = 5, sticky = 'EW')
         
         
         
@@ -311,10 +339,15 @@ class mygui(tk.Tk):
 #================================== Analysis controls ===================================
 #========================================================================================
         
+        # Create button to read in files
+        read_b = ttk.Button(cont_frame, text="   Load Traverse", 
+                            command = self.read_trav_data)
+        read_b.grid(row = 2, column = 0, padx = 5, pady = 5)
+        
         # Create button to analyse
-        begin_b = ttk.Button(cont_frame, text = "Calculate\n    Flux", 
+        begin_b = ttk.Button(cont_frame, text = "Calculate Flux", 
                              command = self.analyse)
-        begin_b.grid(row = 1, column = 1, padx = 5, pady = 5)
+        begin_b.grid(row = 2, column = 1, padx = 5, pady = 5)
         
         
         
@@ -524,8 +557,8 @@ class mygui(tk.Tk):
         self.text_output('Reading GPS data...', add_line = False)
 
         try:
-            gps_out = read_txt_gps(str(self.gps_path.get()))
-            common['gps_time'], common['lat'], common['lon'] = gps_out
+            gps_out = read_gps(self.gps_path.get(), self.gps_dtype.get())
+            common['gps_time'], common['lat'], common['lon'], common['alt'] = gps_out
             
         except:
             self.text_output('ERROR: Wrong GPS file format')
@@ -860,17 +893,17 @@ def make_graph(d):
             for n, t in enumerate(common['times']):
             
                 # Create central location string
-                c_lat = "{common['locations'][n][0]:.4f}"
-                c_lon = "{common['locations'][n][1]:.4f}"
+                c_lat = "{:.4f}".format(common['locations'][n][0])
+                c_lon = "{:.4f}".format(common['locations'][n][1])
                 cent_loc = '{0: <28}'.format(c_lat + ' / ' + c_lon)
                 
                 # Create wind speed string
-                w_spd = "{common['w_speeds'][n][0]:.2f}"
-                w_err = "{common['w_speeds'][n][1]:.1f}"
+                w_spd = "{:.2f}".format(common['w_speeds'][n][0])
+                w_err = "{:.1f}".format(common['w_speeds'][n][1])
             
                 w.write(str(t)[:12] + '  ' +  \
                         cent_loc + \
-                        '{0: <17}'.format("{common['azimuths'][n]:.1f}") + \
+                        '{0: <17}'.format("{:.1f}".format(common['azimuths'][n])) + \
                         '{0: <20}'.format(w_spd + ' (+/- ' + w_err + ')') + \
                         str(common['fluxes'][n]) + '(+/- ' + \
                         str(common['flux_errs'][n]) + ')\n')

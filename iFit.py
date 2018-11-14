@@ -29,7 +29,7 @@ from ifit_lib.update_graph import update_graph
 from ifit_lib.control_loop import rt_setup, post_setup, rt_analyse
 from ifit_lib.gui_funcs import adv_settings, fit_toggle, spec_fp, dark_fp, stop, \
                                connect_spec, update_int_time, test_spec, read_darks, \
-                               read_settings
+                               read_settings, meas_flat, meas_ils, conv_xsec
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -54,7 +54,7 @@ class mygui(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.handler)
         
         # Button Style
-        ttk.Style().configure('TButton', width = 20, height = 20, relief="flat") 
+        ttk.Style().configure('TButton', width = 15, height = 20, relief="flat") 
         
         # Add a title and icon
         tk.Tk.wm_title(self, 'iFit-2-4')
@@ -62,6 +62,16 @@ class mygui(tk.Tk):
             tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         except tk.TclError:
             pass
+        
+        # Build a menubar to hold options for the user
+        menubar = tk.Menu(self)
+        filemenu = tk.Menu(menubar, tearoff = 0)
+        filemenu.add_command(label = 'Measure Flat', command = meas_flat)
+        filemenu.add_command(label = 'Measure ILS', command = meas_ils)
+        filemenu.add_command(label = 'Convert Xsec', command = conv_xsec)
+        filemenu.add_separator()
+        menubar.add_cascade(label = 'Tools', menu = filemenu)
+        tk.Tk.config(self, menu = menubar)
         
         # Create notebook to hold different frames
         self.nb = ttk.Notebook(self)
@@ -589,13 +599,18 @@ class mygui(tk.Tk):
         self.stop_flag = True
         
         # Open save dialouge
-        if tkMessageBox.askyesno('Exit', 'Would you like to\nsave the settings?'):
+        text = 'Would you like to\nsave the settings?'
+        message = tkMessageBox.askquestion('Exit', message = text, type = 'yesnocancel')
         
+        if message == 'yes':
             self.save()
             self.quit()
             
-        else:
+        if message == 'no':
             self.quit()
+            
+        if message == 'cancel':
+            pass
         
     # Function to print text to the output box          
     def print_output(self, text, add_line = True):
@@ -862,8 +877,10 @@ class mygui(tk.Tk):
                             writer.write(','+str(fit_dict[key])+','+str(err_dict[key]))
                         if val[1] in ['Fix', 'Pre-calc', 'File']:
                             writer.write(','+str(common['params'][key][0])+',NaN')
-                        if val[1] == 'N/A':
+                        if val[1] in ['N/A']:
                             writer.write(',NaN,NaN')
+                        if val[1] in ['Shape']:
+                            writer.write(',Shape,NaN')
                         
                     # Write fit quality and start new line
                     writer.write(',' + fit_msg + '\n')

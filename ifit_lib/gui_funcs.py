@@ -10,6 +10,8 @@ from tkinter import ttk
 import tkinter as tk
 import tkinter.messagebox as tkMessageBox
 import datetime
+from scipy.optimize import curve_fit
+from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import filedialog as fd
@@ -20,6 +22,8 @@ from ifit_lib.file_control import make_directory
 from ifit_lib.acquire_spectrum import acquire_spectrum
 from ifit_lib.update_graph import update_graph
 from ifit_lib.build_gui import make_input
+from ifit_lib.read_spectrum import read_spectrum
+from ifit_lib.find_nearest import find_nearest
 
 #========================================================================================
 #====================================== read_setttings ==================================
@@ -1072,10 +1076,6 @@ def adv_settings(self, settings, version):
     solar_resid_path_b.grid(row = row_n, column = 2, padx = 5, pady = 5, sticky = 'W')
     row_n += 1    
     
-    # Create a button to convert a gas cross-section to be converted
-    #conv_xsec_b = ttk.Button(datab_frame, text = 'Convert Xsec', command = conv_xsec)
-    #conv_xsec_b.grid(row = row_n, column = 1, padx=5, pady=5)
-    
 #========================================================================================
 #=================================== Graph Settings =====================================
 #========================================================================================
@@ -1159,10 +1159,205 @@ def adv_settings(self, settings, version):
     row_n += 1
 
 #========================================================================================   
+#================================ Measure flat spectrum =================================
+#======================================================================================== 
+
+def meas_ils():
+    
+    # Define gaussian equation
+    def gaussian_fit(x,a,b,c):
+        
+        # Calculate pure gaussian
+        return np.multiply(np.exp(-(np.power(np.subtract(x, b), 2))/(2 * c**2)), a)
+    
+    # Define function to get the ILS
+    def begin():
+        
+        # Read in spectrum
+        x, y, date, time, spec_no, read_err = read_spectrum(fpath.get(), spec_type.get())
+        
+        # Plot the spectrum
+        line0.set_data(x, y)
+        ax0.relim()
+        ax0.autoscale_view()
+        
+        # Find peaks
+        p, props = find_peaks(y,
+                              prominence = 500,
+                              width = 5,
+                              rel_height = 500)
+        
+        # Find peak nearest to the 302.728 nm line
+        i, val = find_nearest(x[p], 302.728)  
+        
+        # Extract that line
+        start, stop = x[p[i]] - 3, x[p[i]] + 3
+        idx = np.where(np.logical_and(x > start, x < stop))
+        
+        grid = x[idx]
+        spec = y[idx]
+        
+        # Centre the baseline and normalise
+        spec = spec - min(spec)
+        spec = np.divide(spec, np.sum(spec))
+        
+        # Fit a guassian
+        guess = [max(spec), 302.728, 0.5]
+        popt, pcov = curve_fit(gaussian_fit, grid, spec, p0=guess)
+        
+        # Unpack results
+        a, b, c = popt
+        a_err, b_err, c_err = np.sqrt(np.diag(pcov))
+        
+        # Plot
+        line1.set_data(grid, spec)
+        line2.set_data(grid, gaussian_fit(grid, *popt))
+        ax1.relim()
+        ax1.autoscale_view()
+        
+        canvas.draw()
+        
+        header = 'ILS for spectrometer ' + serial.get() + '\n' + \
+                 'Wavelength (nm), Intensity'
+        
+        np.savetxt(save_path.get() + 'ils_' + serial.get() + '.txt', 
+                   np.column_stack((x, y)), header = header)
+        
+        with open(save_path.get() + 'ils_width_' + serial.get() + '.txt', 'w') as w:
+            w.write('# ILS Gaussian FWHM for spectrometer ' + serial.get() + '\n')
+            w.write('# Measured ILS is ' + str(2.355*c) + ' +/- ' + str(2.355*c_err) + '\n')
+            w.write(str(2.355*c))
+    
+    # Create window
+    win = tk.Tk()
+    tk.Tk.wm_title(win, 'Measure spectrometer ILS')
+    
+    # Create notebook to hold different frames
+    nb = ttk.Notebook(win)
+    page1 = ttk.Frame(nb)
+    page2 = ttk.Frame(nb)
+    
+    # Create two frames, one for post analysis and one for real time acquisition
+    nb.add(page1, text = 'Load')
+    nb.add(page2, text = 'Measure')
+    
+    nb.grid(column=0, row = 0, padx=10, pady=10, sticky = 'NW')
+    
+    # Create frames
+    control_frame = ttk.Frame(win)
+    control_frame.grid(row = 1, column = 0, padx = 10, pady = 10)
+    graph_frame = ttk.Frame(win)
+    graph_frame.grid(row = 0, column = 1, padx = 10, pady = 10, rowspan = 10)
+    
+#==================================== Program setup =====================================
+    
+    ### LOADING SPECTRA ###
+    
+    # Filepath to the spectrum of the HG lamp
+    fpath = tk.StringVar(page1, value = '')
+    make_input(frame = page1,
+               text = 'Spectrum\nPath:',
+               row = 0, column = 0,
+               var = fpath,
+               input_type = 'Entry',
+               width  = 40)
+    
+    def get_fpath():
+        fpath.set(fd.askopenfilename())
+        
+    ttk.Button(page1, text = 'Select', command = get_fpath
+               ).grid(row = 0, column = 2, padx = 5, pady = 5)
+    
+    # Set spectrometer serial no
+    serial = tk.StringVar(win, value = '')
+    make_input(frame = page1,
+               text = 'Spectrometer\nSerial No.:',
+               row = 1, column = 0,
+               var = serial,
+               input_type = 'Entry',
+               width  = 40)
+    
+    # Create entry to select spectra type
+    spec_options = ['iFit',
+                    'iFit',
+                    'Master.Scope',
+                    'Jai Spec',
+                    'Spectrasuite',
+                    'GSJ',
+                    'Ind']
+    
+    spec_type = tk.StringVar(page1, value = 'iFit')
+    make_input(frame = page1, 
+               text = 'Spectrum\nType:', 
+               row = 2, column = 0, 
+               var = spec_type, 
+               input_type = 'OptionMenu',
+               options = spec_options, 
+               sticky = 'W')
+    
+    ### MEASURING SPECTRA ###
+    
+    # 
+    
+#=================================== Program control ====================================
+    
+    # Set the savepath
+    save_path = tk.StringVar(control_frame, value = '')
+    make_input(frame = control_frame,
+               text = 'Save path:',
+               row = 0, column = 0,
+               var = save_path,
+               input_type = 'Entry',
+               width  = 40)
+    
+    def get_save_path():
+        save_path.set(fd.askdirectory() + '/')
+        
+    ttk.Button(control_frame, text = 'Select', command = get_save_path
+               ).grid(row = 0, column = 2, padx = 5, pady = 5)
+    
+    # Create button to begin
+    ttk.Button(control_frame, text = 'Begin', command = begin
+               ).grid(row = 2, column = 0, padx = 5, pady = 5, columnspan = 3)
+    
+#======================================== Graphs ========================================
+    
+    # Create graph for display
+    fig = plt.figure(figsize = (6,4))
+    ax0 = fig.add_subplot(211)
+    ax1 = fig.add_subplot(212)
+    
+    ax0.set_ylabel('Intensity (counts)', fontsize = 10)
+    ax1.set_xlabel('Wavelength (nm)', fontsize = 10)
+    ax1.set_ylabel('Intensity (counts)', fontsize = 10)
+    
+    line0, = ax0.plot(0, 0)
+    line1, = ax1.plot(0, 0)
+    line2, = ax1.plot(0, 0)
+    
+    plt.tight_layout()
+    
+    # Create the canvas to hold the graph in the GUI
+    canvas = FigureCanvasTkAgg(fig, graph_frame)
+    canvas.draw()
+    canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady = 10)
+    
+
+#========================================================================================   
+#===================================== Measure ILS ======================================
+#======================================================================================== 
+
+def meas_flat():
+    
+    print('Not yet operational')   
+    
+#========================================================================================   
 #================================== Gas Xsec analyser ===================================
 #======================================================================================== 
 
 def conv_xsec():
+    
+    print('Not yet operational')
     '''
     Function to convert a gas cross section. Not functional yet
     '''

@@ -11,7 +11,8 @@ import tkinter as tk
 
 def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5, 
                command = None, sticky = ['NSEW', None], label_font = ('Verdana', 8),
-               width = None, options = None, vals = [0, 10], increment = 1):
+               width = None, options = None, vals = [0, 10], increment = 1, 
+               rowspan = None, columnspan = None):
     
     '''
     Function to build GUI inputs consisting of a label and an input.
@@ -64,8 +65,14 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
         Sets the range of values for a spinbox. If two values are give it sets the limits
         (from, to)
         
-    increment, int
-        Value spacing for a spinbox
+    increment, int (optional)
+        Value spacing for a spinbox. Default is None
+        
+    rowspan, int (optional)
+        Number of rows the entry will span. Default is None
+        
+    columnspan, int (optional)
+        Number of columns the entry will span. Default is None
         
     OUTPUTS
     -------
@@ -139,7 +146,8 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
         
         
     # Add entry to the frame
-    entry.grid(row=row, column=column+1, padx=padx, pady=pady, sticky=entry_sticky)
+    entry.grid(row=row, column=column+1, padx=padx, pady=pady, sticky=entry_sticky,
+               rowspan=rowspan, columnspan=columnspan)
     
     return label, entry
     

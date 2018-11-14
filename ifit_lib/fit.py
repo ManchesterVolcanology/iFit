@@ -99,8 +99,6 @@ def fit_spec(common, spectrum, grid, q = None):
         noise = np.abs(np.divide(y, smooth(y, 3)))
         sigma = np.divide(1, noise)
         
-        sigma = None
-        
     if common['fit_weight'] == 'None':
         sigma = None
     

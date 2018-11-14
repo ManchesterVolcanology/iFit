@@ -1,87 +1,81 @@
 from math import radians, cos, sin, asin, atan2, sqrt, pi
 import numpy as np
+import pynmea2
 
 from ifit_lib.julian_time import hms_to_julian
 
 #========================================================================================
-#======================================= read_nmea ======================================
+#======================================= read_gps =======================================
 #========================================================================================
 
-def read_nmea(fpath, time_diff):
+def read_gps(fpath, datatype = 'text'):
     
     '''
-    Function to read in raw NMEA data (not functional)
+    Function to read in GPS data
+    
+    INPUTS
+    ------
+    fpath, string
+        File path to the GPS file
+        
+    datatype, string (optional)
+        Style of GPS data. Must be one of 'text' or 'NMEA' (default is 'text')
     '''
     
-    # Load file
-    with open(fpath, 'r') as r:
+    # Load the file
+    with open (fpath, 'r') as r:
         
-        # Read data file
-        data = r.read().split('$')
+        # Read in the data
+        lines = r.readlines()
     
-        time = np.array(())
-        lat  = np.array(())
-        lon  = np.array(())
+        # Create empty arrays to hold the data
+        time = []
+        lat = []
+        lon = []
+        alt = []
         
-        # Unpack data line by line
-        for line in data:
-            
-            # Unpack line
-            gps_info = line.strip().split(',')
-            
-            # Get data type from first value
-            data_type = gps_info[0]
-            
-            # Read line acording to data type
-            if data_type == 'GPGGA':
+        if datatype == 'NMEA':
+        
+            for n, line in enumerate(lines):
                 
-                # Read timestamp
-                timestamp = gps_info[1]
-                
-                # Convert to hours, mins, sec
-                h= float(timestamp[0:2])
-                m= float(timestamp[2:4])
-                s= float(timestamp[4:])
-     
-                # Convert to Julian Time and append to array
-                t = (h * 3600.0 + m * 60.0 + s) / 86400.0
-                
-                # Correct for time difference
-                t = t - time_diff / 24
-                
-                if t > 1:
-                    t = t - 1
+                if line[1:6] == 'GPGGA':
                     
-                # Append to array
-                time = np.append(time, t)
-                
-                # Read latitude
-                point_lat = gps_info[2]
-                lat_dir   = gps_info[3]
-    
-                # Convert to decimal and apply direction
-                point_lat = float(point_lat[:2]) + (float(point_lat[2:]) / 60)
-                
-                if lat_dir == 'N':
-                    lat = np.append(lat, point_lat)
-                
-                if lat_dir == 'S':
-                    lat = np.append(lat, -point_lat)
-                
-                # Read longitude
-                point_lon = gps_info[4]
-                lon_dir   = gps_info[5]
-    
-                # Convert to decimal and apply direction
-                point_lon = float(point_lon[:3]) + (float(point_lon[3:]) / 60)
-                
-                if lon_dir == 'E':
-                    lon = np.append(lon, point_lon)
-                
-                if lon_dir == 'W':
-                    lon = np.append(lon, -point_lon)
+                    try:
+                        msg = pynmea2.parse(line)
+                        
+                        time.append(msg.timestamp)
+                        lat.append(msg.latitude)
+                        lon.append(msg.longitude)
+                        alt.append(msg.altitude)
+            
+                    except AttributeError:
+                        pass
                     
-    return time, lat, lon
+        if datatype == 'text':
+            
+            for n, line in enumerate(lines[1:]):
+                
+                # Split data using tab delimiter
+                info = line.split('\t')
+                
+                # Split date and time with space delimiter
+                date_text, time_text = info[1].split(' ')
+                
+                # Append values to arrays
+                time.append(time_text)
+                lat.append(float(info[2]))
+                lon.append(float(info[3]))
+                alt.append(float(info[4]))
+                
+        
+    # Convert time to julian 
+    try:           
+        time = hms_to_julian(time, str_format='%H:%M:%S', out_format='decimal hours')
+    except ValueError:
+        time = hms_to_julian(time, str_format='%H:%M:%S.%f', out_format='decimal hours')        
+                
+    return time, lat, lon, alt
+
 
 #========================================================================================
 #===================================== read_txt_gps =====================================
@@ -114,6 +108,7 @@ def read_txt_gps(gps_fname):
     time = []
     lat  = np.array(())
     lon  = np.array(())
+    alt  = np.array(())
     
     # Counts number of lines in the text file
     n_lines = sum(1 for line in open(gps_fname))
@@ -138,6 +133,7 @@ def read_txt_gps(gps_fname):
             # Append values to arrays
             lat = np.append(lat, float(info[2]))
             lon = np.append(lon, float(info[3]))
+            alt = np.append(alt, float(info[4]))
             time.append(time_text)
             
     # Convert time to julian 
@@ -146,7 +142,7 @@ def read_txt_gps(gps_fname):
     except ValueError:
         time = hms_to_julian(time, str_format = '%H:%M:%S.%f',out_format='decimal hours')
             
-    return time, lat, lon
+    return time, lat, lon, alt
 
     
 #========================================================================================
