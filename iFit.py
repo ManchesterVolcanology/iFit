@@ -434,7 +434,6 @@ class mygui(tk.Tk):
         
         # Integration Time
         self.int_time = tk.DoubleVar(self, value = settings['int_time'])
-
         make_input(frame = setup_frame2, 
                    text = 'Integration\ntime (ms):', 
                    row = 1, column = 0, 
