@@ -57,7 +57,7 @@ class mygui(tk.Tk):
         ttk.Style().configure('TButton', width = 15, height = 20, relief="flat") 
         
         # Add a title and icon
-        tk.Tk.wm_title(self, 'iFit-2-4')
+        tk.Tk.wm_title(self, 'iFit v1.0')
         try:
             tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         except tk.TclError:
