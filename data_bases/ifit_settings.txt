@@ -1,0 +1,52 @@
+resid_type;Spec/Fit;<class 'str'>
+no2_amt;1e+17;<class 'float'>
+flat_flag;True;<class 'bool'>
+Notebook page;1;<class 'int'>
+Spectra Filepaths;['C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00549.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00550.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00551.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00552.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00553.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00554.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00555.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00556.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00557.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00558.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00559.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00560.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/spectrum_00561.txt'];<class 'str'>
+Fit o3;Fit;<class 'str'>
+so2_amt;1e+16;<class 'float'>
+bro_amt;1000000000000000.0;<class 'float'>
+Show Graphs;False;<class 'bool'>
+dark_flag;False;<class 'bool'>
+Fit LDF;N/A;<class 'str'>
+Fit stretch;Fit;<class 'str'>
+o3_amt;1e+19;<class 'float'>
+gauss_weight;1.0;<class 'float'>
+no2_path;data_bases/gas data/No2_223l.dat;<class 'str'>
+Fit ILS;File;<class 'str'>
+model_pad;3.0;<class 'float'>
+good_fit_bound;10.0;<class 'float'>
+int_time;100.0;<class 'str'>
+wave_stop;318.0;<class 'float'>
+Fit so2;Fit;<class 'str'>
+solar_resid_path;data_bases/gas data/solar_resid.txt;<class 'str'>
+Fit shift;Fit;<class 'str'>
+ils_width;0.52;<class 'float'>
+poly_n;3;<class 'int'>
+coadds;10.0;<class 'str'>
+scroll_spec_no;200;<class 'int'>
+solar_resid_flag;Ignore;<class 'str'>
+Dark Filepaths;['C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_00000.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000001.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000002.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000003.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000004.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000005.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000006.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000007.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000008.txt', 'C:/Users/mqbpwbe2/Dropbox (The University of Manchester)/python_scripts/iFit/Example Data/SO2 Cell/520/dark_000009.txt'];<class 'str'>
+ring_amt;1.0;<class 'float'>
+Spectra Type;iFit;<class 'str'>
+fit_weight;Noise;<class 'str'>
+bro_path;data_bases/gas data/BrO_Cross_298K.txt;<class 'str'>
+stretch;0.05;<class 'float'>
+Spectrometer;USB2+H15972;<class 'str'>
+shift;-1.5;<class 'float'>
+wave_start;305.0;<class 'float'>
+x_plot;Time;<class 'str'>
+scroll_flag;True;<class 'bool'>
+no_darks;10.0;<class 'str'>
+Fit bro;Fit;<class 'str'>
+ldf;0.0;<class 'float'>
+Fit no2;Fit;<class 'str'>
+so2_path;data_bases/gas data/SO2_293K.dat;<class 'str'>
+o3_path;data_bases/gas data/O3_xsec.dat;<class 'str'>
+model_res;0.01;<class 'float'>
+analysis_gas;so2;<class 'str'>
+update_params;True;<class 'bool'>
+o3_temp;223K;<class 'str'>
+ring_path;data_bases/gas data/qdoas_ring.dat;<class 'str'>
+Fit ring;Fit;<class 'str'>
+sol_path;data_bases/gas data/sao2010.txt;<class 'str'>

@@ -1,4 +1,38 @@
-# Wavelength (nm), Xsec 
+#******** SO2 Absorption Cross Sections at 293K ******************
+
+#Version 1.0
+#Date: May 2000
+
+#K. Bogumil, J. Orphal, and J. P. Burrows
+#University of Bremen - Institute of Environmental Physics
+#P. O. Box 33 04 40
+#D-28334 Bremen, Germany
+#e-mail: Konstanze.Bogumil@iup.physik.uni-bremen.de
+
+#1. column title:	wavelength (vacuum)
+#1. column unit:		nm
+#2. column title:	absorption cross-section 
+#2. column unit:		cm2/molec
+
+#Wavelength range:	239 - 395 nm
+#Spectral Resolution:	0.22 nm below 312.5 nm, 0.21 nm above 312.5 nm (FWHM)
+#Number of data points in file:	1402
+
+#Experimental:
+
+#Light source:   Xenon lamp
+#Cell:	        Multiple reflection quartz cell (White optics)
+#	        optical pathlength 985 cm
+#Temperature:    293K
+#Gas mixture:    SO2, N2
+#Condition:      Flow measurement
+#Total pressure: 100 mbar
+#Spectrometer:   SCIAMACHY PFM Satellite Spectrometer (Eight channel grating spectrometer)
+
+#Note: Spectral Regions are cut and concatenated at 252.7 nm and 312.5 nm.
+#      The data are scaled to the absorption cross section measured by Vandaele et al. 
+#      J. Geophys. Res. 99, 25599-25605 (1994)
+
    238.9581  3.754169E-20
    239.0867  3.724393E-20
    239.2152  3.638742E-20
