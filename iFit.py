@@ -6,6 +6,7 @@ Created on Fri Mar  2 09:24:05 2018
 """
 
 # Import required libraries
+import os
 import matplotlib
 matplotlib.use('TkAgg')
 import traceback
@@ -33,8 +34,11 @@ from ifit_lib.gui_funcs import adv_settings, fit_toggle, spec_fp, dark_fp, stop,
                                read_settings, meas_flat, meas_ils, conv_xsec
 
 # Set up logging
-logging.basicConfig(filename='iFit_log.log',
-                    filemode='a',
+if not os.path.exists('Log'):
+    os.makedirs('Log')
+
+logging.basicConfig(filename='Log/iFit_log.txt',
+                    filemode='w',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.DEBUG)
 
