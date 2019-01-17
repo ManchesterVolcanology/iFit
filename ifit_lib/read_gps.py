@@ -1,6 +1,9 @@
 from math import radians, cos, sin, asin, atan2, sqrt, pi
 import numpy as np
-import pynmea2
+try:
+    import pynmea2
+except ImportError:
+    print('No pynmea2 module found')
 
 from ifit_lib.julian_time import hms_to_julian
 
