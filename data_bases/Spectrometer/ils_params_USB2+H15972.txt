@@ -1,0 +1,5 @@
+# ILS parameters for USB2+H15972 (FWEM, k, a_w, a_k)
+0.67
+2.53
+-0.12
+-1.3

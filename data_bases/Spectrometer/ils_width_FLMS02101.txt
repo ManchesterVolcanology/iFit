@@ -1,1 +1,5 @@
-0.54
+# ILS parameters for FLMS02101 (FWEM, k, a_w, a_k)
+0.72
+2.16
+-0.02
+-0.056

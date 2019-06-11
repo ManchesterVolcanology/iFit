@@ -7,7 +7,11 @@ Created on Thu Mar 16 13:24:15 2017
 
 import numpy as np
 import datetime
-from seabreeze.cseabreeze.wrapper import SeaBreezeError
+
+try:
+    from seabreeze.cseabreeze.wrapper import SeaBreezeError
+except ModuleNotFoundError:
+    pass
 
 #========================================================================================
 #===================================== read_spectro =====================================

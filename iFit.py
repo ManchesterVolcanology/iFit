@@ -19,7 +19,7 @@ import tkinter as tk
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from collections import OrderedDict
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import logging
 
 from ifit_lib.build_fwd_data import build_fwd_data
@@ -40,7 +40,7 @@ if not os.path.exists('Log'):
 logging.basicConfig(filename='Log/iFit_log.txt',
                     filemode='w',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -146,8 +146,8 @@ class mygui(tk.Tk):
             settings['ils_width']         = 0.52
             settings['gauss_weight']      = 1.0
             settings['Fit ILS']           = 'File'
-            settings['ldf']               = 0.0
-            settings['Fit LDF']           = 'N/A'
+            #settings['ldf']               = 0.0
+            #settings['Fit LDF']           = 'N/A'
             settings['dark_flag']         = True
             settings['flat_flag']         = True
             settings['update_params']     = True
@@ -163,26 +163,30 @@ class mygui(tk.Tk):
             settings['poly_n']            = 3
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
-            settings['ring_amt']          = 1.0
+            settings['ring_amt']          = 0.1
             settings['so2_amt']           = 1e+16
             settings['no2_amt']           = 1e+17
-            settings['o3_amt']            = 1e+19
+            settings['o31_amt']           = 1e+19
+            settings['o32_amt']           = 1e+19
             settings['bro_amt']           = 1e+15
             settings['Fit shift']         = 'Fit'
             settings['Fit stretch']       = 'Fit'
             settings['Fit ring']          = 'Fit'
             settings['Fit so2']           = 'Fit'
             settings['Fit no2']           = 'Fit'
-            settings['Fit o3']            = 'Fit'
+            settings['Fit o31']           = 'Fit'
+            settings['Fit o32']           = 'Fit'
             settings['Fit bro']           = 'Fit'
             settings['model_res']         = 0.01
             settings['model_pad']         = 3.0
             settings['sol_path']          = 'data_bases/gas data/sao2010.txt'
             settings['ring_path']         = 'data_bases/gas data/qdoas_ring.dat'
-            settings['so2_path']          = 'data_bases/gas data/SO2_293K.dat'
+            settings['so2_path']          = 'data_bases/gas data/SO2_295K.txt'
             settings['no2_path']          = 'data_bases/gas data/No2_223l.dat'
-            settings['o3_path']           = 'data_bases/gas data/O3_xsec.dat'
-            settings['o3_temp']           = '223K'
+            settings['o31_path']          = 'data_bases/gas data/O3_xsec.dat'
+            settings['o31_temp']          = '223K'
+            settings['o32_path']          = 'data_bases/gas data/O3_xsec.dat'
+            settings['o32_temp']          = '273K'
             settings['bro_path']          = 'data_bases/gas data/BrO_Cross_298K.txt'
             settings['solar_resid_path']  = 'data_bases/gas data/solar_resid.txt'
             settings['Notebook page']     = 0
@@ -232,6 +236,12 @@ class mygui(tk.Tk):
         self.ax3 = self.fig.add_subplot(gs[1,1])
         self.ax4 = self.fig.add_subplot(gs[2,:])
 
+        self.ax0.grid()
+        self.ax1.grid()
+        self.ax2.grid()
+        self.ax3.grid()
+        self.ax4.grid()
+
         # Axes: 1) Spectrum and fit
         #       2) Residual
         #       3) Full spectrum
@@ -251,7 +261,7 @@ class mygui(tk.Tk):
             self.ax2.set_ylabel('Fit residual (Spec/Fit)', fontsize=10)
         self.ax2.set_xlabel('Wavelength (nm)', fontsize=10)
 
-        self.ax3.set_ylabel(gas_choice[settings['analysis_gas']] + ' Absorbance',
+        self.ax3.set_ylabel(gas_choice[settings['analysis_gas']] + ' OD',
                             fontsize = 10)
         self.ax3.set_xlabel('Wavelength (nm)', fontsize=10)
 
@@ -294,7 +304,7 @@ class mygui(tk.Tk):
         # Add matplotlib toolbar above the plot canvas
         toolbar_frame = tk.Frame(graph_frame, bg = 'black')
         toolbar_frame.grid(row=1,column=0, sticky = 'W', padx = 5, pady = 5)
-        toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
+        toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
         toolbar.update()
 
 
@@ -505,10 +515,6 @@ class mygui(tk.Tk):
 
 
 
-
-
-
-
 #========================================================================================
 #========================================================================================
 #============================ Program start/stop and analysis ===========================
@@ -678,7 +684,7 @@ class mygui(tk.Tk):
         common['poly_n']           = int(settings['poly_n']) + 1
         common['ils_width']        = float(settings['ils_width'])
         common['gauss_weight']     = float(settings['gauss_weight'])
-        common['ldf']              = float(settings['ldf'])
+        #common['ldf']              = float(settings['ldf'])
         common['dark_flag']        = bool(settings['dark_flag'])
         common['flat_flag']        = bool(settings['flat_flag'])
         common['Fit shift']        = str(settings['Fit shift'])
@@ -701,10 +707,11 @@ class mygui(tk.Tk):
         common['params']['ring_amt']  = [settings['ring_amt'],  settings['Fit ring']    ]
         common['params']['so2_amt']   = [settings['so2_amt'],   settings['Fit so2']     ]
         common['params']['no2_amt']   = [settings['no2_amt'],   settings['Fit no2']     ]
-        common['params']['o3_amt']    = [settings['o3_amt'],    settings['Fit o3']      ]
+        common['params']['o31_amt']   = [settings['o31_amt'],   settings['Fit o31']     ]
+        common['params']['o32_amt']   = [settings['o32_amt'],   settings['Fit o32']     ]
         common['params']['bro_amt']   = [settings['bro_amt'],   settings['Fit bro']     ]
         common['params']['ils_width'] = [settings['ils_width'], settings['Fit ILS']     ]
-        common['params']['ldf']       = [settings['ldf'],       settings['Fit LDF']     ]
+        #common['params']['ldf']       = [settings['ldf'],       settings['Fit LDF']     ]
 
         # Make sure first guesses are floats
         for key, val in common['params'].items():
@@ -752,7 +759,7 @@ class mygui(tk.Tk):
             gas = {}
             spec_nos = []
             spec_times = []
-            for g in ['so2', 'no2', 'o3', 'bro', 'ring']:
+            for g in ['so2', 'no2', 'o31', 'o32', 'bro', 'ring']:
                 gas[g + '_amts'] = []
                 gas[g + '_errs'] = []
 
@@ -906,7 +913,7 @@ class mygui(tk.Tk):
                         spec_times.append(hms_to_julian(read_time,
                                                         str_format = '%H:%M:%S'))
 
-                    for parameter in ['so2', 'no2', 'o3', 'bro', 'ring']:
+                    for parameter in ['so2', 'no2', 'o31', 'o32', 'bro', 'ring']:
 
                         # Make dictionary key
                         key1 = parameter + '_amt'

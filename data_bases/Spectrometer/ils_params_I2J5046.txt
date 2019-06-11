@@ -1,0 +1,5 @@
+# ILS parameters for I2J5046 (FWEM, k, a_w, a_k)
+0.81
+3.34
+-0.26
+-2.2
