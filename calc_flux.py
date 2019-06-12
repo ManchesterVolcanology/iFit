@@ -21,9 +21,8 @@ from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.gridspec as gridspec
-from matplotlib.colorbar import Colorbar
 from matplotlib.widgets import Slider
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from ifit_lib.read_csv import read_csv
 import folium
 
@@ -146,7 +145,7 @@ class mygui(tk.Tk):
 
         # Create the canvas to hold the graph in the GUI
         self.canvas = FigureCanvasTkAgg(self.fig, graph_frame)
-        self.canvas.show()
+        self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=0, column=0, padx=10,
                                          pady = 10, sticky = 'NW')
 
@@ -982,13 +981,13 @@ def make_graph(d):
 
     # Create the canvas to hold the graph in the GUI
     canvas = FigureCanvasTkAgg(fig, popup)
-    canvas.show()
+    canvas.draw()
     canvas.get_tk_widget().grid(row=1, column=0, padx=10, pady = 10, columnspan = 2)
 
     # Add matplotlib toolbar above the plot canvas
     toolbar_frame = tk.Frame(popup, bg = 'black')
     toolbar_frame.grid(row=0,column=0, sticky = 'NW', padx = 6, columnspan=2)
-    toolbar = NavigationToolbar2TkAgg(canvas, toolbar_frame)
+    toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
     toolbar.update()
 
     # Create a button to save
