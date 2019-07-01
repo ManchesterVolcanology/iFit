@@ -8,7 +8,6 @@ Created on Mon Mar 27 14:30:41 2017
 import linecache
 import numpy as np
 import datetime
-from pandas import read_csv
 
 #========================================================================================
 #===================================== read_spectrum ====================================
@@ -16,7 +15,7 @@ from pandas import read_csv
 
 # Reads spectrum file from spectro_gui
 
-def read_spectrum(fname, spec_type='iFit'):
+def read_spectrum(fname, spec_type = 'iFit'):
 
     '''
     Function to read spectra and extract information, depending on the file format
@@ -27,7 +26,7 @@ def read_spectrum(fname, spec_type='iFit'):
         File path to spectrum file
 
     spec_type, str
-        Format of spectrum file. Choices: iFit, Master.Scope, Jai Spec, Spectrasuite, GSJ
+        Format of spectrum file. Choices: iFit, Master.Scope, Spectrasuite or Basic
 
     OUTPUTS
     -------
@@ -52,7 +51,14 @@ def read_spectrum(fname, spec_type='iFit'):
         string is 'No error' for no error, and the error message if an error occurs.
     '''
 
+
+
     try:
+
+        # Check the file format exists
+        if spec_type not in ['iFit', 'Master.Scope', 'Spectrasuite', 'Basic']:
+            raise Exception('File format not recognised. Must be one of "iFit", ' +\
+                            '"Master.Scope", "Spectrasuite" or "Basic"')
 
         if spec_type == 'iFit':
 
@@ -91,20 +97,6 @@ def read_spectrum(fname, spec_type='iFit'):
             except:
                 spec_no = 0
 
-        if spec_type == 'Jai Spec':
-
-            # Load data into a numpy array, skipping the header data
-            x,y = np.loadtxt(fname, unpack=True, skiprows = 13, delimiter = ';')
-
-            # Extract date and time string
-            date_time = linecache.getline(fname, 2).strip()
-
-            # Unpack date_time string
-            date_time = datetime.datetime.strptime(date_time, '%Y/%m/%d %H:%M:%S')
-
-            # Get spectrum number
-            spec_no = int(fname[-10:-4])
-
         if spec_type == 'Spectrasuite':
 
             # Load data into a numpy array, skipping the header data
@@ -119,55 +111,19 @@ def read_spectrum(fname, spec_type='iFit'):
             # Get spectrum number
             spec_no = int(fname[-9:-4])
 
-        if spec_type == 'GSJ':
+        if spec_type == 'Basic':
 
-            # Different because the wavelength and timing is separate to the spectrum
+            # Generic file format that only holds the essential information
 
-            # Get folder of spectra
-            n = [pos for pos, c in enumerate(fname) if c == '/']
-            spec_folder = fname[:n[-1] + 1]
+            # Load data into a numpy array
+            x, y = np.loadtxt(fname, unpack = True, skiprows = 2)
 
-            # Read Wavelength File
-            x = np.loadtxt(spec_folder + 'wavelength.dat')
+            # Extract date and time string
+            read_date = linecache.getline(fname, 1).strip()
+            spec_no = int(linecache.getline(fname, 2).strip())
 
-            # Read spectrum file
-            y = np.loadtxt(fname)
-
-            # Get spectrum number
-            spec_no = int(fname[-8:-4])
-
-            # Get timing from so2.dat
-            times = read_csv(spec_folder+'SO2.dat', delimiter='\t', skiprows=3)['Time']
-
-            date_time = '1900-01-01 ' + str(times[spec_no])
-
-            # Unpack date_time string
-            date_time = datetime.datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S')
-
-        if spec_type == 'Ind':
-
-            # Weird file format for data from Indonesia
-
-            # Load data into a numpy array, skipping header info
-            x, y = np.loadtxt(fname, skiprows=15, unpack = True)
-
-            # Get spectrum number from file name
-            spec_no = int(fname[-9:-4])
-
-            # Get time string file info
-            time_str = fname[-16:-4]
-
-            # Get date from file info
-            date_info = date_time = linecache.getline(fname, 3)[6:].strip()
-            day   = date_info[8:10]
-            month = date_info[4:7]
-            year  = date_info[-4:]
-            time_str = date_info[11:19]
-
-            # Form into a single string and turn into a datetime object
-            date_time_str = day + ' ' + month + ' ' + year + ' ' + time_str
-
-            date_time = datetime.datetime.strptime(date_time_str, '%d %b %Y %H:%M:%S')
+            # Get the date
+            date_time = datetime.datetime.strptime(read_date, '%Y-%m-%d %H:%M:%S')
 
         # Report no error
         read_err = False, 'No Error'
