@@ -236,16 +236,15 @@ class mygui(tk.Tk):
         self.ax3 = self.fig.add_subplot(gs[1,1])
         self.ax4 = self.fig.add_subplot(gs[2,:])
 
-        self.ax0.grid()
-        self.ax1.grid()
-        self.ax2.grid()
-        self.ax3.grid()
-        self.ax4.grid()
+        # Add gridlines to plots
+        for ax in [self.ax0, self.ax1, self.ax2, self.ax3, self.ax4]:
+            ax.grid()
 
         # Axes: 1) Spectrum and fit
         #       2) Residual
         #       3) Full spectrum
-        #       4) SO2 amount time series
+        #       4) Optical depth spectra
+        #       5) Gas Time Series
 
 
         # Set axis labels
@@ -363,10 +362,8 @@ class mygui(tk.Tk):
         spec_options = [settings['Spectra Type'],
                         'iFit',
                         'Master.Scope',
-                        'Jai Spec',
                         'Spectrasuite',
-                        'GSJ',
-                        'Ind']
+                        'Basic']
 
         self.spec_type = tk.StringVar(setup_frame, value = spec_options[0])
         make_input(frame = setup_frame,
