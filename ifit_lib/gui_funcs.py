@@ -609,11 +609,13 @@ def adv_settings(self, settings, version):
     model_frame = ttk.Frame(nb)
     datab_frame = ttk.Frame(nb)
     graph_frame = ttk.Frame(nb)
+    sptro_frame = ttk.Frame(nb)
 
     # Add the frames to the notebook
     nb.add(model_frame, text = 'Model Settings')
     nb.add(graph_frame, text = 'Graph Settings')
     nb.add(datab_frame, text = 'Data Base Settings')
+    nb.add(sptro_frame, text = 'Spectrometer Settings')
 
     # Add the notebook to the window
     nb.grid(row = 0, column=0, padx=10, pady=10, sticky = 'NW', columnspan = 10)
@@ -1122,7 +1124,6 @@ def adv_settings(self, settings, version):
 #=================================== Graph Settings =====================================
 #========================================================================================
 
-
     # Create row number counter
     row_n = 0
 
@@ -1199,6 +1200,32 @@ def adv_settings(self, settings, version):
                var = resid_type,
                input_type = 'OptionMenu',
                options = resid_options)
+    row_n += 1
+
+#========================================================================================
+#================================= Data base file paths =================================
+#========================================================================================
+
+    # Create row number counter
+    row_n = 0
+    col_n = 0
+
+    # Control spectrometer nonliniarity settings
+    nonlin_b = tk.BooleanVar(sptro_frame, value = settings['nonlin_flag'])
+    make_input(frame = sptro_frame,
+               text = 'Apply Non-linearity\ncorrection?',
+               row = row_n, column = col_n,
+               var = nonlin_b,
+               input_type = 'Checkbutton')
+    row_n += 1
+
+    # Control spectrometer electronic dark settings
+    eldark_b = tk.BooleanVar(sptro_frame, value = settings['elec_dark_flag'])
+    make_input(frame = sptro_frame,
+               text = 'Apply Electronic dark\ncorrection?',
+               row = row_n, column = col_n,
+               var = eldark_b,
+               input_type = 'Checkbutton')
     row_n += 1
 
 #========================================================================================

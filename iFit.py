@@ -65,10 +65,10 @@ class mygui(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.handler)
 
         # Button Style
-        ttk.Style().configure('TButton', width = 15, height = 20, relief="flat")
+        ttk.Style().configure('TButton', width = 15, height = 20, relief = "flat")
 
         # Add a title and icon
-        tk.Tk.wm_title(self, 'iFit v1.0')
+        tk.Tk.wm_title(self, 'iFit v1.2')
         try:
             tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         except tk.TclError:
@@ -135,21 +135,23 @@ class mygui(tk.Tk):
             settings = read_settings('data_bases/ifit_settings.txt', settings)
 
         except FileNotFoundError:
-            self.print_output('No settings file found\nReverting to origional')
-            settings['wave_start']        = 305
-            settings['wave_stop']         = 318
+            self.print_output('No settings file found\nReverting to default')
+            settings['wave_start']        = 310
+            settings['wave_stop']         = 320
             settings['Spectrometer']      = '-select-'
             settings['Spectra Type']      = '-select-'
             settings['int_time']          = 100
             settings['coadds']            = 10
             settings['no_darks']          = 10
-            settings['ils_width']         = 0.52
+            settings['ils_width']         = 0.68
             settings['gauss_weight']      = 1.0
             settings['Fit ILS']           = 'File'
             #settings['ldf']               = 0.0
             #settings['Fit LDF']           = 'N/A'
             settings['dark_flag']         = True
             settings['flat_flag']         = True
+            settings['nonlin_flag']       = True
+            settings['elec_dark_flag']    = True
             settings['update_params']     = True
             settings['good_fit_bound']    = 10
             settings['fit_weight']        = 'None'
@@ -160,7 +162,7 @@ class mygui(tk.Tk):
             settings['x_plot']            = 'Time'
             settings['resid_type']        = 'Spec/Fit'
             settings['solar_resid_flag']  = 'Ignore'
-            settings['poly_n']            = 3
+            settings['poly_n']            = 4
             settings['shift']             = -0.2
             settings['stretch']           = 0.05
             settings['ring_amt']          = 0.1
@@ -178,7 +180,7 @@ class mygui(tk.Tk):
             settings['Fit o32']           = 'Fit'
             settings['Fit bro']           = 'Fit'
             settings['model_res']         = 0.01
-            settings['model_pad']         = 3.0
+            settings['model_pad']         = 2.0
             settings['sol_path']          = 'data_bases/gas data/sao2010.txt'
             settings['ring_path']         = 'data_bases/gas data/qdoas_ring.dat'
             settings['so2_path']          = 'data_bases/gas data/SO2_295K.txt'

@@ -292,8 +292,8 @@ def rt_analyse(self, settings, common, mygui):
                                                      self.spec,
                                                      settings['int_time'],
                                                      int(self.coadds.get()),
-                                                     True,
-                                                     True,
+                                                     settings['elec_dark_flag'],
+                                                     settings['nonlin_flag'],
                                                      result_queue))
 
         t2 = Thread(target = fit_spec, args = (common, [x, y], common['grid'],
@@ -320,8 +320,13 @@ def rt_analyse(self, settings, common, mygui):
     # Otherwise just read a spectrum
     else:
         # Read spectrum
-        x, y, header, t = acquire_spectrum(self, self.spec, settings['int_time'],
-                                           int(self.coadds.get()))
+        x, y, header, t = acquire_spectrum(self,
+                                           self.spec,
+                                           settings['int_time'],
+                                           int(self.coadds.get()),
+                                           settings['elec_dark_flag'],
+                                           settings['nonlin_flag'],
+                                           None)
 
         # No fitting
         fit_results = []
