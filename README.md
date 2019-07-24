@@ -11,3 +11,8 @@ Whether using the executable or the source code you will need the drivers for th
 
 ## calc_flux.py
 A second program is included with iFit called calc_flux. This allows the user to calculate the flux of So2 from a volcano for a traverse measurement. The user inputs the SO2 time series from iFit, a GPS track and the wind speed to generate the flux.
+
+## To-Do
+- Add in options to turn off non-linearity and dark correction
+- Add manual graph control options
+- Make a simple protable version with Raspberry Pi
