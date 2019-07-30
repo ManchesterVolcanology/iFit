@@ -549,6 +549,10 @@ def adv_settings(self, settings, version):
         settings['resid_type']       = resid_type.get()
         settings['analysis_gas']     = gas.get()
 
+        # Update Spectrometer Settings
+        settings['nonlin_flag']      = nonlin_b.get()
+        settings['elec_dark_flag']   = eldark_b.get()
+
         if version == 'iFit':
 
             # Translate gas choice to parameter names and graph print
@@ -1203,7 +1207,7 @@ def adv_settings(self, settings, version):
     row_n += 1
 
 #========================================================================================
-#================================= Data base file paths =================================
+#================================ Spectrometer Settings =================================
 #========================================================================================
 
     # Create row number counter
