@@ -125,16 +125,6 @@ def fit_spec(common, spectrum, grid, q = None):
             gas_T['meas_abs_' + g] = -np.log(np.divide(y, com['F_no_' + g]))
             gas_T['synth_abs_' + g]  = -np.log(com[g + '_spec'])
 
-        #################################################################################
-        '''
-        np.savetxt('Dump/spec.txt', np.column_stack((grid, y)))
-        np.savetxt('Dump/fit.txt', np.column_stack((grid, fit)))
-
-        for key, val in gas_T.items():
-            np.savetxt('Dump/' + key + '.txt', np.column_stack((grid, gas_T[key])))
-        '''
-        #################################################################################
-
         # Fit successful
         fitted_flag = True
 

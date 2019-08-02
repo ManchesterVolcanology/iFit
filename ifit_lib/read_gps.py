@@ -1,4 +1,4 @@
-from math import radians, cos, sin, asin, atan2, sqrt, pi
+from math import radians, cos, sin, atan2, sqrt, pi
 import numpy as np
 try:
     import pynmea2
@@ -149,10 +149,8 @@ def read_txt_gps(gps_fname):
 
 
 #========================================================================================
-#====================================== gps_vector ======================================
+#====================================== haversine =======================================
 #========================================================================================
-
-
 
 def haversine(lon1, lat1, lon2, lat2):
 
@@ -184,7 +182,7 @@ def haversine(lon1, lat1, lon2, lat2):
     dlat = lat2 - lat1
 
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a))
+    c = 2 * atan2(sqrt(a), sqrt(1-a))
 
     # Earth radius in meters
     r = 6371000
@@ -194,7 +192,7 @@ def haversine(lon1, lat1, lon2, lat2):
 
     # Calculate the bearing
     bearing = atan2(sin(dlon) * cos(lat2),
-                    cos(lat1) * (sin(lat2) - sin(lat1)) * cos(lat2) * cos(dlat))
+                    cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dlat))
 
     # Convert barings to the range (0, 2pi) instead of (-pi, pi)
     if bearing < 0:

@@ -51,8 +51,6 @@ def read_spectrum(fname, spec_type = 'iFit'):
         string is 'No error' for no error, and the error message if an error occurs.
     '''
 
-
-
     try:
 
         # Check the file format exists
