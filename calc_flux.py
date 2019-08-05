@@ -27,7 +27,8 @@ from ifit_lib.read_csv import read_csv
 import folium
 
 from ifit_lib.find_nearest import extract_window
-from ifit_lib.read_gps import read_gps, gps_vector, haversine
+from ifit_lib.read_gps import read_gps, gps_vector
+from ifit_lib.haversine import haversine
 from ifit_lib.center_of_grav import cog
 from ifit_lib.julian_time import hms_to_julian, julian_to_hms
 from ifit_lib.build_gui import make_input
@@ -691,7 +692,8 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # Define wind vector as the vector from the volcano to the CoM
-        wind_dist, wind_az = haversine(volc_lon, volc_lat, modlon[peak_idx], modlat[peak_idx])
+        wind_dist, wind_az = haversine([volc_lon, volc_lat], 
+                                       [modlon[peak_idx], modlat[peak_idx]])
 
         # Add plume peak location and azimuths to arrays
         common['locations'].append([modlat[peak_idx], modlon[peak_idx]])
