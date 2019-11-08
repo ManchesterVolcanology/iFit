@@ -1,18 +1,8 @@
 # iFit
 
-iFit is a program to retrieve SO2 column densities from scattered UV sunlight spectra, with the focus of measuring the SO2 flux from volcanoes. It also allows control of Ocean Optics USB series spectrometers, with simultaneous fitting.
+iFit is a program designed to retrieve SO2 column densities from scattered UV sunlight spectra, with the focus of measuring the SO2 flux from volcanoes. It also allows control of Ocean Optics USB series spectrometers, with simultaneous fitting.
 
-## Install
-The easiest way to use iFit is through the latest release, however this is currently only available for Windows 64-bit systems. If you require iFit for another operating system either use the source code (after installing python and the required libraries) or contact me and I will try to help!
+## In Progress
+This is version 3.0 and is still in progress. Currently only post analysis is coded, but real time analysis with Ocean Optics spectrometer control is being added.
 
-iFit uses the Python Seabreeze library to talk to the spectormeters. Details can be found here: https://github.com/ap--/python-seabreeze
-
-Whether using the executable or the source code you will need the drivers for the spectrometers. These drivers and how to install them can be found in the documentation for Python Seabreeze.
-
-## calc_flux.py
-A second program is included with iFit called calc_flux. This allows the user to calculate the flux of So2 from a volcano for a traverse measurement. The user inputs the SO2 time series from iFit, a GPS track and the wind speed to generate the flux.
-
-## To-Do
-- Add in options to turn off non-linearity and dark correction
-- Add manual graph control options
-- Make a simple protable version with Raspberry Pi
+This update required a significant rewrite of the iFit software but should make it more user friendly and flexible for future applications. 
