@@ -11,83 +11,36 @@ import logging
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.optimize import leastsq
-from collections import OrderedDict
 
 #==============================================================================
 #================================ fit_spectrum ================================
 #==============================================================================
 
-def fit_spectrum(spectrum, common, update_params=False, **kwargs):
-
-    # Make a copy of the parameters
-    params = common['params'].make_copy()
+def fit_spectrum(spectrum, common, update_params=False, resid_limit=5,
+                 calc_od=[],**kwargs):
 
     # Unpack the spectrum
     grid, spec = spectrum
 
     # Get the fit first guesses
-    fit_params = params.fittedvalueslist()
+    fit_params = common['params'].fittedvalueslist()
 
     # Perform the fit!
     logging.debug('Begin fit')
-    results = leastsq(residual, fit_params, args = (grid, spec, common),
-                      full_output = True, **kwargs)
+    fit_results = leastsq(residual, fit_params, args = (grid, spec, common),
+                          full_output = True, **kwargs)
     logging.debug('Fit complete')
 
-    # Unpack the fit results
-    popt = results[0]
-    pcov = results[1]
-    info = results[2]
-    mesg = results[3]
-    nerr = results[4]
+    # Format the fit results into a FitResult object
+    fit_result = FitResult(fit_results, 
+                           common, 
+                           spectrum, 
+                           update_params, 
+                           resid_limit)
 
-    # Check for a fit error
-    if nerr in [1,2,3,4]:
-
-        # Calculate the error from the partial covarience matrix
-        if (len(spec) > len(fit_params)) and pcov is not None:
-            s_sq = (residual(popt, grid, spec, common)**2).sum()/ \
-                   (len(spec)-len(fit_params))
-            pcov = pcov * s_sq
-        else:
-            pcov = np.inf
-        try:
-            perr = np.sqrt(np.diag(pcov))
-        except ValueError:
-            logging.warning('Unable to calculate error matrix')
-            perr = np.full(len(popt), np.nan)
-
-        # Add the fit results to each parameter
-        n = 0
-        for par in params.values():
-
-            if par.vary:
-                par.set(fit_val = popt[n],
-                        fit_err = perr[n])
-                n += 1
-            else:
-                par.set(fit_val = par.value)
-                par.set(fit_err = 0)
-
-        # Recalulate the model
-        fit = ifit_fwd_model(grid, *popt, **common)
-
-        # Calculate the residual
-        resid = (spec-fit)/spec * 100
-
-        # Calculate the SO2 OD
-        #self.calc_od('SO2_295', spectrum, common)
-
-        # Use the fitted parameters as the next first guess
-        if update_params:
-            common['params'].update_values(popt)
-
-    else:
-        logging.warning(f'Fit failed: {mesg}')
-        fit = np.full(len(grid), np.nan)
-        resid = np.full(len(grid), np.nan)
-
-    fit_result = FitResult(params, popt, pcov, info, mesg, nerr, perr, fit, resid)
+    # Calculate the Optical depth spectra
+    for par in calc_od:
+        fit_result.calc_od(par, common)
 
     return fit_result
 
@@ -97,71 +50,90 @@ def fit_spectrum(spectrum, common, update_params=False, **kwargs):
 #================================ FitSpectrum =================================
 #==============================================================================
 
-class FitResult(OrderedDict):
+class FitResult():
 
-    def __init__(self, params, popt, pcov, info, mesg, nerr, perr, fit, resid):
-
-        self.params = params
-        self.popt = popt
-        self.pcov = pcov
-        self.info = info
-        self.mesg = mesg
-        self.nerr = nerr
-        self.perr = perr
-        self.fit = fit
-        self.resid = resid
-
-    def print_result(self):
-        '''Prints the result of the fit in a readable way'''
-        msg = self.params.pretty_print()
-
-        msg += f'\nNumber of function calls: {self.info["nfev"]}'
-
-        msg += f'\n\nAverage of Residual: {np.average(self.resid):.3g}'
-        msg += f'\nStdev of Residual:   {np.std(self.resid):.3g}'
-
-        return msg
-
-class FitSpectrum(OrderedDict):
     '''
-    An object to hold the fit results in a concise and useful way
+    Object containing the results of the fit
 
     **Parameters**
 
-    spectrum : 2D numpy array
-        The spectrum to be fitted as [wavelength, intensity]
+    fit_results : list
+        The output of scipy.optimize.leastsq
 
     common : dict
-        The common dictionary holding the model information and settings
+        The common dictionary containing information for the fit
+
+    spectrum : 2D numpy array
+        The measured spectrum to which the fit is done as:
+        [wavelength, intensity]
 
     update_params : bool, optional, default = False
+        If True then the first guess of the fit parameters is updated with the
+        previous results
 
-    kwargs : tuple, optional
-        Keywork arguments to be passed to the leastsq
+    **Attributes**
+
+    params : ifit.parameters.Parameters object
+        Contains the fit parameters as they were for this fit
+
+    popt : list
+        The optimised fit parameters given by the fitting function
+
+    fit : numpy array
+        The final output of the forward model for the fitted spectrum
+
+    resid : numpy array
+        The percentage difference between the fit and the measured spectrum.
+        Calculated as (spec - fit) / spec * 100
+
+    meas_od : dict
+        Dictionary of the "measured" optical depths for each parameter.
+        Calculated by dividing the measured spectrum by the forward model
+        without the selected parameter and taking the negative natural log
+
+    synth_od : dict
+        Dictionary of the "synthetic" optical depths for each parameter.
+        Calculated by multiplying the "gas" xsec by the fitted "gas" amt and
+        interpolating onto the measurement grid
+
+    pcov : array
+        The covarience array given by the fitting function. Used to calculate
+        the fit error for each parameter
+
+    info : dictionary
+        Contains the other outputs of the fitting function. See
+        scipy.optimize.leastsq for more details
+
+    mesg : str
+        String message giving the cause of the fit failure.
+
+    nerr : int
+        Integer code showing the success or failure of the fit. If equal to
+        1, 2, 3 or 4 the fit was successful. Otherwise the fit failled. More
+        information is given in mesg
+
+
     '''
 
-    def __init__(self, spectrum, common, update_params = False, **kwargs):
+    def __init__(self, fit_results, common, spectrum, update_params=False,
+                 resid_limit=5):
 
+        # Create a copy of the parameters
         self.params = common['params'].make_copy()
-
-        # Unpack the spectrum
-        grid, spec = spectrum
 
         # Get the fit first guesses
         fit_params = self.params.fittedvalueslist()
 
-        # Perform the fit!
-        logging.debug('Begin fit')
-        results = leastsq(residual, fit_params, args = (grid, spec, common),
-                          full_output = True, **kwargs)
-        logging.debug('Fit complete')
+        # Unpack the measured spectrum
+        self.spectrum = spectrum
+        grid, spec = spectrum
 
         # Unpack the fit results
-        self.popt = results[0]
-        self.pcov = results[1]
-        self.info = results[2]
-        self.mesg = results[3]
-        self.nerr = results[4]
+        self.popt = fit_results[0]
+        self.pcov = fit_results[1]
+        self.info = fit_results[2]
+        self.mesg = fit_results[3]
+        self.nerr = fit_results[4]
 
         # Check for a fit error
         if self.nerr in [1,2,3,4]:
@@ -197,12 +169,14 @@ class FitSpectrum(OrderedDict):
             # Calculate the residual
             self.resid = (spec-self.fit)/spec * 100
 
-            # Calculate the SO2 OD
-            #self.calc_od('SO2_295', spectrum, common)
-
             # Use the fitted parameters as the next first guess
             if update_params:
-                common['params'].update_values(self.popt)
+                if max(self.resid) < resid_limit:
+                    common['params'].update_values(self.popt)
+                else:
+                    logging.info(f'Low fit quality, resetting fit params')
+                    common['params'].update_values(common['x0'])
+            
 
         else:
             logging.warning(f'Fit failed: {self.mesg}')
@@ -210,45 +184,13 @@ class FitSpectrum(OrderedDict):
             self.resid = np.full(len(grid), np.nan)
 
 
-    def calc_od(self, par, spectrum, common):
-        '''Calculate the measured and synthetic OD of a give gas'''
-
-        # Create a copy of the common
-        c = copy.deepcopy(common)
-
-        # Unpack the spectrum
-        grid, spec = spectrum
-
-        # Set the desired parameter to zero and fix it
-        c['params'][par].set(value=0, vary=False)
-
-        # Calculate the fit without the parameter
-        sim_params = c['params'].fittedvalueslist()
-        p = c['params'].valuesdict()
-        fit_no_par = ifit_fwd_model(grid, *sim_params, **c)
-
-        # Calculate a shifted model grid
-        shift_model_grid = np.add(c['model_grid'], p['shift'])
-        line = np.linspace(0, 1, num = len(shift_model_grid))
-        shift_model_grid = np.add(shift_model_grid,
-                                  np.multiply(line, p['stretch']))
-
-        # Calculate the parameter od
-        par_od = np.exp(-(np.multiply(c['gas_xsec'][par], p[par])))
-
-        # Convolve with the ILS and interpolate onto the measurement grid
-        par_od = griddata(shift_model_grid,
-                          np.convolve(par_od, c['ils'], 'same'),
-                          grid,
-                          method = 'cubic')
-
-        # Add to self
-        self.meas_od = fit_no_par#-np.log(np.divide(spec, fit_no_par))
-        self.synth_od = spec#-np.log(par_od)
+        self.meas_od = {}
+        self.synth_od = {}
 
 
     def print_result(self):
         '''Prints the result of the fit in a readable way'''
+
         msg = self.params.pretty_print()
 
         msg += f'\nNumber of function calls: {self.info["nfev"]}'
@@ -257,6 +199,47 @@ class FitSpectrum(OrderedDict):
         msg += f'\nStdev of Residual:   {np.std(self.resid):.3g}'
 
         return msg
+
+
+    def calc_od(self, par_name, common):
+        '''Calculates the optical depth for the given parameter'''
+
+        # Unpack the measured spectrum
+        grid, spec = self.spectrum
+
+        # Create a copy of the common
+        c = copy.deepcopy(common)
+
+        # Make a copy of the parameters
+        params = self.params.make_copy()
+
+        # Set the parameter to zero
+        params[par_name].set(fit_val=0)
+
+        # Calculate the fit without the parameter
+        fit_params = params.popt_list()
+        p = params.valuesdict()
+
+        fit = ifit_fwd_model(grid, *fit_params, **c)
+
+        # Calculate a shifted model grid
+        #shift_model_grid = np.add(c['model_grid'], p['shift'])
+        #line = np.linspace(0, 1, num = len(shift_model_grid))
+        #shift_model_grid = np.add(shift_model_grid,
+        #                          np.multiply(line, p['stretch']))
+
+        # Calculate the parameter od
+        par_od = np.multiply(c['xsecs'][par_name], p[par_name])
+
+        # Convolve with the ILS and interpolate onto the measurement grid
+        par_od = griddata(c['model_grid'],
+                          np.convolve(par_od, c['ils'], 'same'),
+                          grid,
+                          method = 'cubic')
+
+        # Add to self
+        self.meas_od[par_name] = -np.log(np.divide(spec, fit))
+        self.synth_od[par_name] = par_od
 
 #==============================================================================
 #================================ pre_process =================================
@@ -330,7 +313,9 @@ def ifit_fwd_model(meas_grid, *x0, **com):
     '''
     iFit forward model to fit measured UV sky spectra:
 
-    I = ILS *conv* { I* x P x exp( SUM[-xsec.gas_SCD] + Ring)}
+    I(w) = ILS *conv* { I_offset(w) + I*(w) x P(w) x exp( SUM[-xsec(w) . amt])}
+
+    where w is the wavelength.
 
     **Parameters**
 
@@ -338,10 +323,31 @@ def ifit_fwd_model(meas_grid, *x0, **com):
         Measurement wavelength grid
 
     *x0, list
-        Forward model state vector
+        Forward model state vector. Should consist of:
+            - bg_polyx: Background polynomial coefficients
+            - offsetx:  The intensity offset polynomial coefficients
+            - shiftx:   The wavelength shift polynomial
+            - gases:    Any variable with an associated cross section,
+                        including absorbing gases and Ring. Each "gas" is
+                        converted to transmittance through:
+                                  gas_T = exp(-xsec . amt)
+
+            For polynomial parameters x represents ascending intergers starting
+            from 0 which correspond to the decreasing power of that coefficient
 
     **com, dict
-        The common dictionary containing the informations required for the fit
+        The common dictionary containing the information required for the fit.
+        Must contain:
+            - params: Parameters object holding the fit parameters
+            - model_grid: The wavelength grid on which the forward model is
+                          built
+            - frs:        The Fraunhofer reference spectrum interpolated onto
+                          model_grid
+            - xsecs:      Dictionary of the absorber cross sections that have
+                          been pre-interpolated onto the moddel grid. Typically
+                          includes all gas spectra and the Ring spectrum
+            - ils         The instrument line shape of the spectrometer
+
 
     **Returns**
 
@@ -353,32 +359,18 @@ def ifit_fwd_model(meas_grid, *x0, **com):
     if np.isnan(x0).any():
         return np.zeros(len(meas_grid))
 
-    # Create empty dictionary to hold the parameters and a counter
-    p = {}
-    i = 0
+    # Get dictionary of fitted parameters
+    p = com['params'].fittedvaluesdict()
 
-    # Unpack the fit paramters
-    for par in com['params'].values():
-
-        # If the parameter is varying pull it from fit_params
-        if par.vary:
-            p[par.name] = x0[i]
-            i += 1
-        else:
-            # If it is fixed pull its value from the Parameters object
-            p[par.name] = par.value
+    # Update the fitted parameter values with those supplied to the forward
+    # model
+    for i, par in enumerate(p):
+        p[par] = x0[i]
 
     # Unpack polynomial parameters
-    bg_poly_coefs = []
-    offset_coefs = []
-    shift_coefs = []
-    for n, par in enumerate(com['params'].values()):
-        if 'bg_poly' in par.name:
-            bg_poly_coefs.append(x0[n])
-        elif 'offset' in par.name:
-            offset_coefs.append(x0[n])
-        elif 'shift' in par.name:
-            shift_coefs.append(x0[n])
+    bg_poly_coefs = [p[n] for n in p if 'bg_poly' in n]
+    offset_coefs  = [p[n] for n in p if 'offset' in n]
+    shift_coefs   = [p[n] for n in p if 'shift' in n]
 
     # Construct background polynomial
     bg_poly = np.polyval(bg_poly_coefs, com['model_grid'])
@@ -417,4 +409,31 @@ def ifit_fwd_model(meas_grid, *x0, **com):
     fit = griddata(shift_model_grid, F_conv, meas_grid, method = 'cubic')
 
     return fit
+
+def ifit_od_fwd_model(meas_grid, *x0, **com):
+
+    # Get dictionary of fitted parameters
+    p = com['params'].fittedvaluesdict()
+
+    # Update the fitted parameter values with those supplied to the forward
+    # model
+    for i, par in enumerate(p):
+        p[par] = x0[i]
+
+    # Unpack polynomial parameters
+    offset_coefs  = [p[n] for n in p if 'offset' in n]
+    shift_coefs   = [p[n] for n in p if 'shift' in n]
+
+
+
+
+
+
+
+
+
+
+
+
+
 

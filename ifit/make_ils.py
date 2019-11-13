@@ -51,13 +51,10 @@ def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
     '''
 
     # Create a grid 6 times that of the width
-    grid = np.arange(-FWEM * 2, FWEM * 2, interval)
+    grid = np.arange(-FWEM * 4, FWEM * 4, interval)
 
     # Calculate w as half of the FWEM
     w = 0.5 * FWEM
-
-    # Form empty array
-    super_g = np.zeros(len(grid))
 
     # Calculate A
     A = k / (FWEM * gamma(1/k))
@@ -75,9 +72,9 @@ def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
                                             k + a_k)))
 
     # Combine
-    super_g = np.append(neg_g, pos_g)
+    ils = np.append(neg_g, pos_g)
 
-    ils = np.divide(super_g, sum(super_g))
+    ils = np.divide(ils, sum(ils))
 
     return ils
 

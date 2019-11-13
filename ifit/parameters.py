@@ -74,6 +74,9 @@ class Parameters(OrderedDict):
                 self[name].set(value = new_values[n])
                 n += 1
 
+    #def set_popt(self, popt):
+    #    '''Updates the fit
+
 
     def valuesdict(self):
         '''Return an ordered dictionary of all parameter values'''
@@ -85,6 +88,11 @@ class Parameters(OrderedDict):
         return OrderedDict((p.name, p.value) for p in self.values() if p.vary)
 
 
+    def popt_dict(self):
+        ''''Return a dictionary of the optimised parameters'''
+        return OrderedDict((p.name, p.fit_val) for p in self.values() if p.vary)
+
+
     def valueslist(self):
         '''Return a list of all parameter values'''
         return [(p.value) for p in self.values()]
@@ -93,6 +101,12 @@ class Parameters(OrderedDict):
     def fittedvalueslist(self):
         '''Return a list of the fitted parameter values'''
         return [(p.value) for p in self.values() if p.vary]
+
+
+    def popt_list(self):
+        ''''Return a list of the optimised parameters'''
+        return [(p.fit_val) for p in self.values() if p.vary]
+
 
     def make_copy(self):
         '''Returns a deep copy of the Parameters object'''
@@ -163,7 +177,7 @@ class Parameters(OrderedDict):
             title += f'|{c:^{colwidth[n]}}'
         title += '|'
 
-        msg = f'\n{"FITTED PARAMETERS":^{len(title)}}\n{title}\n' + \
+        msg = f'\n{"MODEL PARAMETERS":^{len(title)}}\n{title}\n' + \
               f'{"-"*len(title)}\n'
 
         for name, p in self.items():

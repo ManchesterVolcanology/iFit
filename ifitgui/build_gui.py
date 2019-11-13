@@ -320,8 +320,10 @@ class ParamTable(tk.Frame):
         self.row = 2
 
         for row in params:
-
-            self.add_row(row[0], row[1], row[2], row[3])
+            try:
+                self.add_row(row[0], row[1], row[2], row[3])
+            except IndexError:
+                pass
 
 
     def remove_row(self, n, *widgets):
@@ -466,7 +468,10 @@ class PolyTable(tk.Frame):
 
         for row in params:
 
-            self.add_row(row[1], row[2])
+            try:
+                self.add_row(row[1], row[2])
+            except IndexError:
+                pass
 
 
     def remove_row(self, n, *widgets):
@@ -540,7 +545,7 @@ class GuiFigure:
         l3, = ax2.plot([], [], 'C0o-', ms = 4)
 
         # SO2 transmittance data
-        l4, = ax3.plot([], [], 'C0o', label = 'Meas Abs', ms = 4)
+        l4, = ax3.plot([], [], 'C0o-', label = 'Meas Abs', ms = 4)
         l5, = ax3.plot([], [], 'C1-', label = 'Synth Abs')
         ax3.legend(loc = 0)
 
