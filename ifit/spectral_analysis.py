@@ -168,14 +168,21 @@ class FitResult():
 
             # Calculate the residual
             self.resid = (spec-self.fit)/spec * 100
+            
+            # Check if the spectrum was saturated
+            if max(spec) >= 35000:
+                logging.info(f'Spectrum saturating, resetting fit parameters')
+                common['params'].update_values(common['x0'])
+                self.nerr = 5
 
             # Use the fitted parameters as the next first guess
             if update_params:
                 if max(self.resid) < resid_limit:
                     common['params'].update_values(self.popt)
                 else:
-                    logging.info(f'Low fit quality, resetting fit params')
+                    logging.info(f'Low fit quality, resetting fit parameters')
                     common['params'].update_values(common['x0'])
+                    self.nerr = 6
             
 
         else:
@@ -394,7 +401,7 @@ def ifit_fwd_model(meas_grid, *x0, **com):
     bl_poly = np.polyval(offset_coefs, line)
 
     # Build the complete model
-    raw_F = np.multiply(frs, exponent) + bl_poly
+    raw_F = np.add(np.multiply(frs, exponent), bl_poly)
 
     # Apply the ILS convolution
     ils = com['ils']

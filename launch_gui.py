@@ -14,7 +14,7 @@ import tkinter.scrolledtext as ScrolledText
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 from ifitgui.build_gui import make_input, GuiFigure, ParamTable, PolyTable
-from ifitgui.gui_functions import stop, select_files, import_params, analysis_loop
+from ifitgui.gui_functions import stop, select_files, analysis_loop, select_save
 from ifitgui.read_write_config import read_config, write_config
 
 # Define some fonts to use in the program
@@ -48,10 +48,12 @@ class TextHandler(logging.Handler):
 
             # Autoscroll to the bottom
             self.text.yview(tk.END)
-            self.gui.update()
 
         # This is necessary because we can't modify the Text from other threads
         self.text.after(0, append)
+
+        # Force the gui to update
+        self.gui.update()
 
 #==============================================================================
 #------------------------------------------------------------------------------
@@ -77,7 +79,7 @@ class myGUI(tk.Frame):
         # Build the GUI
         self.build_gui()
 
-        # Try loading the config file
+        # Try loading the default config file
         read_config(self, fpath = 'bin/config.yaml')
 
 #==============================================================================
@@ -89,15 +91,28 @@ class myGUI(tk.Frame):
     def build_gui(self):
 
         # Build GUI
-        self.root.title('iFit  v3.0')
+        self.root.title('iFit v3.0')
 
         # Set default button Style
-        ttk.Style().configure('TButton', width=15, height=20, relief="flat")
+        ttk.Style().configure('TButton', width=10, height=20, relief="flat")
 
         # Set the default style of notebooks
         ttk.Style().configure('TNotebook.Tab', padding=[40, 10],
                               font=LARGE_FONT, anchor="center")
         ttk.Style().configure('Label', anchor='center')
+
+        # Build a menubar to hold options for the user
+        menubar = tk.Menu(self)
+        filemenu = tk.Menu(menubar, tearoff = 0)
+        filemenu.add_command(label='Save',
+                             command=lambda: write_config(self, False))
+        filemenu.add_command(label='Save as',
+                             command=lambda: write_config(self))
+        filemenu.add_command(label = 'Load',
+                             command=lambda: read_config(self))
+        filemenu.add_separator()
+        menubar.add_cascade(label = 'File', menu = filemenu)
+        self.root.config(menu = menubar)
 
 #------------------------------------------------------------------------------
 #============================== Build containers ==============================
@@ -118,10 +133,9 @@ class myGUI(tk.Frame):
         setup_frame.grid(row=0, column=0, padx = 10, pady = 10, sticky="ew")
 
         # Create a frame to hold the controls
-        control_frame = tk.LabelFrame(self.root, text = 'Control',
-                                      font = LARGE_FONT)
-        control_frame.grid(row=1, column=0, padx=10, pady=10, rowspan=10,
-                           sticky="NW")
+        control_frame = tk.LabelFrame(self.root, text='Control',
+                                      font=LARGE_FONT)
+        control_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW")
 
         graph_settings = ttk.Notebook(self.root)
         graph_frame = ttk.Frame(graph_settings)
@@ -130,7 +144,7 @@ class myGUI(tk.Frame):
         graph_settings.add(graph_frame, text = 'Graphs')
         graph_settings.add(settings_frame, text = 'Settings')
 
-        graph_settings.grid(row=0, column=1, padx=10, pady=10, rowspan=2,
+        graph_settings.grid(row=0, column=1, padx=10, pady=10, rowspan=3,
                             sticky="NW")
 
 #========================== Set up spectra selection ==========================
@@ -146,7 +160,7 @@ class myGUI(tk.Frame):
 
         self.spec_type = tk.StringVar(setup_frame, value = spec_options[0])
         make_input(frame = setup_frame,
-                   text = 'Spectra Type:',
+                   text = 'Spectra\nType:',
                    row = 1, column = 0,
                    var = self.spec_type,
                    input_type = 'OptionMenu',
@@ -155,29 +169,49 @@ class myGUI(tk.Frame):
 
         self.spec_fnames = []
         self.dark_fnames = []
+        
+        # Spectra files
+        self.spec_ent = tk.StringVar(setup_frame, 'No files selected')
+        make_input(frame = setup_frame,
+                   text = 'Spectra\nFiles:',
+                   row = 2, column = 0,
+                   var = self.spec_ent,
+                   input_type = 'Label',
+                   sticky = 'W',
+                   width = 30)
+        ttk.Button(setup_frame, text="Browse",
+                   command=lambda: select_files(holder = self.spec_fnames,
+                                                entry = self.spec_ent)
+                   ).grid(row=2, column=2, padx=5, pady=5, sticky='W')
+                   
+        # Dark files        
+        self.dark_ent = tk.StringVar(setup_frame, 'No files selected')
+        make_input(frame = setup_frame,
+                   text = 'Dark\nFiles:',
+                   row = 3, column = 0,
+                   var = self.dark_ent,
+                   input_type = 'Label',
+                   sticky = 'W',
+                   width = 30)
+        ttk.Button(setup_frame, text="Browse",
+                   command=lambda: select_files(holder = self.dark_fnames,
+                                                entry = self.dark_ent)
+                   ).grid(row=3, column=2, padx=5, pady=5, sticky='W')
 
-        # File dialouge for spectra
-        message = 'No spectra selected'
-        self.spec_ent = tk.StringVar(value = message)
-        self.specfp_l = tk.Entry(setup_frame, font=NORM_FONT, width=30,
-                                 text=self.spec_ent)
-        self.specfp_l.grid(row=2, column=0, padx=5, pady=5, sticky='W',
-                           columnspan=2)
-        specfp_b = ttk.Button(setup_frame, text="Select Spectra",
-                              command = lambda: select_files(holder = self.spec_fnames,
-                                                             entry = self.spec_ent))
-        specfp_b.grid(row = 2, column = 2, padx = 5, pady = 5, sticky = 'W')
+        # Set the save path
+        self.save_path = tk.StringVar(self, value='')
+        make_input(frame = setup_frame,
+                   text = 'Save\nPath:',
+                   row = 4, column = 0,
+                   var = self.save_path,
+                   input_type = 'Entry',
+                   sticky = 'W',
+                   width = 30)
+        ttk.Button(setup_frame, text="Browse",
+                   command=lambda: select_save(holder = self.save_path)
+                   ).grid(row=4, column=2, padx=5, pady=5, sticky='W')
 
-        # File dialouge for darks
-        self.dark_ent = tk.StringVar(value = message)
-        self.darkfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 30,
-                                 text = self.dark_ent)
-        self.darkfp_l.grid(row=3, column=0, padx=5, pady=5, sticky='W',
-                           columnspan=2)
-        darkfp_b = ttk.Button(setup_frame, text = "Select Darks",
-                              command = lambda: select_files(holder = self.dark_fnames,
-                                                             entry = self.dark_ent))
-        darkfp_b.grid(row=3, column=2, padx=5, pady=5, sticky='W')
+
 
 #=============================== Create graphs ================================
 
@@ -213,21 +247,12 @@ class myGUI(tk.Frame):
                             command = lambda: stop(self))
         stop_b.grid(row=0, column=1, padx=25, pady=5)
 
-        # Create buttons to read and save the configuration
-        ttk.Button(button_frame, text = 'Load Config',
-                   command = lambda: read_config(self)
-                   ).grid(row=1, column=0, padx=25, pady=5)
-
-        ttk.Button(button_frame, text = 'Save Config',
-                   command = lambda: write_config(self)
-                   ).grid(row=1, column=1, padx=25, pady=5)
-
 #============================ Create progress bar =============================
 
         # Make a frame for the progress bar and status
         progress_frame = ttk.Frame(control_frame)
         progress_frame.grid(row=1, column=0, padx=5, pady=5, columnspan=6,
-                       sticky = 'W')
+                            sticky = 'W')
 
         # Create progress bar
         self.progress = ttk.Progressbar(progress_frame, orient = tk.HORIZONTAL,
@@ -410,11 +435,11 @@ class myGUI(tk.Frame):
         row_n += 1
 
         # Control bound of goodness of fit
-        self.fit_bound = tk.DoubleVar(model_frame, value = 10)
+        self.resid_limit = tk.DoubleVar(model_frame, value = 10)
         make_input(frame = model_frame,
                    text = 'Good Fit\nBound (%):',
                    row = row_n, column = col_n,
-                   var = self.fit_bound,
+                   var = self.resid_limit,
                    input_type = 'Entry',
                    width = 12)
         row_n += 1
@@ -467,6 +492,23 @@ class myGUI(tk.Frame):
                    command = lambda: select_files(single_file = True,
                                                   holder = self.flat_path)
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
+                   
+        row_n += 1
+        
+        # Path to the station info file
+        self.wl_calib = tk.StringVar(spect_frame, value = '')
+        make_input(frame = spect_frame,
+                   text = 'Wavelength\nCalibration:',
+                   row = row_n, column = col_n,
+                   var = self.wl_calib,
+                   input_type = 'Entry',
+                   width = 40)
+        ttk.Button(spect_frame,
+                   text = "Browse",
+                   command = lambda: select_files(single_file = True,
+                                                  holder = self.wl_calib)
+                   ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')                  
+            
 
 #============================= Parameter Settings =============================
 

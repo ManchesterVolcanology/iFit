@@ -242,7 +242,7 @@ def spectra_loop(gui, common, settings):
             pass
 
 #==============================================================================
-#================================ spectra_loop ================================
+#================================= scan_loop ==================================
 #==============================================================================
 
 def scan_loop(gui, common, settings):
@@ -263,7 +263,7 @@ def scan_loop(gui, common, settings):
 
     if common['stray_flag']:
         logging.info('Calculating the stray light window')
-        common['stray_idx'] = np.where(np.logical_and(x>280,  x<290))
+        common['stray_idx'] = np.where(np.logical_and(x>280, x<290))
 
         if len(common['stray_idx'][0]) == 0:
             logging.warn('No stray light window found, ' + \
@@ -372,7 +372,7 @@ def scan_loop(gui, common, settings):
                     gui.update()
         
                 # Update the progress bar
-                gui.progress['value'] = (n)/len(spec_block) * 100
+                gui.progress['value'] = (n+1)/len(spec_block) * 100
                 gui.status.set(f'{gui.loop} / {len(gui.spec_fnames)}')
         
                 # Make GUI show updates
@@ -495,7 +495,7 @@ def select_save(holder=None):
     # Open a file dialouge to get a folder
     fpath = fd.asksaveasfilename(defaultextension='.csv')
 
-    if fpath != None:
+    if fpath != '':
 
         # Check if in the same cwd. If so trim the file path
         if cwd in fpath:
