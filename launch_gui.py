@@ -103,7 +103,7 @@ class myGUI(tk.Frame):
 
         # Set the window icon
         try:
-            tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+            self.root.iconbitmap(default = 'bin/icon.ico')
         except tk.TclError:
             pass
 
