@@ -186,152 +186,15 @@ def average_spectra(files, spec_type='iFit'):
     return grid, spec
 
 #==============================================================================
-#============================ read_binary_block ===============================
-#============================================================================== 
-
-def read_scan(fpath, scan_type):
-    
-    '''
-    Function to read spectra and header info for a data block created by 
-    SpectraLan
-    
-    **parameters**
-    
-    fpath : str
-        File path to data block
-    
-    **Returns**
-    
-    error : bool
-        An error code, 0 if all is OK, 1 if an error was produced
-        
-    info_block : array
-        Spectra info: spec no, hours, minutes, seconds, motor position
-        
-    spec_block : array
-        Array of the measured spectra for the scan block
-    '''
-    
-    if scan_type == 'FLAME':
-    
-        try:
-                             
-            # Get spec details
-            with open(fpath, 'rb') as rb:
-                data = rb.read()
-            
-            # Strucure of file is as follows:
-            # First have header as a string, separated by CR's:
-            # Vbatt. Vpanel IBatt. Temp.
-            # 12.9268 12.9116 -0.0323 29.7
-            # nN_Acq Hour Min Sec MotorPos CoAdding Int_Time Ch_Num Scan_Numb 
-            # Scan_MemInt_Time_Count Pixel_Mode Pixel_Mode_Param -> Spectral_Data
-            
-            # Then spectra, each preceded by an info string
-            # 00000 06 56 29 00000
-            
-            # Split header row using CR's (ASCII code 10)
-            CR_ind = []
-            for n, i in enumerate(data[:200]):
-                if i == 10:
-                    CR_ind.append(n)
-                    
-            # Unpack indices
-            #head_idx0 = CR_ind[0] + 1
-            #head_idx1 = CR_ind[1] - 1
-            start_data_idx = CR_ind[2] + 1
-            
-            # Extract the Vbatt. Vpanel IBatt. Temp.
-            #header = data[head_idx0:head_idx1].decode('utf-8').split(' ')
-            
-            # Read in all scans
-            all_scans = data[start_data_idx:]
-        
-            # Calc how many spectra based on file size
-            n_spectra = int(len(all_scans)/4131.0)
-            
-            # Define arrays
-            info_block = np.ndarray([5,n_spectra])
-            spec_block = np.ndarray([n_spectra, 2046])
-            
-            # Loop through each scan and add data to array
-            # Header is always 37 bytes and the spectrum is 4094 bytes 
-            # consisting of 2047 two byte small-endian unsigned integers, miss 
-            # out the last number
-            
-            for n in range(n_spectra):
-                
-                # Extract the entire scan from the data
-        
-                # Define indices for start and end
-                idx0 = n * 4131 
-                idx1 = idx0 + 4130
-        
-                scan = all_scans[idx0:idx1]
-                
-                # Separate header from the data
-                scan_info = scan[0:36]
-        
-                # Extract just string data from the header
-                # n_aq, hour, minute, second, motor_pos
-                info_block[0,n] = int(scan_info[0:5].decode('utf-8'))   
-                info_block[1,n] = int(scan_info[6:9].decode('utf-8'))  
-                info_block[2,n] = int(scan_info[9:12].decode('utf-8'))    
-                info_block[3,n] = int(scan_info[12:15].decode('utf-8'))  
-                info_block[4,n] = float(scan_info[15:20].decode('utf-8'))
-                
-                # Extract the spectral data and copy into the spec_block
-                scan_data = scan[37:]
-                spec = np.arange(2046)
-                
-                for i in range(2046):
-                    
-                    spec[i] = int.from_bytes([scan_data[i*2], 
-                                              scan_data[i*2+1]], 
-                                             byteorder='big')
-                
-                spec_block[n] = spec
-            
-            
-            return 0, info_block, spec_block
-        
-        except:
-            return 1, 1, 1
-        
-    elif scan_type == 'OpenSO2':
-        
-        try:
-            # Read in the numpy file
-            data = np.load(fpath)
-    
-            # Create empty arrays to hold the spectra
-            w, h = data.shape
-            info = np.zeros((w, 7))
-            spec = np.zeros((w, h - 7))
-    
-            # Unpack the data
-            for n, line in enumerate(data):
-    
-                # Split the spectrum from the spectrum info
-                info[n] = data[n][:7]
-                spec[n] = data[n][7:]
-    
-            return 0, info, spec
-    
-        except Exception:
-            return 1, 0, 0
-
-#==============================================================================
 #============================== get_spec_details ==============================
 #==============================================================================
 
-def get_station_info(fname):
+def get_spec_details(fname, station_name):
 
     '''
     Function to read in the scanning station details
 
     **Parameters**
-    
     fname : str
         File path to the file holding the scanner information
 
@@ -339,7 +202,6 @@ def get_station_info(fname):
         The name of the station
 
     **Returns**
-    
     calib_coefs : np.array
         A list of the calibration coefficients
     '''
@@ -361,7 +223,7 @@ def get_station_info(fname):
         # Get the spectrometer station name, serial number and pixel number
         name = line_data[0].strip()
         serial_no = line_data[1].strip()
-        pixel_no = int(line_data[2].strip())
+        pixel_no = line_data[2].strip()
 
         # Unpack the polynomail coeficients
         poly_coefs = [float(n) for n in line_data[3:]]
@@ -370,6 +232,8 @@ def get_station_info(fname):
         spec_info[name] = [serial_no, pixel_no, poly_coefs]
 
     return spec_info
+
+
 
 
 

@@ -9,14 +9,13 @@ import os
 import logging
 import numpy as np
 import pandas as pd
-import datetime as dt
 from tkinter import filedialog as fd
 import tkinter.messagebox as tkMessageBox
 
 from ifit.parameters import Parameters
 from ifit.model_setup import model_setup
 from ifit.spectral_analysis import pre_process, fit_spectrum
-from ifit.load_spectra import read_spectrum, average_spectra, read_scan
+from ifit.load_spectra import read_spectrum, average_spectra
 
 #==============================================================================
 #=============================== analysis_loop ================================
@@ -86,9 +85,7 @@ def analysis_loop(gui):
     msg = params.pretty_print(cols = ['name', 'value', 'vary'])
     logging.info(msg)
 
-    # Add the parameters to the common and make a copy of the initial params
     common['params'] = params
-    common['x0'] = params.valueslist()
 
     # Begin the analysis
     if gui.spec_type.get() in ['iFit','Master.Scope', 'Spectrasuite', 'Basic']:
@@ -242,19 +239,24 @@ def spectra_loop(gui, common, settings):
             pass
 
 #==============================================================================
-#================================= scan_loop ==================================
+#================================ spectra_loop ================================
 #==============================================================================
 
 def scan_loop(gui, common, settings):
 
     # Make a list of column names
-    cols = ['Number', 'Time', 'Motor_Pos']
+    cols = ['File', 'Number', 'Time']
     for par in common['params']:
         cols += [par, f'{par}_err']
     cols += ['fit_quality']
 
     # Get the wavelength grid of the spectrometer
-    x = np.loadtxt(gui.wl_calib.get())
+
+
+    # Read in the dark spectra
+    logging.info('Reading dark spectra')
+    x, common['dark'], read_err = average_spectra(gui.dark_fnames,
+                                                  gui.spec_type.get())
 
     # Find the fit and stray windows
     logging.info('Calculating the fit window')
@@ -263,12 +265,7 @@ def scan_loop(gui, common, settings):
 
     if common['stray_flag']:
         logging.info('Calculating the stray light window')
-        common['stray_idx'] = np.where(np.logical_and(x>280, x<290))
-
-        if len(common['stray_idx'][0]) == 0:
-            logging.warn('No stray light window found, ' + \
-                         'disabling stray light correction')
-            common['stray_flag'] = False
+        common['stray_idx'] = np.where(np.logical_and(x>280,  x<290))
 
     # Create a loop counter
     gui.loop = 0
@@ -279,133 +276,116 @@ def scan_loop(gui, common, settings):
     # Begin the analysis
     while not gui.stop_flag:
 
+        # Make a dataframe to hold the fit results
+        df = pd.DataFrame(index = np.arange(len(gui.spec_fnames)),
+                          columns=cols)
+
         # Get the filename
         fname = gui.spec_fnames[gui.loop]
 
-        # Read in the scan file
-        logging.debug(f'Reading in scan {fname}')
-        err, info_block, spec_block = read_scan(fname, gui.spec_type.get())
+        # Read in the spectrum
+        logging.debug(f'Reading in spectrum {fname}')
+        x, y, info, read_err = read_spectrum(fname, gui.spec_type.get())
 
-        if not err:
+        # Pre-process the spectrum before the fit
+        logging.debug(f'Pre-processing spectrum {fname}')
+        spectrum = pre_process([x,y], common)
+        grid, spec = spectrum
 
-            # Make a dataframe to hold the fit results
-            df = pd.DataFrame(index = np.arange(len(gui.spec_fnames)),
-                              columns=cols)
-        
-            # Get the dark
-            common['dark'] = spec_block[0]
-        
-            # Cycle through the scan block
-            for n, y in enumerate(spec_block[1:]):
-                
-                # Extract spectrum info
-                if gui.spec_type.get() == 'FLAME':
-                    n_aq, h, m, s, motor_pos = info_block[:,n+1]
-                if gui.spec_type.get() == 'OpenSO2':
-                    n_aq, h, m, s, motor_pos, int_t, coadds = info_block[n+1]
-    
-                # Pre-process the spectrum before the fit
-                logging.debug(f'Pre-processing spectrum {fname}')
-                spectrum = pre_process([x,y], common)
-                grid, spec = spectrum
+        # Fit the spectrum
+        logging.debug(f'Fitting spectrum {fname}')
+        fit_result = fit_spectrum(spectrum,
+                                  common,
+                                  update_params = gui.update_flag.get(),
+                                  calc_od = ['SO2'])
 
-                # Fit the spectrum
-                logging.debug(f'Fitting spectrum {fname}')
-                fit_result = fit_spectrum(spectrum,
-                                          common,
-                                          update_params=gui.update_flag.get(),
-                                          resid_limit=gui.resid_limit.get(),
-                                          calc_od = ['SO2'])
-        
-                # Add to the results dataframe
-                time = dt.time(int(h), int(m), int(s))
-                row = [n_aq, time, motor_pos]
-                for par in fit_result.params.values():
-                    row += [par.fit_val, par.fit_err]
-                row += [fit_result.nerr]
-        
-                df.loc[n] = row
-        
-                # Update numerical outputs
-                try:
-                    key = gui.graph_param.get()
-                    gui.last_amt.set(f'{df[key][n]:.03g}')
-                    gui.last_err.set(f'{df[key+"_err"][n]:.03g}')
-        
-                except KeyError:
-                    gui.last_amt.set('-')
-                    gui.last_err.set('-')
-        
-                # Plot the graphs
-                if gui.graph_flag.get():
-        
-                    # Pick the parameter to plot
-                    try:
-                        plot_x = df['Number']
-                        plot_y = df[gui.graph_param.get()]
-        
-                        # Trim if required
-                        if gui.scroll_flag.get():
-                            if n > gui.graph_data_n.get():
-                                diff = n - gui.graph_data_n.get()
-                                plot_x = plot_x[diff:]
-                                plot_y = plot_y[diff:]
-        
-                    except KeyError:
-                        plot_x = []
-                        plot_y = []
-        
-                    # Organise data to plot
-                    #        x_data, y_data
-                    data = [[grid,   spec],
-                            [grid,   fit_result.fit],
-                            [x,      y],
-                            [grid,   fit_result.resid],
-                            [grid,   fit_result.meas_od['SO2']],
-                            [grid,   fit_result.synth_od['SO2']],
-                            [plot_x, plot_y]
-                            ]
-        
-                    gui.figure.update_plots(data)
-        
-                    gui.canvas.draw()
-                    gui.update()
-        
-                # Update the progress bar
-                gui.progress['value'] = (n+1)/len(spec_block) * 100
-                gui.status.set(f'{gui.loop} / {len(gui.spec_fnames)}')
-        
-                # Make GUI show updates
-                gui.update()
-                
-                # Check if stopped
-                if gui.stop_flag:
-                    break
+        # Add the the results dataframe
+        row = [fname, info['spec_no'], info['time']]
+        for par in fit_result.params.values():
+            row += [par.fit_val, par.fit_err]
+        row += [fit_result.nerr]
 
-            # Save the output
+        df.loc[gui.loop] = row
+
+        # Update numerical outputs
+        try:
+            key = gui.graph_param.get()
+            gui.last_amt.set(f'{df[key][gui.loop]:.03g}')
+            gui.last_err.set(f'{df[key+"_err"][gui.loop]:.03g}')
+
+        except KeyError:
+            gui.last_amt.set('-')
+            gui.last_err.set('-')
+
+        # Plot the graphs
+        if gui.graph_flag.get():
+
+            # Pick the parameter to plot
             try:
-                
-                # Get just the filename
-                file_name = fname.split('/')[-1].split('.')[0]
-                
-                # Save the results
-                df.to_csv(f'{gui.save_path.get()}{file_name}.csv')
-        
-            except PermissionError:
-        
-                logging.warn(f'Unable to save file {fname}. File already open.')
-                
-        else:
-            logging.warn(f'Error reading file {fname}')
-        
+                plot_x = df['Number']
+                plot_y = df[gui.graph_param.get()]
+
+                # Trim if required
+                if gui.scroll_flag.get():
+                    if gui.loop > gui.graph_data_n.get():
+                        diff = gui.loop - gui.graph_data_n.get()
+                        plot_x = plot_x[diff:]
+                        plot_y = plot_y[diff:]
+
+            except KeyError:
+                plot_x = []
+                plot_y = []
+
+            # Organise data to plot
+            #        x_data, y_data
+            data = [[grid,   spec],
+                    [grid,   fit_result.fit],
+                    [x,      y],
+                    [grid,   fit_result.resid],
+                    [grid,   fit_result.meas_od['SO2']],
+                    [grid,   fit_result.synth_od['SO2']],
+                    [plot_x, plot_y]
+                    ]
+
+            gui.figure.update_plots(data)
+
+            gui.canvas.draw()
+            gui.update()
+
+        # Update the progress bar
+        gui.progress['value'] = (gui.loop+1)/len(gui.spec_fnames) * 100
+
+        # Make GUI show updates
+        gui.update()
+
         # Check if analysis is finished
         if gui.loop == len(gui.spec_fnames)-1:
             gui.stop_flag = True
             gui.status.set('Standby')
             logging.info('Analysis finished!')
-        
+
         # Update the loop counter
         gui.loop += 1
+
+
+    try:
+        # Save the results
+        df.to_csv(gui.save_path.get())
+
+    except PermissionError:
+
+        # Open save dialouge
+        text='Cannot save output: Permission Denied\nSelect new save location?'
+        message = tkMessageBox.askquestion('Warning!',
+                                           message = text,
+                                           type = 'yesno')
+
+        if message == 'yes':
+            select_save(holder=gui.save_path)
+            df.to_csv(gui.save_path.get())
+
+        if message == 'no':
+            pass
 
 #==============================================================================
 #================================ select_files ================================
@@ -495,7 +475,7 @@ def select_save(holder=None):
     # Open a file dialouge to get a folder
     fpath = fd.asksaveasfilename(defaultextension='.csv')
 
-    if fpath != '':
+    if fpath != None:
 
         # Check if in the same cwd. If so trim the file path
         if cwd in fpath:

@@ -16,8 +16,7 @@ from scipy.optimize import leastsq
 #================================ fit_spectrum ================================
 #==============================================================================
 
-def fit_spectrum(spectrum, common, update_params=False, resid_limit=5,
-                 calc_od=[],**kwargs):
+def fit_spectrum(spectrum, common, update_params=False, calc_od=[],**kwargs):
 
     # Unpack the spectrum
     grid, spec = spectrum
@@ -32,11 +31,7 @@ def fit_spectrum(spectrum, common, update_params=False, resid_limit=5,
     logging.debug('Fit complete')
 
     # Format the fit results into a FitResult object
-    fit_result = FitResult(fit_results, 
-                           common, 
-                           spectrum, 
-                           update_params, 
-                           resid_limit)
+    fit_result = FitResult(fit_results, common, spectrum, update_params)
 
     # Calculate the Optical depth spectra
     for par in calc_od:
@@ -115,8 +110,7 @@ class FitResult():
 
     '''
 
-    def __init__(self, fit_results, common, spectrum, update_params=False,
-                 resid_limit=5):
+    def __init__(self, fit_results, common, spectrum, update_params=False):
 
         # Create a copy of the parameters
         self.params = common['params'].make_copy()
@@ -168,22 +162,10 @@ class FitResult():
 
             # Calculate the residual
             self.resid = (spec-self.fit)/spec * 100
-            
-            # Check if the spectrum was saturated
-            if max(spec) >= 35000:
-                logging.info(f'Spectrum saturating, resetting fit parameters')
-                common['params'].update_values(common['x0'])
-                self.nerr = 5
 
             # Use the fitted parameters as the next first guess
             if update_params:
-                if max(self.resid) < resid_limit:
-                    common['params'].update_values(self.popt)
-                else:
-                    logging.info(f'Low fit quality, resetting fit parameters')
-                    common['params'].update_values(common['x0'])
-                    self.nerr = 6
-            
+                common['params'].update_values(self.popt)
 
         else:
             logging.warning(f'Fit failed: {self.mesg}')
@@ -220,32 +202,43 @@ class FitResult():
         # Make a copy of the parameters
         params = self.params.make_copy()
 
-        # Set the parameter to zero
+        # Set the parameter and any offset coefficients to zero
         params[par_name].set(fit_val=0)
+        for par in params:
+            if 'offset' in par:
+                params[par].set(fit_val=0)
 
         # Calculate the fit without the parameter
         fit_params = params.popt_list()
-        p = params.valuesdict()
+        p = self.params.popt_dict()
 
         fit = ifit_fwd_model(grid, *fit_params, **c)
 
-        # Calculate a shifted model grid
-        #shift_model_grid = np.add(c['model_grid'], p['shift'])
-        #line = np.linspace(0, 1, num = len(shift_model_grid))
-        #shift_model_grid = np.add(shift_model_grid,
-        #                          np.multiply(line, p['stretch']))
+        # Calculate the shifted model grid
+        shift_coefs = [p[n] for n in p if 'shift' in n]
+        line = np.linspace(0, 1, num = len(c['model_grid']))
+        wl_shift = np.polyval(shift_coefs, line)
+        shift_model_grid = np.add(c['model_grid'], wl_shift)
+
+        # Calculate the wavelength offset
+        offset_coefs = [p[n] for n in p if 'offset' in n]
+        offset = np.polyval(offset_coefs, line)
+        offset = griddata(shift_model_grid,
+                          offset,
+                          grid,
+                          method = 'cubic')
 
         # Calculate the parameter od
         par_od = np.multiply(c['xsecs'][par_name], p[par_name])
 
         # Convolve with the ILS and interpolate onto the measurement grid
-        par_od = griddata(c['model_grid'],
+        par_od = griddata(shift_model_grid,
                           np.convolve(par_od, c['ils'], 'same'),
                           grid,
                           method = 'cubic')
 
         # Add to self
-        self.meas_od[par_name] = -np.log(np.divide(spec, fit))
+        self.meas_od[par_name] = -np.log(np.divide(spec-offset, fit))
         self.synth_od[par_name] = par_od
 
 #==============================================================================
@@ -398,10 +391,10 @@ def ifit_fwd_model(meas_grid, *x0, **com):
 
     # Build the baseline polynomial
     line = np.linspace(0, 1, num = len(com['model_grid']))
-    bl_poly = np.polyval(offset_coefs, line)
+    offset = np.polyval(offset_coefs, line)
 
     # Build the complete model
-    raw_F = np.add(np.multiply(frs, exponent), bl_poly)
+    raw_F = np.multiply(frs, exponent) + offset
 
     # Apply the ILS convolution
     ils = com['ils']
@@ -416,20 +409,6 @@ def ifit_fwd_model(meas_grid, *x0, **com):
     fit = griddata(shift_model_grid, F_conv, meas_grid, method = 'cubic')
 
     return fit
-
-def ifit_od_fwd_model(meas_grid, *x0, **com):
-
-    # Get dictionary of fitted parameters
-    p = com['params'].fittedvaluesdict()
-
-    # Update the fitted parameter values with those supplied to the forward
-    # model
-    for i, par in enumerate(p):
-        p[par] = x0[i]
-
-    # Unpack polynomial parameters
-    offset_coefs  = [p[n] for n in p if 'offset' in n]
-    shift_coefs   = [p[n] for n in p if 'shift' in n]
 
 
 

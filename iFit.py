@@ -19,16 +19,25 @@ from ifit.parameters import Parameters
 
 #from openso2.analyse_scan import read_scan
 
+
+#=================================== Single ===================================
+spec_path = 'Data/Masaya/spectrum_00385.txt'
+dark_path = 'Data/Masaya/dark_00000.txt'
+
+#=================================== Multi ====================================
 dark_path = 'Data/Masaya/dark_00000.txt'
 spec_fnames = glob.glob('Data/Masaya/spectrum*')
-
 spec_fnames.sort()
+
+#==================================== Scan ====================================
+fpath = ''
+
 
 #==============================================================================
 #=============================== Model Settings ===============================
 #==============================================================================
 
-mode = 'multi'
+mode = 'single'
 
 spec_name = 'FLMS02101'
 spec_name = 'USB2+H15972'
@@ -36,7 +45,7 @@ spec_name = 'USB2+H15972'
 # Set up the program settings
 settings = {'w_lo':          310.0,
             'w_hi':          320.0,
-            'model_spacing': 0.02,
+            'model_spacing': 0.01,
             'model_padding': 1.0,
             'flat_flag':     True,
             'stray_flag':    True,
@@ -54,7 +63,7 @@ gas_data['NO2']  = ['Ref/NO2_223K.txt',   1.0e18, True]
 gas_data['O3']   = ['Ref/O3_223K.txt',    1.0e18, True]
 #gas_data['BrO']  = ['Ref/BrO_298K.txt',   1.0e16, True]
 gas_data['Ring'] = ['Ref/Ring.txt', 0.1,    True]
-#gas_data['O3_273'] =  ['Ref/O3_293K.txt',  1.0e18, True]
+gas_data['O3_273'] =  ['Ref/O3_273K.txt',  1.0e18, True]
 #gas_data['O3_293'] =  ['Ref/O3_293K.txt',  1.0e17, True]
 
 # Add to the settings dictionary
@@ -65,7 +74,7 @@ common = model_setup(settings)
 
 # Set other model settings
 bg_poly_n = 4
-bl_poly_n = 1
+bl_poly_n = 0
 wl_poly_n = 2
 
 #==============================================================================
@@ -80,7 +89,7 @@ for i in range(bg_poly_n):
 for i in range(bl_poly_n):
     params.add(f'offset{i}', value = 1.0, vary = True)
 for i in range(wl_poly_n):
-    params.add(f'shift{i}', value = -0.5, vary = True)
+    params.add(f'shift{i}', value = -0.2, vary = True)
 
 # Add the gases
 for gas in gas_data:
@@ -112,7 +121,7 @@ if mode == 'single':
 
     # Fit the spectrum
     fit_result = fit_spectrum(spectrum, common)
-    fit_result.print_result()
+    print(fit_result.print_result())
 
     # Set up figure
     fig = plt.figure(figsize = [8,8])
