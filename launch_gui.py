@@ -101,6 +101,12 @@ class myGUI(tk.Frame):
                               font=LARGE_FONT, anchor="center")
         ttk.Style().configure('Label', anchor='center')
 
+        # Set the window icon
+        try:
+            tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+        except tk.TclError:
+            pass
+
         # Build a menubar to hold options for the user
         menubar = tk.Menu(self)
         filemenu = tk.Menu(menubar, tearoff = 0)
