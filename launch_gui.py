@@ -433,11 +433,11 @@ class myGUI(tk.Frame):
         row_n += 1
 
         # Control bound of goodness of fit
-        self.fit_bound = tk.DoubleVar(model_frame, value = 10)
+        self.resid_limit = tk.DoubleVar(model_frame, value = 10)
         make_input(frame = model_frame,
                    text = 'Good Fit\nBound (%):',
                    row = row_n, column = col_n,
-                   var = self.fit_bound,
+                   var = self.resid_limit,
                    input_type = 'Entry',
                    width = 12)
         row_n += 1
@@ -489,6 +489,22 @@ class myGUI(tk.Frame):
                    text = "Browse",
                    command = lambda: select_files(single_file = True,
                                                   holder = self.flat_path)
+                   ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
+
+        row_n += 1
+
+        # Path to the station info file
+        self.wl_calib = tk.StringVar(spect_frame, value = '')
+        make_input(frame = spect_frame,
+                   text = 'Wavelength\nCalibration:',
+                   row = row_n, column = col_n,
+                   var = self.wl_calib,
+                   input_type = 'Entry',
+                   width = 40)
+        ttk.Button(spect_frame,
+                   text = "Browse",
+                   command = lambda: select_files(single_file = True,
+                                                  holder = self.wl_calib)
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
 
 #============================= Parameter Settings =============================

@@ -36,10 +36,11 @@ def read_config(gui, fpath = None):
             gui.flat_flag.set(config['flat_flag'])
             gui.stray_flag.set(config['stray_flag'])
             gui.update_flag.set(config['update_flag'])
-            gui.fit_bound.set(config['fit_bound'])
+            gui.resid_limit.set(config['resid_limit'])
             gui.ils_mode.set(config['ils_mode'])
             gui.ils_path.set(config['ils_path'])
             gui.flat_path.set(config['flat_path'])
+            gui.wl_calib.set(config['wl_calib'])
             gui.frs_path.set(config['frs_path'])
             gui.graph_flag.set(config['graph_flag'])
             gui.graph_param.set(config['graph_param'])
@@ -101,10 +102,11 @@ def write_config(gui, asksavepath=True):
               'flat_flag':     gui.flat_flag.get(),
               'stray_flag':    gui.stray_flag.get(),
               'update_flag':   gui.update_flag.get(),
-              'fit_bound':     gui.fit_bound.get(),
+              'resid_limit':   gui.resid_limit.get(),
               'ils_mode':      gui.ils_mode.get(),
               'ils_path':      gui.ils_path.get(),
               'flat_path':     gui.flat_path.get(),
+              'wl_calib':      gui.wl_calib.get(),
               'frs_path':      gui.frs_path.get(),
               'gas_params':    gas_params,
               'poly_params':   poly_params,

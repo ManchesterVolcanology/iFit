@@ -16,7 +16,8 @@ from scipy.optimize import leastsq
 #================================ fit_spectrum ================================
 #==============================================================================
 
-def fit_spectrum(spectrum, common, update_params=False, calc_od=[],**kwargs):
+def fit_spectrum(spectrum, common, update_params=False, resid_limit=5,
+                 calc_od=[], **kwargs):
 
     # Unpack the spectrum
     grid, spec = spectrum
@@ -31,7 +32,8 @@ def fit_spectrum(spectrum, common, update_params=False, calc_od=[],**kwargs):
     logging.debug('Fit complete')
 
     # Format the fit results into a FitResult object
-    fit_result = FitResult(fit_results, common, spectrum, update_params)
+    fit_result = FitResult(fit_results, common, spectrum, update_params,
+                           resid_limit)
 
     # Calculate the Optical depth spectra
     for par in calc_od:
@@ -110,7 +112,8 @@ class FitResult():
 
     '''
 
-    def __init__(self, fit_results, common, spectrum, update_params=False):
+    def __init__(self, fit_results, common, spectrum, update_params=False,
+                 resid_limit=5):
 
         # Create a copy of the parameters
         self.params = common['params'].make_copy()
@@ -162,6 +165,21 @@ class FitResult():
 
             # Calculate the residual
             self.resid = (spec-self.fit)/spec * 100
+
+            # Check if the spectrum was saturated
+            if max(spec) >= 35000:
+                logging.info(f'Spectrum saturating, resetting fit parameters')
+                common['params'].update_values(common['x0'])
+                self.nerr = 5
+
+            # Use the fitted parameters as the next first guess
+            if update_params:
+                if max(self.resid) < resid_limit:
+                    common['params'].update_values(self.popt)
+                else:
+                    logging.info(f'Low fit quality, resetting fit parameters')
+                    common['params'].update_values(common['x0'])
+                    self.nerr = 6
 
             # Use the fitted parameters as the next first guess
             if update_params:
@@ -398,7 +416,6 @@ def ifit_fwd_model(meas_grid, *x0, **com):
 
     # Apply the ILS convolution
     ils = com['ils']
-
     F_conv = np.convolve(raw_F, ils, 'same')
 
     # Apply shift and stretch to the model_grid

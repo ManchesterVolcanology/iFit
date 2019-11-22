@@ -523,7 +523,7 @@ class GuiFigure:
         # Add grid lines
         if gridlines:
             for ax in self.axes:
-                ax.grid()
+                ax.grid(ls='--')
 
         # Add the initial axis labels
         self.set_labels(ax0, ylabel='Intesntiy (arb)')
