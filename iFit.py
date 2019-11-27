@@ -20,24 +20,39 @@ from ifit.parameters import Parameters
 #from openso2.analyse_scan import read_scan
 
 
+mode = 'single'
+
 #=================================== Single ===================================
-spec_path = 'Data/Masaya/spectrum_00385.txt'
-dark_path = 'Data/Masaya/dark_00000.txt'
+if mode == 'single':
+    spec_path = 'Data/Masaya/spectrum_00385.txt'
+    spec_path = 'Data/Masaya/spectrum_00430.txt'
+    dark_path = 'Data/Masaya/dark_00000.txt'
+
+    spec_path = 'F:/Writing/2019_iFit/JVGR/Data/Masaya Traverse/USB2000+/spectra/spectrum_00380.txt'
+    dark_path = 'F:/Writing/2019_iFit/JVGR/Data/Masaya Traverse/USB2000+/dark/spectrum_00000.txt'
 
 #=================================== Multi ====================================
-dark_path = 'Data/Masaya/dark_00000.txt'
-spec_fnames = glob.glob('Data/Masaya/spectrum*')
-spec_fnames.sort()
+if mode == 'multi':
+    dark_path = 'Data/Masaya/dark_00000.txt'
+    spec_fnames = glob.glob('Data/Masaya/spectrum*')
+
+    spec_fnames = glob.glob('F:/Writing/2019_iFit/JVGR/Data/Masaya Traverse/USB2000+/spectra/spectrum*')
+    dark_path = 'F:/Writing/2019_iFit/JVGR/Data/Masaya Traverse/USB2000+/dark/spectrum_00000.txt'
+
+    spec_fnames.sort()
 
 #==================================== Scan ====================================
-fpath = ''
+if mode == 'scan':
 
+    fpath = ''
+
+
+
+od_gas = ['SO2', 'Ring', 'O3']
 
 #==============================================================================
 #=============================== Model Settings ===============================
 #==============================================================================
-
-mode = 'single'
 
 spec_name = 'FLMS02101'
 spec_name = 'USB2+H15972'
@@ -58,12 +73,10 @@ settings = {'w_lo':          310.0,
 
 # Set the gas data
 gas_data = {}
-gas_data['SO2']  = ['Ref/SO2_298K_shifted.txt',   1.0e18, True]
-gas_data['NO2']  = ['Ref/NO2_223K.txt',   1.0e18, True]
-gas_data['O3']   = ['Ref/O3_223K.txt',    1.0e18, True]
-#gas_data['BrO']  = ['Ref/BrO_298K.txt',   1.0e16, True]
-gas_data['Ring'] = ['Ref/Ring.txt', 0.1,    True]
-gas_data['O3_273'] =  ['Ref/O3_273K.txt',  1.0e18, True]
+gas_data['SO2']  = ['Ref/SO2_298K_shifted.txt', 1.0e18, True]
+gas_data['NO2']  = ['Ref/NO2_223K.txt',         1.0e18, True]
+gas_data['O3']   = ['Ref/O3_253K.txt',          1.0e18, True]
+gas_data['Ring'] = ['Ref/Ring.txt',             0.1,    True]
 #gas_data['O3_293'] =  ['Ref/O3_293K.txt',  1.0e17, True]
 
 # Add to the settings dictionary
@@ -72,17 +85,17 @@ settings['gas_data'] = gas_data
 # Build the forward model
 common = model_setup(settings)
 
-# Set other model settings
-bg_poly_n = 4
-bl_poly_n = 0
-wl_poly_n = 2
-
 #==============================================================================
 #============================== Parameters setup ==============================
 #==============================================================================
 
 # Create parameter dictionary
 params = Parameters()
+
+# Set other model settings
+bg_poly_n = 4
+bl_poly_n = 1
+wl_poly_n = 2
 
 for i in range(bg_poly_n):
     params.add(f'bg_poly{i}', value = 1.0, vary = True)
@@ -120,18 +133,32 @@ if mode == 'single':
     grid, spec = spectrum
 
     # Fit the spectrum
-    fit_result = fit_spectrum(spectrum, common)
+    fit_result = fit_spectrum(spectrum, common, calc_od=od_gas)
     print(fit_result.print_result())
 
-    # Set up figure
-    fig = plt.figure(figsize = [8,8])
-    gs = gridspec.GridSpec(2,1)
-    ax0 = fig.add_subplot(gs[0])
-    ax1 = fig.add_subplot(gs[1])
+    # Save the outputs
+    np.savetxt('dump/spectrum.txt', np.column_stack(grid, spec))
+    np.savetxt('dump/fit.txt',      fit_result.fit)
+    np.savetxt('dump/resid.txt',    fit_result.resid)
+    np.savetxt('dump/so2.txt',      fit_result.resid)
+    np.savetxt('dump/o3.txt',       fit_result.resid)
+    np.savetxt('dump/ring.txt',     fit_result.resid)
 
-    ax0.plot(grid, spec, 'C0o', label = 'Data')
+    # Set up figure
+    fig = plt.figure(figsize = [12,8])
+    gs = gridspec.GridSpec(2,2)
+    ax0 = fig.add_subplot(gs[0,0])
+    ax1 = fig.add_subplot(gs[1,0])
+    ax2 = fig.add_subplot(gs[0,1])
+    ax3 = fig.add_subplot(gs[1,1])
+
+    ax0.plot(grid, spec, 'C0o-', label = 'Data')
     ax0.plot(grid, fit_result.fit, 'C1-', lw = 2, label = 'Fit')
     ax1.plot(grid, fit_result.resid, 'C0o-')
+    ax2.plot(meas_spectrum[0], meas_spectrum[1])
+    for gas in od_gas:
+        ax3.plot(grid, fit_result.meas_od[gas], 'C0o-')
+        ax3.plot(grid, fit_result.synth_od[gas], 'C1-', lw=2)
 
     ax0.legend(loc = 'upper left')
     ax0.set_ylabel('Instensity (counts)', fontsize = 14)

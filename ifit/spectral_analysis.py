@@ -27,17 +27,29 @@ def fit_spectrum(spectrum, common, update_params=False, resid_limit=5,
 
     # Perform the fit!
     logging.debug('Begin fit')
-    fit_results = leastsq(residual, fit_params, args = (grid, spec, common),
-                          full_output = True, **kwargs)
-    logging.debug('Fit complete')
+    try:
+        fit_results = leastsq(residual, fit_params, args = (grid, spec, common),
+                              full_output = True, **kwargs)
+        logging.debug('Fit complete')
 
-    # Format the fit results into a FitResult object
-    fit_result = FitResult(fit_results, common, spectrum, update_params,
-                           resid_limit)
+        # Format the fit results into a FitResult object
+        fit_result = FitResult(fit_results, common, spectrum, update_params,
+                               resid_limit)
 
-    # Calculate the Optical depth spectra
-    for par in calc_od:
-        fit_result.calc_od(par, common)
+        # Calculate the Optical depth spectra
+        for par in calc_od:
+            fit_result.calc_od(par, common)
+
+    except RuntimeWarning:
+        logging.warn('Fit failed due to RuntimeWarning')
+        fit_results = [[np.full(len(fit_params), np.nan)],
+                       [np.full([len(fit_params),len(fit_params)], np.nan)],
+                       {},
+                       'Fit failed due to RuntimeWarning',
+                       7]
+
+        fit_result = FitResult(fit_results, common, spectrum, update_params,
+                               resid_limit)
 
     return fit_result
 
@@ -105,15 +117,15 @@ class FitResult():
         String message giving the cause of the fit failure.
 
     nerr : int
-        Integer code showing the success or failure of the fit. If equal to
-        1, 2, 3 or 4 the fit was successful. Otherwise the fit failled. More
-        information is given in mesg
-
-
+        Integer code showing the success or failure of the fit:
+            - 1, 2, 3 or 4: the fit was successful
+            - 5:            the light intensity was too high
+            - 6:            the fit quality was low
+            Otherwise the fit failled. More information is given in mesg.
     '''
 
     def __init__(self, fit_results, common, spectrum, update_params=False,
-                 resid_limit=5):
+                 resid_limit=5, sat_limit=35000):
 
         # Create a copy of the parameters
         self.params = common['params'].make_copy()
@@ -166,20 +178,24 @@ class FitResult():
             # Calculate the residual
             self.resid = (spec-self.fit)/spec * 100
 
-            # Check if the spectrum was saturated
-            if max(spec) >= 35000:
-                logging.info(f'Spectrum saturating, resetting fit parameters')
-                common['params'].update_values(common['x0'])
-                self.nerr = 5
-
             # Use the fitted parameters as the next first guess
             if update_params:
                 if max(self.resid) < resid_limit:
                     common['params'].update_values(self.popt)
-                else:
+
+                # Check if the residual is too high
+                elif max(self.resid) > resid_limit:
                     logging.info(f'Low fit quality, resetting fit parameters')
+                    self.mesg += f'\nFit residual higher than {resid_limit}%'
                     common['params'].update_values(common['x0'])
                     self.nerr = 6
+
+                # Check if the spectrum was saturated
+                if max(spec) >= sat_limit:
+                    logging.info(f'Spectrum saturating, resetting fit parameters')
+                    self.mesg += f'\nSaturation limit ({sat_limit}) reached'
+                    common['params'].update_values(common['x0'])
+                    self.nerr = 5
 
             # Use the fitted parameters as the next first guess
             if update_params:

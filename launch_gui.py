@@ -302,10 +302,11 @@ class myGUI(tk.Frame):
         text_handler = TextHandler(st, self)
 
         # Logging configuration
-        logging.basicConfig(filename='test.log',
+        logging.basicConfig(filename='iFit.log',
                             level=logging.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
+                            datefmt='%Y-%m-%d %H:%M:%S',
+                            filemode='w')
 
         # Add the handler to logger
         logger = logging.getLogger()
