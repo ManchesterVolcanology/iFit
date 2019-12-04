@@ -97,7 +97,8 @@ def model_setup(settings):
                                      k,
                                      a_w,
                                      a_k)
-
+            
+            common['generate_ils'] = False
             logging.info('ILS imported')
 
         except OSError:
@@ -109,13 +110,13 @@ def model_setup(settings):
         try:
 
             # Read in measured ILS shape
-            ils_path = f'Spectrometer/ils_{settings["spec_name"]}.txt'
-            x_ils, y_ils = np.loadtxt(ils_path, unpack = True)
+            x_ils, y_ils = np.loadtxt(settings['ils_path'], unpack = True)
 
             # Interpolate the measured ILS onto the model grid spacing
             grid_ils = np.arange(x_ils[0], x_ils[-1], settings['model_res'])
             common['ils'] = griddata(x_ils, y_ils, grid_ils, 'cubic')
             common['ils'] = common['ils'] / np.sum(common['ils'])
+            common['generate_ils'] = False
 
         except OSError:
             logging.error(f'No ILS file found for {settings["spec_name"]}!')
@@ -128,6 +129,9 @@ def model_setup(settings):
                                  settings['ils_width'])
 
         logging.info('ILS built')
+        
+    # Otherwise tell the program to build the ILS at the model.
+    else: common['generate_ils'] = True
 
 #=========================== Import solar spectrum ============================
 

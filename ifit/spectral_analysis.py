@@ -12,6 +12,55 @@ import numpy as np
 from scipy.interpolate import griddata
 from scipy.optimize import leastsq
 
+from ifit.make_ils import make_ils
+
+#==============================================================================
+#================================ pre_process =================================
+#==============================================================================
+
+def pre_process(spectrum, common):
+    '''
+    Function to pre-process the measured spectrum to prepare it for the fit,
+    correcting for the dark and flat spectrum, stray light and extracting the
+    fit wavelength window
+
+    **Parameters**
+
+    spectrum : 2D numpy array
+        The spectrum in [wavelength, intensities]
+
+    common : dict
+        Common dictionary of parameters and variables passed from the main
+        program to subroutines
+
+    **Returns**
+
+    processed_spec : 2D numpy array
+        The processed spectrum, corrected for dark, flat, stray light and cut
+        to the desired wavelength window
+    '''
+
+    # Unpack spectrum
+    x, y = spectrum
+
+    # Remove the dark spectrum from the measured spectrum
+    if common['dark_flag'] == True:
+        y = np.subtract(y, common['dark'])
+
+    # Remove stray light
+    if common['stray_flag'] == True:
+        y = np.subtract(y, np.average(y[common['stray_idx']]))
+
+    # Cut desired wavelength window
+    grid = x[common['fit_idx']]
+    spec = y[common['fit_idx']]
+
+    # Divide by flat spectrum
+    if common['flat_flag'] == True:
+        spec = np.divide(spec, common['flat'])
+
+    return np.row_stack([grid, spec])
+
 #==============================================================================
 #================================ fit_spectrum ================================
 #==============================================================================
@@ -125,7 +174,7 @@ class FitResult():
     '''
 
     def __init__(self, fit_results, common, spectrum, update_params=False,
-                 resid_limit=5, sat_limit=35000):
+                 resid_limit=None, sat_limit=None):
 
         # Create a copy of the parameters
         self.params = common['params'].make_copy()
@@ -180,22 +229,24 @@ class FitResult():
 
             # Use the fitted parameters as the next first guess
             if update_params:
-                if max(self.resid) < resid_limit:
-                    common['params'].update_values(self.popt)
+                if resid_limit != None:
+                    if max(self.resid) < resid_limit:
+                        common['params'].update_values(self.popt)
 
                 # Check if the residual is too high
-                elif max(self.resid) > resid_limit:
-                    logging.info(f'Low fit quality, resetting fit parameters')
-                    self.mesg += f'\nFit residual higher than {resid_limit}%'
-                    common['params'].update_values(common['x0'])
-                    self.nerr = 6
+                    else:
+                        logging.info(f'Low fit quality, resetting fit parameters')
+                        self.mesg += f'\nFit residual higher than {resid_limit}%'
+                        common['params'].update_values(common['x0'])
+                        self.nerr = 6
 
                 # Check if the spectrum was saturated
-                if max(spec) >= sat_limit:
-                    logging.info(f'Spectrum saturating, resetting fit parameters')
-                    self.mesg += f'\nSaturation limit ({sat_limit}) reached'
-                    common['params'].update_values(common['x0'])
-                    self.nerr = 5
+                if sat_limit != None:
+                    if max(spec) >= sat_limit:
+                        logging.info(f'Spectrum saturating, resetting fit parameters')
+                        self.mesg += f'\nSaturation limit ({sat_limit}) reached'
+                        common['params'].update_values(common['x0'])
+                        self.nerr = 5
 
             # Use the fitted parameters as the next first guess
             if update_params:
@@ -264,63 +315,31 @@ class FitResult():
 
         # Calculate the parameter od
         par_od = np.multiply(c['xsecs'][par_name], p[par_name])
+        
+        # Make the ILS
+        if c['generate_ils']:
+            
+            ils_params = []
+            for name in ['fwem', 'k', 'a_w', 'a_k']:
+                if params[name].vary:
+                    ils_params.append(params[name].fit_val)
+                else:
+                    ils_params.append(params[name].value)
+        
+            # Unpack ILS params
+            ils = make_ils(c['model_spacing'], *ils_params)
+        else:
+            ils = c['ils']
 
         # Convolve with the ILS and interpolate onto the measurement grid
         par_od = griddata(shift_model_grid,
-                          np.convolve(par_od, c['ils'], 'same'),
+                          np.convolve(par_od, ils, 'same'),
                           grid,
                           method = 'cubic')
 
         # Add to self
         self.meas_od[par_name] = -np.log(np.divide(spec-offset, fit))
         self.synth_od[par_name] = par_od
-
-#==============================================================================
-#================================ pre_process =================================
-#==============================================================================
-
-def pre_process(spectrum, common):
-    '''
-    Function to pre-process the measured spectrum to prepare it for the fit,
-    correcting for the dark and flat spectrum, stray light and extracting the
-    fit wavelength window
-
-    **Parameters**
-
-    spectrum : 2D numpy array
-        The spectrum in [wavelength, intensities]
-
-    common : dict
-        Common dictionary of parameters and variables passed from the main
-        program to subroutines
-
-    **Returns**
-
-    processed_spec : 2D numpy array
-        The processed spectrum, corrected for dark, flat, stray light and cut
-        to the desired wavelength window
-    '''
-
-    # Unpack spectrum
-    x, y = spectrum
-
-    # Remove the dark spectrum from the measured spectrum
-    if common['dark_flag'] == True:
-        y = np.subtract(y, common['dark'])
-
-    # Remove stray light
-    if common['stray_flag'] == True:
-        y = np.subtract(y, np.average(y[common['stray_idx']]))
-
-    # Cut desired wavelength window
-    grid = x[common['fit_idx']]
-    spec = y[common['fit_idx']]
-
-    # Divide by flat spectrum
-    if common['flat_flag'] == True:
-        spec = np.divide(spec, common['flat'])
-
-    return np.row_stack([grid, spec])
 
 #==============================================================================
 #================================== residual ==================================
@@ -373,14 +392,19 @@ def ifit_fwd_model(meas_grid, *x0, **com):
         The common dictionary containing the information required for the fit.
         Must contain:
             - params: Parameters object holding the fit parameters
-            - model_grid: The wavelength grid on which the forward model is
-                          built
-            - frs:        The Fraunhofer reference spectrum interpolated onto
-                          model_grid
-            - xsecs:      Dictionary of the absorber cross sections that have
-                          been pre-interpolated onto the moddel grid. Typically
-                          includes all gas spectra and the Ring spectrum
-            - ils         The instrument line shape of the spectrometer
+            - model_grid:   The wavelength grid on which the forward model is
+                            built
+            - frs:          The Fraunhofer reference spectrum interpolated onto
+                            model_grid
+            - xsecs:        Dictionary of the absorber cross sections that have
+                            been pre-interpolated onto the moddel grid. 
+                            Typically includes all gas spectra and the Ring 
+                            spectrum
+            - generate_ils: Boolian flag telling the function whether to build
+                            the ILS or not. If False then the ILS must be 
+                            predefined in the common
+            - ils           The instrument line shape of the spectrometer. Only
+                            used if generate ILS is False.
 
 
     **Returns**
@@ -389,17 +413,19 @@ def ifit_fwd_model(meas_grid, *x0, **com):
         Fitted spectrum interpolated onto the spectrometer wavelength grid
     '''
 
-    # Check for nans
-    if np.isnan(x0).any():
-        return np.zeros(len(meas_grid))
-
     # Get dictionary of fitted parameters
-    p = com['params'].fittedvaluesdict()
+    params = com['params']
+    p = params.valuesdict()
 
     # Update the fitted parameter values with those supplied to the forward
     # model
-    for i, par in enumerate(p):
-        p[par] = x0[i]
+    i = 0
+    for par in params.values():
+        if par.vary:
+            p[par.name] = x0[i]
+            i+=1
+        else:
+            p[par.name] = par.value
 
     # Unpack polynomial parameters
     bg_poly_coefs = [p[n] for n in p if 'bg_poly' in n]
@@ -430,8 +456,19 @@ def ifit_fwd_model(meas_grid, *x0, **com):
     # Build the complete model
     raw_F = np.multiply(frs, exponent) + offset
 
+    # Generate the ILS
+    if com['generate_ils']:
+        
+        # Unpack ILS params
+        ils = make_ils(com['model_spacing'],
+                       p['fwem'],
+                       p['k'],
+                       p['a_w'],
+                       p['a_k'])
+    else:
+        ils = com['ils']
+        
     # Apply the ILS convolution
-    ils = com['ils']
     F_conv = np.convolve(raw_F, ils, 'same')
 
     # Apply shift and stretch to the model_grid

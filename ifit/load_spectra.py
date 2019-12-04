@@ -5,9 +5,10 @@ Created on Wed Nov  6 15:58:19 2019
 @author: mqbpwbe2
 """
 
+import logging
+import datetime
 import linecache
 import numpy as np
-import datetime
 
 #==============================================================================
 #================================ read_spectrum ===============================
@@ -176,9 +177,14 @@ def average_spectra(files, spec_type='iFit'):
 
         # Load spectrum
         grid, y, spec_info, read_err = read_spectrum(fname, spec_type)
-
-        # Add to the spectra array
-        spec[n] = y
+        
+        # Check for a read error
+        if read_err[0]:
+            logging.warn(f'Error reading spectrum:\n{read_err[1]}')
+            
+        else:
+            # Add to the spectra array
+            spec[n] = y
 
     # Divide to get average spectrum
     spec = np.average(spec, axis=0)

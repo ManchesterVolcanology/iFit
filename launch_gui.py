@@ -75,6 +75,9 @@ class myGUI(tk.Frame):
 
         # Close program on closure of window
         self.root.protocol("WM_DELETE_WINDOW", self.handler)
+        
+        # Make a dictionary to hold the gui widgets
+        self.widgets = {}
 
         # Build the GUI
         self.build_gui()
@@ -141,8 +144,7 @@ class myGUI(tk.Frame):
         # Create a frame to hold the controls
         control_frame = tk.LabelFrame(self.root, text='Control',
                                       font=LARGE_FONT)
-        control_frame.grid(row=1, column=0, padx=10, pady=10, rowspan=10,
-                           sticky="NW")
+        control_frame.grid(row=1, column=0, padx=10, pady=10, sticky="N")
 
         graph_settings = ttk.Notebook(self.root)
         graph_frame = ttk.Frame(graph_settings)
@@ -165,11 +167,11 @@ class myGUI(tk.Frame):
                         'FLAME',
                         'Basic']
 
-        self.spec_type = tk.StringVar(setup_frame, value = spec_options[0])
+        self.widgets['spec_type'] = tk.StringVar(setup_frame, value='iFit')
         make_input(frame = setup_frame,
                    text = 'Spectra Type:',
                    row = 1, column = 0,
-                   var = self.spec_type,
+                   var = self.widgets['spec_type'],
                    input_type = 'OptionMenu',
                    options = spec_options,
                    sticky = 'W')
@@ -185,8 +187,8 @@ class myGUI(tk.Frame):
         specfp_l.grid(row=2, column=0, padx=5, pady=5, sticky='W',
                       columnspan=2)
         ttk.Button(setup_frame, text="Select Spectra",
-                   command=lambda: select_files(holder = self.spec_fnames,
-                                                entry = self.spec_ent)
+                   command=lambda: select_files(holder=self.spec_fnames,
+                                                entry=self.spec_ent)
                    ).grid(row=2, column=2, padx=5, pady=5, sticky='W')
 
         # File dialouge for darks
@@ -196,17 +198,20 @@ class myGUI(tk.Frame):
         darkfp_l.grid(row=3, column=0, padx=5, pady=5, sticky='W',
                       columnspan=2)
         ttk.Button(setup_frame, text="Select Darks",
-                   command=lambda: select_files(holder = self.dark_fnames,
-                                                entry = self.dark_ent)
+                   command=lambda: select_files(holder=self.dark_fnames,
+                                                entry=self.dark_ent)
                    ).grid(row=3, column=2, padx=5, pady=5, sticky='W')
 
         # Set the save path
-        self.save_path = tk.StringVar(self, value='')
-        ttk.Entry(setup_frame, font = NORM_FONT, width=30,text=self.save_path
+        self.widgets['save_path'] = tk.StringVar(self, value='')
+        ttk.Entry(setup_frame, 
+                  font=NORM_FONT, 
+                  width=30,
+                  text=self.widgets['save_path']
                   ).grid(row=4, column=0, padx=5, pady=5, sticky='W',
                       columnspan=2)
         ttk.Button(setup_frame, text="Browse",
-                   command=lambda: select_save(holder = self.save_path)
+                   command=lambda: select_save(holder=self.widgets['save_path'])
                    ).grid(row=4, column=2, padx=5, pady=5, sticky='W')
 
 
@@ -241,7 +246,7 @@ class myGUI(tk.Frame):
 
         # Create button to stop
         self.stop_flag = False
-        stop_b = ttk.Button(button_frame, text = 'Stop',
+        stop_b = ttk.Button(button_frame, text='Stop',
                             command = lambda: stop(self))
         stop_b.grid(row=0, column=1, padx=25, pady=5)
 
@@ -294,7 +299,7 @@ class myGUI(tk.Frame):
 
         # Add text widget to display logging info
         st = ScrolledText.ScrolledText(control_frame, state='disabled',
-                                       width = 60, height = 15)
+                                       width = 60, height = 12)
         st.configure(font='TkFixedFont')
         st.grid(row=4, column=0, padx=10, pady=10, sticky="NW", columnspan=5)
 
@@ -338,11 +343,11 @@ class myGUI(tk.Frame):
         sep = ttk.Separator(model_frame, orient='vertical')
         sep.grid(column=0, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
 
-        self.w_lo = tk.DoubleVar(model_frame, value = 310)
+        self.widgets['w_lo'] = tk.DoubleVar(model_frame, value = 310)
         make_input(frame = model_frame,
                    text = 'Fit Range:',
                    row = row_n, column = col_n,
-                   var = self.w_lo,
+                   var = self.widgets['w_lo'],
                    input_type = 'Spinbox',
                    width = 8,
                    sticky = 'E')
@@ -350,11 +355,11 @@ class myGUI(tk.Frame):
                   ).grid(row = row_n, column = col_n+2, padx=5, pady=5)
         row_n += 1
 
-        self.w_hi = tk.DoubleVar(model_frame, value = 320)
+        self.widgets['w_hi'] = tk.DoubleVar(model_frame, value = 320)
         make_input(frame = model_frame,
                    text = 'to:',
                    row = row_n, column = col_n,
-                   var = self.w_hi,
+                   var = self.widgets['w_hi'],
                    input_type = 'Spinbox',
                    width = 8,
                    sticky = 'E')
@@ -363,11 +368,11 @@ class myGUI(tk.Frame):
         row_n += 1
 
         # Set model grid padding
-        self.model_padding = tk.DoubleVar(model_frame, value = 1.0)
+        self.widgets['model_padding'] = tk.DoubleVar(model_frame, value = 1.0)
         make_input(frame = model_frame,
                    text = 'Model Grid\nPadding (nm):',
                    row = row_n, column = col_n,
-                   var = self.model_padding,
+                   var = self.widgets['model_padding'],
                    input_type = 'Spinbox',
                    increment = 0.1,
                    width = 8,
@@ -375,11 +380,11 @@ class myGUI(tk.Frame):
         row_n += 1
 
         # Set model grid spacing
-        self.model_spacing = tk.DoubleVar(model_frame, value = 0.02)
+        self.widgets['model_spacing'] = tk.DoubleVar(model_frame, value=0.01)
         make_input(frame = model_frame,
                    text = 'Model Grid\nSpacing (nm):',
                    row = row_n, column = col_n,
-                   var = self.model_spacing,
+                   var = self.widgets['model_spacing'],
                    input_type = 'Spinbox',
                    increment = 0.01,
                    width = 8,
@@ -392,29 +397,29 @@ class myGUI(tk.Frame):
         sep.grid(column=4, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
 
         # Control whether or not to remove dark spectra
-        self.dark_flag = tk.BooleanVar(model_frame, value = True)
+        self.widgets['dark_flag'] = tk.BooleanVar(model_frame, value = True)
         make_input(frame = model_frame,
                    text = 'Remove Dark\nSpectrum?',
                    row = row_n, column = col_n,
-                   var = self.dark_flag,
+                   var = self.widgets['dark_flag'],
                    input_type = 'Checkbutton')
         row_n += 1
 
         # Control whether or not to remove flat spectra
-        self.flat_flag = tk.BooleanVar(model_frame, value = True)
+        self.widgets['flat_flag'] = tk.BooleanVar(model_frame, value = True)
         make_input(frame = model_frame,
                    text = 'Remove Flat\nSpectrum?',
                    row = row_n, column = col_n,
-                   var = self.flat_flag,
+                   var = self.widgets['flat_flag'],
                    input_type = 'Checkbutton')
         row_n += 1
 
         # Control whether to correct for stray light
-        self.stray_flag = tk.BooleanVar(model_frame, value = True)
+        self.widgets['stray_flag'] = tk.BooleanVar(model_frame, value = True)
         make_input(frame = model_frame,
                    text = 'Remove Stray\nLight?',
                    row = row_n, column = col_n,
-                   var = self.stray_flag,
+                   var = self.widgets['stray_flag'],
                    input_type = 'Checkbutton')
 
         # Create separator
@@ -425,20 +430,20 @@ class myGUI(tk.Frame):
         col_n += 3
 
         # Control whether to update fit parameter with the last fit values
-        self.update_flag = tk.BooleanVar(model_frame, value = True)
+        self.widgets['update_flag'] = tk.BooleanVar(model_frame, value = True)
         make_input(frame = model_frame,
                    text = 'Auto-update\nfit parameters?',
                    row = row_n, column = col_n,
-                   var = self.update_flag,
+                   var = self.widgets['update_flag'],
                    input_type = 'Checkbutton')
         row_n += 1
 
         # Control bound of goodness of fit
-        self.resid_limit = tk.DoubleVar(model_frame, value = 10)
+        self.widgets['resid_limit'] = tk.DoubleVar(model_frame, value = 10)
         make_input(frame = model_frame,
                    text = 'Good Fit\nBound (%):',
                    row = row_n, column = col_n,
-                   var = self.resid_limit,
+                   var = self.widgets['resid_limit'],
                    input_type = 'Entry',
                    width = 12)
         row_n += 1
@@ -450,12 +455,12 @@ class myGUI(tk.Frame):
         col_n = 0
 
         # Create entries for the ILS parameters
-        ils_options = ['From File', 'From File', 'Manual']
-        self.ils_mode = tk.StringVar(spect_frame, value = 'From File')
+        ils_options = ['File', 'File', 'Manual']
+        self.widgets['ils_mode'] = tk.StringVar(spect_frame, value='File')
         make_input(frame = spect_frame,
                    text = 'Generate ILS:',
                    row = row_n, column = col_n,
-                   var = self.ils_mode,
+                   var = self.widgets['ils_mode'],
                    input_type = 'OptionMenu',
                    options = ils_options,
                    sticky = 'W')
@@ -463,50 +468,117 @@ class myGUI(tk.Frame):
         row_n += 1
 
         # File path to ILS params
-        self.ils_path = tk.StringVar(spect_frame)
+        self.widgets['ils_path'] = tk.StringVar(spect_frame)
         make_input(frame = spect_frame,
                    text = 'ILS Parameters:',
                    row = row_n, column = col_n,
-                   var = self.ils_path,
+                   var = self.widgets['ils_path'],
                    input_type = 'Entry',
                    width = 40)
         ttk.Button(spect_frame,
                    text = "Browse",
-                   command = lambda: select_files(single_file = True,
-                                                  holder = self.ils_path)
+                   command=lambda: select_files(single_file = True,
+                                                holder=self.widgets['ils_path'])
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
 
         row_n += 1
 
         # Flat spectrum
-        self.flat_path = tk.StringVar(spect_frame)
+        self.widgets['flat_path'] = tk.StringVar(spect_frame)
         make_input(frame = spect_frame,
                    text = 'Flat Spectrum:',
                    row = row_n, column = col_n,
-                   var = self.flat_path,
+                   var = self.widgets['flat_path'],
                    input_type = 'Entry',
                    width = 40)
         ttk.Button(spect_frame,
                    text = "Browse",
-                   command = lambda: select_files(single_file = True,
-                                                  holder = self.flat_path)
+                   command=lambda: select_files(single_file = True,
+                                                holder=self.widgets['flat_path'])
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
 
         row_n += 1
 
-        # Path to the station info file
-        self.wl_calib = tk.StringVar(spect_frame, value = '')
+        # Path to the wavelength calibration file
+        self.widgets['wl_calib'] = tk.StringVar(spect_frame, value = '')
         make_input(frame = spect_frame,
                    text = 'Wavelength\nCalibration:',
                    row = row_n, column = col_n,
-                   var = self.wl_calib,
+                   var = self.widgets['wl_calib'],
                    input_type = 'Entry',
                    width = 40)
         ttk.Button(spect_frame,
                    text = "Browse",
-                   command = lambda: select_files(single_file = True,
-                                                  holder = self.wl_calib)
+                   command=lambda: select_files(single_file = True,
+                                                holder=self.widgets['wl_calib'])
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
+
+        row_n += 1
+                   
+        ttk.Separator(spect_frame, orient='horizontal'
+                          ).grid(column=0,
+                                 row=row_n,
+                                 sticky='ew',
+                                 padx=10,
+                                 pady=0,
+                                 columnspan=3)
+
+        row_n += 1
+        
+        # Make a frame to hold ILS settings
+        ils_frame = tk.LabelFrame(spect_frame, text = 'Super Gaussian',
+                                  font = LARGE_FONT)
+        ils_frame.grid(row=row_n, column=0, padx=10, pady=10, sticky='NW', 
+                       columnspan=3)
+
+        # Control bound of goodness of fit
+        self.widgets['fwem'] = tk.DoubleVar(ils_frame)
+        make_input(frame = ils_frame,
+                   text = 'FWEM:',
+                   row = 0, column = 0,
+                   var = self.widgets['fwem'],
+                   input_type = 'Entry',
+                   width = 12)
+        self.widgets['fwem_fit'] = tk.BooleanVar(ils_frame)
+        ttk.Checkbutton(ils_frame, text='Fit?', 
+                        variable=self.widgets['fwem_fit']
+                        ).grid(row=0, column=2)
+
+        # Control bound of goodness of fit
+        self.widgets['k'] = tk.DoubleVar(ils_frame)
+        make_input(frame = ils_frame,
+                   text = 'k:',
+                   row = 1, column = 0,
+                   var = self.widgets['k'],
+                   input_type = 'Entry',
+                   width = 12)
+        self.widgets['k_fit'] = tk.BooleanVar(ils_frame)
+        ttk.Checkbutton(ils_frame, text='Fit?', variable=self.widgets['k_fit']
+                        ).grid(row=1, column=2)
+
+        # Control bound of goodness of fit
+        self.widgets['a_w'] = tk.DoubleVar(ils_frame)
+        make_input(frame = ils_frame,
+                   text = 'a_w:',
+                   row = 2, column = 0,
+                   var = self.widgets['a_w'],
+                   input_type = 'Entry',
+                   width = 12)
+        self.widgets['a_w_fit'] = tk.BooleanVar(ils_frame)
+        ttk.Checkbutton(ils_frame, text='Fit?', variable=self.widgets['a_w_fit']
+                        ).grid(row=2, column=2)
+
+        # Control bound of goodness of fit
+        self.widgets['a_k'] = tk.DoubleVar(ils_frame)
+        make_input(frame = ils_frame,
+                   text = 'a_k:',
+                   row = 3, column = 0,
+                   var = self.widgets['a_k'],
+                   input_type = 'Entry',
+                   width = 12)
+        self.widgets['a_k_fit'] = tk.BooleanVar(ils_frame)
+        ttk.Checkbutton(ils_frame, text='Fit?', variable=self.widgets['a_k_fit']
+                        ).grid(row=3, column=2)
 
 #============================= Parameter Settings =============================
 
@@ -515,19 +587,19 @@ class myGUI(tk.Frame):
         col_n = 0
 
         # File path to solar reference file
-        self.frs_path = tk.StringVar(param_frame)
+        self.widgets['frs_path'] = tk.StringVar(param_frame)
         make_input(frame = param_frame,
                    text = 'Fraunhofer File:',
                    row = row_n, column = col_n,
-                   var = self.frs_path,
+                   var = self.widgets['frs_path'],
                    input_type = 'Entry',
                    sticky = 'E',
                    width = 40,
                    columnspan = 3)
         ttk.Button(param_frame,
                    text = "Browse",
-                   command = lambda: select_files(single_file = True,
-                                                  holder = self.frs_path)
+                   command=lambda: select_files(single_file = True,
+                                                holder=self.widgets['frs_path'])
                    ).grid(row=row_n, column=4, padx=5, pady=5, sticky='W')
 
         row_n += 1
@@ -573,39 +645,39 @@ class myGUI(tk.Frame):
         col_n = 0
 
         # Control whether to update fit parameter with the last fit values
-        self.graph_flag = tk.BooleanVar(figure_frame, value = True)
+        self.widgets['graph_flag'] = tk.BooleanVar(figure_frame, value = True)
         make_input(frame = figure_frame,
                    text = 'Show graphs?',
                    row = row_n, column = col_n,
-                   var = self.graph_flag,
+                   var = self.widgets['graph_flag'],
                    input_type = 'Checkbutton')
         row_n += 1
 
         # Set parameter to graph
-        self.graph_param = tk.StringVar(figure_frame)
+        self.widgets['graph_param'] = tk.StringVar(figure_frame)
         make_input(frame = figure_frame,
                    text = 'Paramater\nto graph:',
                    row = row_n, column = col_n,
-                   var = self.graph_param,
+                   var = self.widgets['graph_param'],
                    input_type = 'Entry',
                    width = 10)
         row_n += 1
 
         # Control whether the graph scrolls
-        self.scroll_flag = tk.BooleanVar(figure_frame, value = True)
+        self.widgets['scroll_flag'] = tk.BooleanVar(figure_frame, value = True)
         make_input(frame = figure_frame,
                    text = 'Scroll graphs?',
                    row = row_n, column = col_n,
-                   var = self.scroll_flag,
+                   var = self.widgets['scroll_flag'],
                    input_type = 'Checkbutton')
         row_n += 1
 
         # Set parameter to graph
-        self.graph_data_n = tk.IntVar(figure_frame)
+        self.widgets['scroll_amt'] = tk.IntVar(figure_frame, value=100)
         make_input(frame = figure_frame,
                    text = 'No. Spectra\nto display:',
                    row = row_n, column = col_n,
-                   var = self.graph_data_n,
+                   var = self.widgets['scroll_amt'],
                    input_type = 'Spinbox',
                    vals = [0, 1.0e6],
                    increment = 100,

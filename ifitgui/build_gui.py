@@ -502,12 +502,12 @@ class GuiFigure:
         The fontsize to use on the graph labels
     '''
 
-    def __init__(self, gridlines = True, fontsize = 10):
+    def __init__(self, gridlines = True, fontsize=10):
 
         self.fontsize = fontsize
 
         # Make the figure and axes
-        self.fig = plt.figure(figsize = (8,6))
+        self.fig = plt.figure(figsize = (7,5))
         gs = gridspec.GridSpec(3,2)
 
         # Create plot axes
@@ -529,7 +529,7 @@ class GuiFigure:
         self.set_labels(ax0, ylabel='Intesntiy (arb)')
         self.set_labels(ax1, ylabel='Intesntiy (arb)')
         self.set_labels(ax2, 'Wavelength (nm)', 'Fit residual')
-        self.set_labels(ax3, 'Wavelength (nm)', 'SO$_2$ OD')
+        self.set_labels(ax3, 'Wavelength (nm)', 'Optical Depth')
         self.set_labels(ax4, 'Spectrum Number', 'Parameter Value')
 
         # Create the plot lines
@@ -544,12 +544,12 @@ class GuiFigure:
         # Residual
         l3, = ax2.plot([], [], 'C0o-', ms = 4)
 
-        # SO2 transmittance data
+        # Parameter optical depth data
         l4, = ax3.plot([], [], 'C0o-', label = 'Meas Abs', ms = 4)
         l5, = ax3.plot([], [], 'C1-', label = 'Synth Abs')
         ax3.legend(loc = 0)
 
-        # SO2 Time series and error bars
+        # Parameter Time series and error bars
         l6, = ax4.plot([], [], 'C2o-', ms = 4)
 
         # Make a list of the lines
