@@ -74,9 +74,6 @@ class Parameters(OrderedDict):
                 self[name].set(value = new_values[n])
                 n += 1
 
-    #def set_popt(self, popt):
-    #    '''Updates the fit
-
 
     def valuesdict(self):
         '''Return an ordered dictionary of all parameter values'''

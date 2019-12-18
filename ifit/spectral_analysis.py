@@ -76,29 +76,30 @@ def fit_spectrum(spectrum, common, update_params=False, resid_limit=5,
 
     # Perform the fit!
     logging.debug('Begin fit')
-    try:
-        fit_results = leastsq(residual, fit_params, args = (grid, spec, common),
-                              full_output = True, **kwargs)
-        logging.debug('Fit complete')
 
+    fit_results = leastsq(residual, fit_params, args = (grid, spec, common),
+                          full_output = True, **kwargs)
+    logging.debug('Fit complete')
+
+    if fit_results[4] == 5:
+        logging.warn(fit_results[3])
+        fit_results = [[np.full(len(fit_params), np.nan)],
+                       [np.full([len(fit_params),len(fit_params)], np.nan)],
+                       {},
+                       fit_results[3],
+                       7]
+
+        fit_result = FitResult(fit_results, common, spectrum, update_params,
+                               resid_limit)
+    else:
         # Format the fit results into a FitResult object
         fit_result = FitResult(fit_results, common, spectrum, update_params,
                                resid_limit)
 
         # Calculate the Optical depth spectra
         for par in calc_od:
-            fit_result.calc_od(par, common)
-
-    except RuntimeWarning:
-        logging.warn('Fit failed due to RuntimeWarning')
-        fit_results = [[np.full(len(fit_params), np.nan)],
-                       [np.full([len(fit_params),len(fit_params)], np.nan)],
-                       {},
-                       'Fit failed due to RuntimeWarning',
-                       7]
-
-        fit_result = FitResult(fit_results, common, spectrum, update_params,
-                               resid_limit)
+            if par in common['params']:
+                fit_result.calc_od(par, common)
 
     return fit_result
 
@@ -248,10 +249,6 @@ class FitResult():
                         common['params'].update_values(common['x0'])
                         self.nerr = 5
 
-            # Use the fitted parameters as the next first guess
-            if update_params:
-                common['params'].update_values(self.popt)
-
         else:
             logging.warning(f'Fit failed: {self.mesg}')
             self.fit = np.full(len(grid), np.nan)
@@ -315,17 +312,17 @@ class FitResult():
 
         # Calculate the parameter od
         par_od = np.multiply(c['xsecs'][par_name], p[par_name])
-        
+
         # Make the ILS
         if c['generate_ils']:
-            
+
             ils_params = []
             for name in ['fwem', 'k', 'a_w', 'a_k']:
                 if params[name].vary:
                     ils_params.append(params[name].fit_val)
                 else:
                     ils_params.append(params[name].value)
-        
+
             # Unpack ILS params
             ils = make_ils(c['model_spacing'], *ils_params)
         else:
@@ -397,11 +394,11 @@ def ifit_fwd_model(meas_grid, *x0, **com):
             - frs:          The Fraunhofer reference spectrum interpolated onto
                             model_grid
             - xsecs:        Dictionary of the absorber cross sections that have
-                            been pre-interpolated onto the moddel grid. 
-                            Typically includes all gas spectra and the Ring 
+                            been pre-interpolated onto the moddel grid.
+                            Typically includes all gas spectra and the Ring
                             spectrum
             - generate_ils: Boolian flag telling the function whether to build
-                            the ILS or not. If False then the ILS must be 
+                            the ILS or not. If False then the ILS must be
                             predefined in the common
             - ils           The instrument line shape of the spectrometer. Only
                             used if generate ILS is False.
@@ -458,7 +455,7 @@ def ifit_fwd_model(meas_grid, *x0, **com):
 
     # Generate the ILS
     if com['generate_ils']:
-        
+
         # Unpack ILS params
         ils = make_ils(com['model_spacing'],
                        p['fwem'],
@@ -467,7 +464,7 @@ def ifit_fwd_model(meas_grid, *x0, **com):
                        p['a_k'])
     else:
         ils = com['ils']
-        
+
     # Apply the ILS convolution
     F_conv = np.convolve(raw_F, ils, 'same')
 
