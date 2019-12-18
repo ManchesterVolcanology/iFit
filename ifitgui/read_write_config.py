@@ -25,29 +25,29 @@ def read_config(gui, fpath = None):
         with open(fpath, 'r') as ymlfile:
 
             config = yaml.load(ymlfile, Loader = yaml.FullLoader)
-            
+
         for label in config:
-            
+
             if label == 'gas_params':
                 gui.gastable.set_params(config['gas_params'])
-                
+
             elif label == 'poly_params':
                 gui.polytable.set_params(config['poly_params'])
-                
+
             elif label == 'offset_params':
                 gui.offsettable.set_params(config['offset_params'])
-                
+
             elif label == 'shift_params':
-                gui.polytable.set_params(config['poly_params'])
-                
+                gui.shifttable.set_params(config['shift_params'])
+
             elif label == 'zspec_fnames':
                 gui.spec_fnames = config['zspec_fnames']
                 gui.spec_ent.set(f'{len(gui.spec_fnames)} files selected')
-                
+
             elif label == 'zdark_fnames':
                 gui.dark_fnames = config['zdark_fnames']
                 gui.dark_ent.set(f'{len(gui.dark_fnames)} files selected')
-            
+
             else:
                 gui.widgets[label].set(config[label])
 
@@ -88,7 +88,7 @@ def write_config(gui, asksavepath=True):
               'zspec_fnames':  gui.spec_fnames,
               'zdark_fnames':  gui.dark_fnames
               }
-    
+
     for label in gui.widgets:
         config[label] = gui.widgets[label].get()
 
@@ -111,6 +111,8 @@ def write_config(gui, asksavepath=True):
 
         with open('bin/config.yaml', 'w') as outfile:
             yaml.dump(config, outfile)
+
+        logging.info('Default config updated')
 
     except FileNotFoundError:
         logging.info('Default config could not be saved')

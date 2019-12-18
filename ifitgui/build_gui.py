@@ -11,6 +11,7 @@ from tkinter import ttk
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
+
 from ifitgui.gui_functions import select_files
 
 
@@ -483,12 +484,11 @@ class PolyTable(tk.Frame):
         self._widgets[n] = []
 
 
-
 #==============================================================================
 #================================ Make Figure =================================
 #==============================================================================
 
-class GuiFigure:
+class GuiFigure():
 
     '''
     Class to generate the graphing figure
@@ -502,70 +502,33 @@ class GuiFigure:
         The fontsize to use on the graph labels
     '''
 
-    def __init__(self, gridlines = True, fontsize=10):
+    def __init__(self,
+                 fig_kwargs={},
+                 grid=[1,1],
+                 axes_info = [],
+                 gridlines=True,
+                 fontsize=10):
 
         self.fontsize = fontsize
 
-        # Make the figure and axes
-        self.fig = plt.figure(figsize = (7,5))
-        gs = gridspec.GridSpec(3,2)
+        # Make the figure and layout
+        self.fig = plt.figure(**fig_kwargs)
+        gs = gridspec.GridSpec(grid[0], grid[1])
+
+        # Create a list to hold the axes
+        self.ax_list = []
 
         # Create plot axes
-        ax0 = self.fig.add_subplot(gs[0,0])
-        ax1 = self.fig.add_subplot(gs[0,1])
-        ax2 = self.fig.add_subplot(gs[1,0])
-        ax3 = self.fig.add_subplot(gs[1,1])
-        ax4 = self.fig.add_subplot(gs[2,:])
+        for ax_info in axes_info:
+            ax = Axis(self.fig, gs, **ax_info)
 
-        # Make a list of axes
-        self.axes = [ax0, ax1, ax2, ax3, ax4]
-
-        # Add grid lines
-        if gridlines:
-            for ax in self.axes:
-                ax.grid(ls='--')
-
-        # Add the initial axis labels
-        self.set_labels(ax0, ylabel='Intesntiy (arb)')
-        self.set_labels(ax1, ylabel='Intesntiy (arb)')
-        self.set_labels(ax2, 'Wavelength (nm)', 'Fit residual')
-        self.set_labels(ax3, 'Wavelength (nm)', 'Optical Depth')
-        self.set_labels(ax4, 'Spectrum Number', 'Parameter Value')
-
-        # Create the plot lines
-        # Spectral data
-        l0, = ax0.plot([], [], 'C0o', label = 'Data', ms = 4)
-        l1, = ax0.plot([], [], 'C1-', label = 'Fit')
-        ax0.legend(loc = 0)
-
-        # Full spectrum
-        l2, = ax1.plot([], [], 'C0-')
-
-        # Residual
-        l3, = ax2.plot([], [], 'C0o-', ms = 4)
-
-        # Parameter optical depth data
-        l4, = ax3.plot([], [], 'C0o-', label = 'Meas Abs', ms = 4)
-        l5, = ax3.plot([], [], 'C1-', label = 'Synth Abs')
-        ax3.legend(loc = 0)
-
-        # Parameter Time series and error bars
-        l6, = ax4.plot([], [], 'C2o-', ms = 4)
-
-        # Make a list of the lines
-        self.lines = [l0, l1, l2, l3, l4, l5, l6]
+            self.ax_list.append(ax)
 
         # Make it look nice
         plt.tight_layout()
 
-        # Make a dictionary of the axes and assosiated lines
-        self.ax_dict = {'ax0': [ax0, [l0, l1]],
-                        'ax1': [ax1, [l2]    ],
-                        'ax2': [ax2, [l3]    ],
-                        'ax3': [ax3, [l4, l5]],
-                        'ax4': [ax4, [l6    ]]
-                        }
-
+        # Make a flag that will let a rearrange for the first plot, but fix
+        #  after to avoid the graphs jumping about
         self.rearange_flag = True
 
 
@@ -581,22 +544,22 @@ class GuiFigure:
     def update_plots(self, data):
         '''Updates the axes with supplied data'''
 
-        if len(data) != len(self.lines):
+        # Check that the number of lines matches the data provided
+        num_lines = np.sum([len(ax.lines) for ax in self.ax_list])
+
+        if len(data) != num_lines:
             raise ValueError('Number of data must match number of lines')
 
         # Create a counter
         n = 0
 
         # Cycle through the axis
-        for axis in self.ax_dict.values():
+        for ax in self.ax_list:
 
-            # Unpack the axis and lines
-            ax, lines = axis
-
-            # Create a flag to control is the axis is rescaled
+            # Create a flag to control if the axis is rescaled
             relim_flag = False
 
-            for line in lines:
+            for line in ax.lines:
 
                 # For each line unpack and set the data
                 x, y = data[n]
@@ -620,11 +583,49 @@ class GuiFigure:
 
             # If any data is plotted rescale the axes
             if relim_flag:
-                ax.relim()
-                ax.autoscale_view()
+                ax.axis.relim()
+                ax.axis.autoscale_view()
 
         # Make the graphs a nice layout but only for the first plot
         if self.rearange_flag:
             plt.tight_layout()
             self.rearange_flag = False
 
+class Axis():
+
+    def __init__(self, fig, gs,
+                 loc=[0,0],
+                 lines=[],
+                 ax_labels=[None, None],
+                 grid=False):
+
+        # Add the axis
+        self.axis = fig.add_subplot(gs.new_subplotspec((loc[0], loc[1]),
+                                                        rowspan=loc[2],
+                                                        colspan=loc[3]))
+
+        # Create an array to hold the lines for the axis
+        self.lines = []
+
+        # Create a flag to tell the program whether or not to add a legend
+        legend_flag = False
+
+        # Create each line for the plot
+        for line_info in lines:
+            line, = self.axis.plot([], [], **line_info)
+
+            # If there is a label turn on the legend flag
+            if 'label' in line_info: legend_flag = True
+
+            # Add the line to the lines array
+            self.lines.append(line)
+
+        # If labels are provided add a legend
+        if legend_flag: self.axis.legend()
+
+        # If gidlines are requested add these
+        if grid: self.axis.grid(ls='--')
+
+        # Set the axis labels
+        self.axis.set_xlabel(ax_labels[0])
+        self.axis.set_ylabel(ax_labels[1])

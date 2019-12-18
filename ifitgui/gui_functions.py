@@ -62,16 +62,16 @@ def analysis_loop(gui):
     for i, p in enumerate(gui.shifttable._params):
         if p != []:
             params.add(f'shift{i}', value=p[1].get(), vary=p[2].get())
-            
+
     # Check if ILS is in the fit
     if settings['ils_type'] == 'Manual':
         params.add('fwem', value=gui.widgets['fwem'].get(),
                     vary=gui.widgets['fwem_fit'].get())
-        params.add('k', value=gui.widgets['k'].get(), 
+        params.add('k', value=gui.widgets['k'].get(),
                    vary=gui.widgets['k_fit'].get())
-        params.add('a_w', value=gui.widgets['a_w'].get(), 
+        params.add('a_w', value=gui.widgets['a_w'].get(),
                    vary=gui.widgets['a_w_fit'].get())
-        params.add('a_k', value=gui.widgets['a_k'].get(), 
+        params.add('a_k', value=gui.widgets['a_k'].get(),
                    vary=gui.widgets['a_k_fit'].get())
 
     settings['gas_data'] = {}
@@ -119,12 +119,12 @@ def spectra_loop(gui, common, settings):
     for par in common['params']:
         cols += [par, f'{par}_err']
     cols += ['fit_quality']
-    
+
     # Pull the spectra type and file paths
     spec_fnames = gui.spec_fnames
     dark_fnames = gui.dark_fnames
     spec_type = gui.widgets['spec_type'].get()
-    
+
     # Make a dataframe to hold the fit results
     df = pd.DataFrame(index = np.arange(len(spec_fnames)), columns = cols)
 
@@ -194,13 +194,16 @@ def spectra_loop(gui, common, settings):
 
             # Pick the parameter to plot
             try:
+                param = gui.widgets['graph_param'].get()
                 plot_x = df['Number']
                 plot_y = df[gui.widgets['graph_param'].get()]
+                meas_od = fit_result.meas_od[param]
+                synth_od = fit_result.synth_od[param]
 
                 # Trim if required
                 if gui.widgets['scroll_flag'].get():
-                    if gui.loop > gui.widgets['scroll_amt'].get():
-                        diff = gui.loop - gui.widgets['scroll_amt'].get()
+                    if n > gui.widgets['scroll_amt'].get():
+                        diff = n - gui.widgets['scroll_amt'].get()
                         plot_x = plot_x[diff:]
                         plot_y = plot_y[diff:]
 
@@ -214,8 +217,8 @@ def spectra_loop(gui, common, settings):
                     [grid,   fit_result.fit],
                     [x,      y],
                     [grid,   fit_result.resid],
-                    [grid,   fit_result.meas_od['SO2']],
-                    [grid,   fit_result.synth_od['SO2']],
+                    [grid,   meas_od],
+                    [grid,   synth_od],
                     [plot_x, plot_y]
                     ]
 
@@ -247,8 +250,8 @@ def spectra_loop(gui, common, settings):
     except PermissionError:
 
         # Open save dialouge
-        text = 'Cannot save output: Permission Denied'
-        message = tkMessageBox.askquestion('Select new save location?',
+        text = 'Cannot save output: Permission Denied\nSelect new save location?'
+        message = tkMessageBox.askquestion('Save Error',
                                            message = text,
                                            type = 'yesno')
 
@@ -291,7 +294,7 @@ def scan_loop(gui, common, settings):
     # Create a loop counter
     gui.loop = 0
     spec_fnames = gui.spec_fnames
-    spec_type = gui.spec_type
+    spec_type = gui.widgets['spec_type'].get()
 
     logging.info('Beginning analysis loop')
     gui.status.set('Analysing')
@@ -348,7 +351,7 @@ def scan_loop(gui, common, settings):
 
                 # Update numerical outputs
                 try:
-                    key = gui.graph_param.get()
+                    key = gui.widgets['graph_param'].get()
                     gui.last_amt.set(f'{df[key][n]:.03g}')
                     gui.last_err.set(f'{df[key+"_err"][n]:.03g}')
 
@@ -361,8 +364,11 @@ def scan_loop(gui, common, settings):
 
                     # Pick the parameter to plot
                     try:
+                        param = gui.widgets['graph_param'].get()
                         plot_x = df['Number']
                         plot_y = df[gui.widgets['graph_param'].get()]
+                        meas_od = fit_result.meas_od[param]
+                        synth_od = fit_result.synth_od[param]
 
                         # Trim if required
                         if gui.widgets['scroll_flag'].get():
@@ -381,8 +387,8 @@ def scan_loop(gui, common, settings):
                             [grid,   fit_result.fit],
                             [x,      y],
                             [grid,   fit_result.resid],
-                            [grid,   fit_result.meas_od['SO2']],
-                            [grid,   fit_result.synth_od['SO2']],
+                            [grid,   meas_od],
+                            [grid,   synth_od],
                             [plot_x, plot_y]
                             ]
 

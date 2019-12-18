@@ -75,7 +75,7 @@ class myGUI(tk.Frame):
 
         # Close program on closure of window
         self.root.protocol("WM_DELETE_WINDOW", self.handler)
-        
+
         # Make a dictionary to hold the gui widgets
         self.widgets = {}
 
@@ -204,8 +204,8 @@ class myGUI(tk.Frame):
 
         # Set the save path
         self.widgets['save_path'] = tk.StringVar(self, value='')
-        ttk.Entry(setup_frame, 
-                  font=NORM_FONT, 
+        ttk.Entry(setup_frame,
+                  font=NORM_FONT,
                   width=30,
                   text=self.widgets['save_path']
                   ).grid(row=4, column=0, padx=5, pady=5, sticky='W',
@@ -218,8 +218,38 @@ class myGUI(tk.Frame):
 
 #=============================== Create graphs ================================
 
+        # Set up the axes
+        axes = [{'loc': [0,0,1,1],
+                 'grid': True,
+                 'ax_labels': [None, 'Intensity'],
+                 'lines': [{'marker':'o', 'ls':'', 'c':'C0', 'label':'Data', 'ms':4},
+                           {'lw':1.5, 'c':'C1', 'label':'Fit'}]},
+                {'loc': [0,1,1,1],
+                 'grid': True,
+                 'ax_labels': [None, 'Intensity'],
+                 'lines': [{}]},
+                {'loc': [1,0,1,1],
+                 'grid': True,
+                 'ax_labels': ['Wavelength', 'Fit Residual'],
+                 'lines': [{'marker':'o', 'ms':4}]},
+                {'loc': [1,1,1,1],
+                 'grid': True,
+                 'ax_labels': ['Wavelength', 'Optical Depth'],
+                 'lines': [{'marker':'o', 'c':'C0', 'label':'Mease OD', 'ms':4},
+                           {'lw':1.5, 'c':'C1', 'label':'Synth OD'}]},
+                {'loc': [2,0,1,2],
+                 'grid': True,
+                 'ax_labels': ['Spectrum Number', 'Value'],
+                 'lines': [{'marker':'o', 'c':'C0', 'ms':4}]}
+                ]
+
         # Build the figure
-        self.figure = GuiFigure()
+        self.figure = GuiFigure(grid = [3,2],
+                                fig_kwargs={'figsize':[7,5]},
+                                axes_info = axes)
+
+        # Build the figure
+        #self.figure = GuiFigure()
 
         # Create the canvas to hold the graph in the GUI
         self.canvas = FigureCanvasTkAgg(self.figure.fig, graph_frame)
@@ -514,21 +544,21 @@ class myGUI(tk.Frame):
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
 
         row_n += 1
-                   
+
         ttk.Separator(spect_frame, orient='horizontal'
-                          ).grid(column=0,
-                                 row=row_n,
-                                 sticky='ew',
-                                 padx=10,
-                                 pady=0,
-                                 columnspan=3)
+                      ).grid(column=0,
+                             row=row_n,
+                             sticky='ew',
+                             padx=10,
+                             pady=0,
+                             columnspan=3)
 
         row_n += 1
-        
+
         # Make a frame to hold ILS settings
         ils_frame = tk.LabelFrame(spect_frame, text = 'Super Gaussian',
                                   font = LARGE_FONT)
-        ils_frame.grid(row=row_n, column=0, padx=10, pady=10, sticky='NW', 
+        ils_frame.grid(row=row_n, column=0, padx=10, pady=10, sticky='NW',
                        columnspan=3)
 
         # Control bound of goodness of fit
@@ -540,7 +570,7 @@ class myGUI(tk.Frame):
                    input_type = 'Entry',
                    width = 12)
         self.widgets['fwem_fit'] = tk.BooleanVar(ils_frame)
-        ttk.Checkbutton(ils_frame, text='Fit?', 
+        ttk.Checkbutton(ils_frame, text='Fit?',
                         variable=self.widgets['fwem_fit']
                         ).grid(row=0, column=2)
 
