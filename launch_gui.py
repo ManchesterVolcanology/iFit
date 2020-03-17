@@ -174,6 +174,7 @@ class myGUI(tk.Frame):
                    var = self.widgets['spec_type'],
                    input_type = 'OptionMenu',
                    options = spec_options,
+                   width=12,
                    sticky = 'W')
 
         self.spec_fnames = []
@@ -367,11 +368,7 @@ class myGUI(tk.Frame):
 
         # Create row counters
         row_n = 0
-        col_n = 1
-
-        # Create separator
-        sep = ttk.Separator(model_frame, orient='vertical')
-        sep.grid(column=0, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
+        col_n = 0
 
         self.widgets['w_lo'] = tk.DoubleVar(model_frame, value = 310)
         make_input(frame = model_frame,
@@ -397,8 +394,33 @@ class myGUI(tk.Frame):
                   ).grid(row = row_n, column = col_n+2, padx=5, pady=5)
         row_n += 1
 
+        # Set the stray light range
+        self.widgets['s_lo'] = tk.DoubleVar(model_frame, value = 280)
+        make_input(frame = model_frame,
+                   text = 'Stray light\nRange:',
+                   row = row_n, column = col_n,
+                   var = self.widgets['s_lo'],
+                   input_type = 'Spinbox',
+                   width = 8,
+                   sticky = 'E')
+        ttk.Label(model_frame, text = 'nm', font = NORM_FONT
+                  ).grid(row = row_n, column = col_n+2, padx=5, pady=5)
+        row_n += 1
+
+        self.widgets['s_hi'] = tk.DoubleVar(model_frame, value = 290)
+        make_input(frame = model_frame,
+                   text = 'to:',
+                   row = row_n, column = col_n,
+                   var = self.widgets['s_hi'],
+                   input_type = 'Spinbox',
+                   width = 8,
+                   sticky = 'E')
+        ttk.Label(model_frame, text = 'nm', font = NORM_FONT
+                  ).grid(row = row_n, column = col_n+2, padx=5, pady=5)
+        row_n += 1
+
         # Set model grid padding
-        self.widgets['model_padding'] = tk.DoubleVar(model_frame, value = 1.0)
+        self.widgets['model_padding'] = tk.DoubleVar(model_frame, value=1.0)
         make_input(frame = model_frame,
                    text = 'Model Grid\nPadding (nm):',
                    row = row_n, column = col_n,
@@ -424,10 +446,10 @@ class myGUI(tk.Frame):
 
         # Create separator
         sep = ttk.Separator(model_frame, orient='vertical')
-        sep.grid(column=4, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
+        sep.grid(column=3, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
 
         # Control whether or not to remove dark spectra
-        self.widgets['dark_flag'] = tk.BooleanVar(model_frame, value = True)
+        self.widgets['dark_flag'] = tk.BooleanVar(model_frame, value=True)
         make_input(frame = model_frame,
                    text = 'Remove Dark\nSpectrum?',
                    row = row_n, column = col_n,
@@ -436,7 +458,7 @@ class myGUI(tk.Frame):
         row_n += 1
 
         # Control whether or not to remove flat spectra
-        self.widgets['flat_flag'] = tk.BooleanVar(model_frame, value = True)
+        self.widgets['flat_flag'] = tk.BooleanVar(model_frame, value=True)
         make_input(frame = model_frame,
                    text = 'Remove Flat\nSpectrum?',
                    row = row_n, column = col_n,
@@ -445,7 +467,7 @@ class myGUI(tk.Frame):
         row_n += 1
 
         # Control whether to correct for stray light
-        self.widgets['stray_flag'] = tk.BooleanVar(model_frame, value = True)
+        self.widgets['stray_flag'] = tk.BooleanVar(model_frame, value=True)
         make_input(frame = model_frame,
                    text = 'Remove Stray\nLight?',
                    row = row_n, column = col_n,
@@ -454,22 +476,37 @@ class myGUI(tk.Frame):
 
         # Create separator
         sep = ttk.Separator(model_frame, orient='vertical')
-        sep.grid(column=7, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
+        sep.grid(column=6, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
 
         row_n = 0
         col_n += 3
 
         # Control whether to update fit parameter with the last fit values
-        self.widgets['update_flag'] = tk.BooleanVar(model_frame, value = True)
+        self.widgets['update_flag'] = tk.BooleanVar(model_frame, value=True)
         make_input(frame = model_frame,
                    text = 'Auto-update\nfit parameters?',
                    row = row_n, column = col_n,
                    var = self.widgets['update_flag'],
                    input_type = 'Checkbutton')
         row_n += 1
+        
+        # Create entry to select the residual type
+        resid_options = ['Absolute', 'Absolute', 'Percentage']
+
+        self.widgets['resid_type'] = tk.StringVar(model_frame, 
+                                                  value='Absolute')
+        make_input(frame = model_frame,
+                   text = 'Residual Display:',
+                   row = row_n, column = col_n,
+                   var = self.widgets['resid_type'],
+                   input_type = 'OptionMenu',
+                   options = resid_options,
+                   width=10,
+                   sticky = 'W')
+        row_n += 1
 
         # Control bound of goodness of fit
-        self.widgets['resid_limit'] = tk.DoubleVar(model_frame, value = 10)
+        self.widgets['resid_limit'] = tk.DoubleVar(model_frame, value=10)
         make_input(frame = model_frame,
                    text = 'Good Fit\nBound (%):',
                    row = row_n, column = col_n,
@@ -493,6 +530,7 @@ class myGUI(tk.Frame):
                    var = self.widgets['ils_mode'],
                    input_type = 'OptionMenu',
                    options = ils_options,
+                   width=10,
                    sticky = 'W')
 
         row_n += 1
@@ -556,12 +594,12 @@ class myGUI(tk.Frame):
         row_n += 1
 
         # Make a frame to hold ILS settings
-        ils_frame = tk.LabelFrame(spect_frame, text = 'Super Gaussian',
+        ils_frame = tk.LabelFrame(spect_frame, text = 'ILS Parameters',
                                   font = LARGE_FONT)
         ils_frame.grid(row=row_n, column=0, padx=10, pady=10, sticky='NW',
                        columnspan=3)
 
-        # Control bound of goodness of fit
+        # Control the spectrometer ILS width
         self.widgets['fwem'] = tk.DoubleVar(ils_frame)
         make_input(frame = ils_frame,
                    text = 'FWEM:',
@@ -574,7 +612,7 @@ class myGUI(tk.Frame):
                         variable=self.widgets['fwem_fit']
                         ).grid(row=0, column=2)
 
-        # Control bound of goodness of fit
+        # Control the spectrometer ILS k value
         self.widgets['k'] = tk.DoubleVar(ils_frame)
         make_input(frame = ils_frame,
                    text = 'k:',
@@ -586,7 +624,7 @@ class myGUI(tk.Frame):
         ttk.Checkbutton(ils_frame, text='Fit?', variable=self.widgets['k_fit']
                         ).grid(row=1, column=2)
 
-        # Control bound of goodness of fit
+        # Control the spectrometer ILS a_w value
         self.widgets['a_w'] = tk.DoubleVar(ils_frame)
         make_input(frame = ils_frame,
                    text = 'a_w:',
@@ -598,7 +636,7 @@ class myGUI(tk.Frame):
         ttk.Checkbutton(ils_frame, text='Fit?', variable=self.widgets['a_w_fit']
                         ).grid(row=2, column=2)
 
-        # Control bound of goodness of fit
+        # Control the spectrometer ILS a_k value
         self.widgets['a_k'] = tk.DoubleVar(ils_frame)
         make_input(frame = ils_frame,
                    text = 'a_k:',

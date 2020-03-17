@@ -15,7 +15,7 @@ import tkinter.messagebox as tkMessageBox
 
 from ifit.parameters import Parameters
 from ifit.model_setup import model_setup
-from ifit.spectral_analysis import pre_process, fit_spectrum
+from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import read_spectrum, average_spectra, read_scan
 
 #==============================================================================
@@ -100,19 +100,22 @@ def analysis_loop(gui):
     common['params'] = params
     common['x0'] = params.valueslist()
 
+    # Generate the analyser
+    a = Analyser(common)
+
     # Begin the analysis
     spec_list = ['iFit','Master.Scope','Spectrasuite','Basic']
     if gui.widgets['spec_type'].get() in spec_list:
-        spectra_loop(gui, common, settings)
+        spectra_loop(gui, a, common, settings)
 
     elif gui.widgets['spec_type'].get() in ['FLAME', 'OpenSO2']:
-        scan_loop(gui, common, settings)
+        scan_loop(gui, a, common, settings)
 
 #==============================================================================
 #================================ spectra_loop ================================
 #==============================================================================
 
-def spectra_loop(gui, common, settings):
+def spectra_loop(gui, a, common, settings):
 
     # Make a list of column names
     cols = ['File', 'Number', 'Time']
@@ -157,19 +160,15 @@ def spectra_loop(gui, common, settings):
         logging.debug(f'Reading in spectrum {fname}')
         x, y, info, read_err = read_spectrum(fname, spec_type)
 
-        # Pre-process the spectrum before the fit
-        logging.debug(f'Pre-processing spectrum {fname}')
-        spectrum = pre_process([x,y], common)
-        grid, spec = spectrum
-
         # Fit the spectrum
         logging.debug(f'Fitting spectrum {fname}')
-        fit_result = fit_spectrum(spectrum,
-                                  common,
-                                  update_params=gui.widgets['update_flag'].get(),
-                                  resid_limit=gui.widgets['resid_limit'].get(),
-                                  calc_od = [gui.widgets['graph_param'].get()]
-                                  )
+        fit_result = a.fit_spectrum([x,y], 
+                                    gui.widgets['update_flag'].get(),
+                                    gui.widgets['resid_limit'].get(),
+                                    gui.widgets['resid_type'].get(),
+                                    None,
+                                    [gui.widgets['graph_param'].get()]
+                                    )
 
         # Add the the results dataframe
         row = [fname, info['spec_no'], info['time']]
@@ -202,24 +201,26 @@ def spectra_loop(gui, common, settings):
 
                 # Trim if required
                 if gui.widgets['scroll_flag'].get():
-                    if n > gui.widgets['scroll_amt'].get():
-                        diff = n - gui.widgets['scroll_amt'].get()
+                    if gui.loop > gui.widgets['scroll_amt'].get():
+                        diff = gui.loop - gui.widgets['scroll_amt'].get()
                         plot_x = plot_x[diff:]
                         plot_y = plot_y[diff:]
 
             except KeyError:
                 plot_x = []
                 plot_y = []
+                meas_od = []
+                synth_od = []
 
             # Organise data to plot
             #        x_data, y_data
-            data = [[grid,   spec],
-                    [grid,   fit_result.fit],
-                    [x,      y],
-                    [grid,   fit_result.resid],
-                    [grid,   meas_od],
-                    [grid,   synth_od],
-                    [plot_x, plot_y]
+            data = [[fit_result.grid, fit_result.spec ],
+                    [fit_result.grid, fit_result.fit  ],
+                    [x,               y               ],
+                    [fit_result.grid, fit_result.resid],
+                    [fit_result.grid, meas_od         ],
+                    [fit_result.grid, synth_od        ],
+                    [plot_x,          plot_y          ]
                     ]
 
             gui.figure.update_plots(data)
@@ -266,7 +267,7 @@ def spectra_loop(gui, common, settings):
 #================================= scan_loop ==================================
 #==============================================================================
 
-def scan_loop(gui, common, settings):
+def scan_loop(gui, a, common, settings):
 
     # Make a list of column names
     cols = ['Number', 'Time', 'Motor_Pos']
@@ -326,19 +327,15 @@ def scan_loop(gui, common, settings):
                 if spec_type == 'OpenSO2':
                     n_aq, h, m, s, motor_pos, int_t, coadds = info_block[n+1]
 
-                # Pre-process the spectrum before the fit
-                logging.debug(f'Pre-processing spectrum {fname}')
-                spectrum = pre_process([x,y], common)
-                grid, spec = spectrum
-
                 # Fit the spectrum
                 logging.debug(f'Fitting spectrum {fname}')
-                fit_result = fit_spectrum(spectrum,
-                                          common,
-                                          gui.widgets['update_flag'].get(),
-                                          gui.widgets['resid_limit'].get(),
-                                          [gui.widgets['graph_param'].get()]
-                                          )
+                fit_result = a.fit_spectrum([x,y], 
+                                            gui.widgets['update_flag'].get(),
+                                            gui.widgets['resid_limit'].get(),
+                                            gui.widgets['resid_type'].get(),
+                                            None,
+                                            [gui.widgets['graph_param'].get()]
+                                            )
 
                 # Add to the results dataframe
                 time = dt.time(int(h), int(m), int(s))
@@ -380,16 +377,19 @@ def scan_loop(gui, common, settings):
                     except KeyError:
                         plot_x = []
                         plot_y = []
+                        meas_od = np.full(fit_result.grid.shape, np.nan)
+                        synth_od = np.full(fit_result.grid.shape, np.nan)
+                        
 
                     # Organise data to plot
-                    #        x_data, y_data
-                    data = [[grid,   spec],
-                            [grid,   fit_result.fit],
-                            [x,      y],
-                            [grid,   fit_result.resid],
-                            [grid,   meas_od],
-                            [grid,   synth_od],
-                            [plot_x, plot_y]
+                    #        x_data,          y_data
+                    data = [[fit_result.grid, fit_result.spec ],
+                            [fit_result.grid, fit_result.fit  ],
+                            [x,               y               ],
+                            [fit_result.grid, fit_result.resid],
+                            [fit_result.grid, meas_od         ],
+                            [fit_result.grid, synth_od        ],
+                            [plot_x,          plot_y          ] 
                             ]
 
                     gui.figure.update_plots(data)

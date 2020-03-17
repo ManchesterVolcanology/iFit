@@ -16,7 +16,14 @@ from ifit.make_ils import make_ils
 class Analyser():
     
     '''
+    Object to perform the spectral analysis
     
+    Parameters
+    ----------
+    
+    common : dict
+        Common dictionary of parameters and variables passed from the main
+        program to subroutines
     '''
     
     def __init__(self, common):
@@ -34,7 +41,8 @@ class Analyser():
         fit, correcting for the dark and flat spectrum, stray light and 
         extracting the fit wavelength window
     
-        **Parameters**
+        Parameters
+        ----------
     
         spectrum : 2D numpy array
             The spectrum in [wavelength, intensities]
@@ -43,7 +51,8 @@ class Analyser():
             Common dictionary of parameters and variables passed from the main
             program to subroutines
     
-        **Returns**
+        Returns
+        -------
     
         processed_spec : 2D numpy array
             The processed spectrum, corrected for dark, flat, stray light and 
@@ -83,7 +92,45 @@ class Analyser():
                      pre_process=True):
         
         '''
+        Fit the supplied spectrum using a non-linear least squares minimisation
         
+        Parameters
+        ----------
+        
+        spectrum : tuple
+            The measured spectrum in the form [wavelengths, intensities]
+            
+        update_params : bool, optional
+            Flag whether to update the initial fit parameters upon a sucessful
+            fit. Can speed up fitting for large datasets but requires robust
+            quality checks to avoid getting stuck
+            
+        resid_limit : float, optional, default=None
+            Sets the maximum residual value to allow the fit initial parameters 
+            to be updated. Ignored if None.
+            
+        resid_type : str, optional, default='Percentage'
+            Controls how the residual is calculated:
+                - 'Percentage': calculated as (spec - fit) / spec * 100
+                - 'Absolute':   calculated as spec - fit
+                
+        sat_limit : float, optional, default=None
+            Sets the maximum intensity value to allow the fit initial 
+            parameters to be updated. Ignored if None.
+        
+        calc_od : list, optional, default=[]
+            List of parameters to calculate the optical depth for. 
+            
+        pre_process : bool, optional, default=True
+            Flag to control whether the supplied spectrum requires 
+            pre-prossessing or not
+            
+        Returns
+        -------
+        
+        fit_result : ifit.spectral_analysis.FitResult object
+            An object that contains the fit results 
+                
         '''
         
         if pre_process:
@@ -276,6 +323,47 @@ class Analyser():
         
 class FitResult():
 
+    '''
+    Contains the fit results including:
+        - params:    the Parameters object with the fitted values
+        - grid:      the cut wavelength window
+        - spec:      the cut intensity spectrum
+        - popt:      the optimised fit results (as a list)
+        - perr:      the fit errors (as a list)
+        - nerr:      the error code of the fit. 1 if successful, 0 if failed
+        - fwd_model: the forward model used to complete the fit
+        - meas_od:   dictionary of the measured optical depths
+        - synth_od:  dictionary of the synthetic optical depths
+        - fit:       the final fitted spectrum
+        - resid:     the fit residual
+        
+    Parameters
+    ----------
+    
+    spectrum : tuple
+        The fitted spectrum in the form [wavelengths, intensities]
+        
+    popt : list
+        The optimised fit parameter values
+        
+    perr : list
+        The calculated parameter fit errors
+        
+    nerr : int
+        Signals success of the fit. 1 = successful, 0 = failed
+        
+    fwd_model : function
+        The forward model used to perform the fit
+        
+    common : dictionary
+        Common dictionary of program variables
+        
+    resid_type : str
+        Controls how the fit residual is calculated:
+            - 'Percentage': calculated as (spec - fit) / spec * 100
+            - 'Absolute':   calculated as spec - fit
+    '''
+    
     def __init__(self, spectrum, popt, perr, nerr, fwd_model, common, 
                  resid_type):
         
@@ -379,18 +467,4 @@ class FitResult():
         # Add to self
         self.meas_od[par_name] = -np.log(np.divide(self.spec-offset, fit))
         self.synth_od[par_name] = par_od
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
         

@@ -282,7 +282,7 @@ class ParamTable(tk.Frame):
         # Add a browse button
         b_button = ttk.Button(self, text = "Browse", width = 8,
                    command = lambda: select_files(single_file = True,
-                                                  holder = xpath))
+                                                  holder = xpath_h))
         b_button.grid(row=self.row, column=col_n, padx=5, pady=5,
                       sticky='W')
         col_n += 1
