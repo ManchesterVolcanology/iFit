@@ -36,6 +36,8 @@ def analysis_loop(gui):
     logging.info('Reading model settings')
     settings = {'w_lo':          gui.widgets['w_lo'].get(),
                 'w_hi':          gui.widgets['w_hi'].get(),
+                's_lo':          gui.widgets['s_lo'].get(),
+                's_hi':          gui.widgets['s_hi'].get(),
                 'model_spacing': gui.widgets['model_spacing'].get(),
                 'model_padding': gui.widgets['model_padding'].get(),
                 'dark_flag':     gui.widgets['dark_flag'].get(),
@@ -142,7 +144,8 @@ def spectra_loop(gui, a, common, settings):
 
     if common['stray_flag']:
         logging.info('Calculating the stray light window')
-        common['stray_idx'] = np.where(np.logical_and(x > 280,  x < 290))
+        common['stray_idx'] = np.where(np.logical_and(x > settings['s_lo'],  
+                                                      x < settings['s_hi']))
 
     # Create a loop counter
     gui.loop = 0
