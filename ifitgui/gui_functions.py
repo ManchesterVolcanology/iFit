@@ -4,7 +4,7 @@ Created on Fri Nov  1 14:36:03 2019
 
 @author: mqbpwbe2
 """
-
+import time
 import os
 import logging
 import numpy as np
@@ -104,7 +104,9 @@ def analysis_loop(gui):
 
     # Generate the analyser
     a = Analyser(common)
-
+    
+    gui.start_time = time.time()
+    
     # Begin the analysis
     spec_list = ['iFit','Master.Scope','Spectrasuite','Basic']
     if gui.widgets['spec_type'].get() in spec_list:
@@ -246,6 +248,9 @@ def spectra_loop(gui, a, common, settings):
         # Update the loop counter
         gui.loop += 1
 
+    # Report the time taken to analyse
+    gui.end_time = time.time()
+    logging.info(f'Analysis time: {gui.end_time-gui.start_time:.02f}')
 
     try:
         # Save the results

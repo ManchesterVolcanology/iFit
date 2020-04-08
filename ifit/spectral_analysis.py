@@ -76,7 +76,7 @@ class Analyser():
     
         # Divide by flat spectrum
         if self.common['flat_flag'] == True:
-            spec = np.divide(spec, self.common['flat'])
+            spec = np.multiply(spec, self.common['flat'])
     
         if 'solar_resid' in self.common.keys():
             spec = np.subtract(spec, self.common['solar_resid'])
