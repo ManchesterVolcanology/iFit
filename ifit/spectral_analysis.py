@@ -170,7 +170,7 @@ class Analyser():
                 if resid_limit != None and fit_result.resid.max() > resid_limit:
                     logging.info('High residual detected')
                     reset_flag = True
-                    self.nerr = 2
+                    fit_result.nerr = 2
                         
                 # Check for spectrum low light
                 if int_limit != None and min(spec) <= int_limit[0]:
