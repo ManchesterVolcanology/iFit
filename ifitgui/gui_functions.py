@@ -125,7 +125,7 @@ def spectra_loop(gui, a, common, settings):
     cols = ['File', 'Number', 'Time']
     for par in common['params']:
         cols += [par, f'{par}_err']
-    cols += ['fit_quality']
+    cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 
     # Pull the spectra type and file paths
     spec_fnames = gui.spec_fnames
@@ -179,7 +179,8 @@ def spectra_loop(gui, a, common, settings):
         row = [fname, info['spec_no'], info['time']]
         for par in fit_result.params.values():
             row += [par.fit_val, par.fit_err]
-        row += [fit_result.nerr]
+        row += [fit_result.nerr, fit_result.int_lo, fit_result.int_hi,
+                fit_result.int_av]
 
         df.loc[gui.loop] = row
 

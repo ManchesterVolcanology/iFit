@@ -88,7 +88,7 @@ class Analyser():
 #==============================================================================
     
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
-                     resid_type='Percentage', sat_limit=None, calc_od=[], 
+                     resid_type='Percentage', int_limit=None, calc_od=[], 
                      pre_process=True):
         
         '''
@@ -114,9 +114,9 @@ class Analyser():
                 - 'Percentage': calculated as (spec - fit) / spec * 100
                 - 'Absolute':   calculated as spec - fit
                 
-        sat_limit : float, optional, default=None
-            Sets the maximum intensity value to allow the fit initial 
-            parameters to be updated. Ignored if None.
+        int_limit : tuple of float, optional, default=None
+            Sets the minimu and maximum intensity value for the fit window to 
+            allow the fit initial parameters to be updated. Ignored if None.
         
         calc_od : list, optional, default=[]
             List of parameters to calculate the optical depth for. 
@@ -164,18 +164,28 @@ class Analyser():
             # Update the initial guess
             if update_params:
                 
+                reset_flag = False
+                                
                 # Check the residual level
                 if resid_limit != None and fit_result.resid.max() > resid_limit:
-                    logging.info('High residual, resetting fit parameters')
-                    self.p0 = self.common['params'].fittedvalueslist()
+                    logging.info('High residual detected')
+                    reset_flag = True
                     self.nerr = 2
                         
+                # Check for spectrum low light
+                if int_limit != None and min(spec) <= int_limit[0]:
+                    logging.info('Low intensity detected')
+                    reset_flag = True
+                        
                 # Check for spectrum saturation
-                elif sat_limit != None and max(spec) >= sat_limit:
-                    logging.info('Spectrum saturating, resetting fit parameters')
-                    self.p0 = self.common['params'].fittedvalueslist()
-                    self.nerr = 3
+                if int_limit != None and max(spec) >= int_limit[1]:
+                    logging.info('High intensity detected')
+                    reset_flag = True
                 
+                # Reset the parameters if the fit was ok
+                if reset_flag:
+                    logging.info('Resetting initial guess parameters')
+                    self.p0 = self.common['params'].fittedvalueslist()
                 else:
                     self.p0 = popt
     
@@ -378,6 +388,11 @@ class FitResult():
         self.fwd_model = fwd_model
         self.meas_od = {}
         self.synth_od = {}
+        
+        # Calculate the spectrum intensity values
+        self.int_lo = np.min(self.spec)
+        self.int_hi = np.max(self.spec)
+        self.int_av = np.average(self.spec)
         
         # Add the fit results to each parameter
         n = 0
