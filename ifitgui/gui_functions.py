@@ -282,7 +282,7 @@ def scan_loop(gui, a, common, settings):
     cols = ['Number', 'Time', 'Motor_Pos']
     for par in common['params']:
         cols += [par, f'{par}_err']
-    cols += ['fit_quality']
+    cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 
     # Get the wavelength grid of the spectrometer
     x = np.loadtxt(gui.widgets['wl_calib'].get())
@@ -351,7 +351,8 @@ def scan_loop(gui, a, common, settings):
                 row = [n_aq, time, motor_pos]
                 for par in fit_result.params.values():
                     row += [par.fit_val, par.fit_err]
-                row += [fit_result.nerr]
+                row += [fit_result.nerr, fit_result.int_lo, fit_result.int_hi,
+                        fit_result.int_av]
 
                 df.loc[n] = row
 
