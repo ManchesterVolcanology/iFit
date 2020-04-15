@@ -80,7 +80,7 @@ class Analyser():
     
         if 'solar_resid' in self.common.keys():
             spec = np.subtract(spec, self.common['solar_resid'])
-    
+
         return np.row_stack([grid, spec])
     
 #==============================================================================
@@ -132,7 +132,7 @@ class Analyser():
             An object that contains the fit results 
                 
         '''
-        
+
         if pre_process:
             spectrum = self.pre_process(spectrum)
         
@@ -328,7 +328,7 @@ class Analyser():
         # Interpolate onto measurement wavelength grid
         fit = griddata(shift_model_grid, F_conv, x, method='cubic')
     
-        return fit  
+        return fit
         
         
 class FitResult():

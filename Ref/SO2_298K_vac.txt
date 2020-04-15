@@ -1,3 +1,17 @@
+# SO2 absorption cross section - 298 K (corrected to vacuum wavelengths!)
+#
+# ref : 1/ Fourier Transform measurements of SO2 absorption cross sections: I. Temperature 
+#       dependence in the 24 000 – 29 000 cm-1 (345-420 nm) region 
+#       C. Hermans, A.C. Vandaele, and S. Fally
+#       submitted to JQSRT (2008)
+#
+#       2/ Fourier Transform measurements of SO2 absorption cross sections: II. Temperature 
+#       dependence in the 29 000 – 44 000 cm-1 (227-345 nm) region 
+#       A.C. Vandaele, C. Hermans, and S. Fally
+#       submitted to JQSRT (2009)
+#
+# col 1 : wavelength (nm) (in vacuum)
+# col 2 : abs cross section (cm2/molec)
 2.273412197865884536e+02 1.505325900000000081e-19
 2.273438032682560674e+02 1.492728100000000091e-19
 2.273463868086411708e+02 1.471549199999999996e-19
