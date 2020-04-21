@@ -172,8 +172,8 @@ def spectra_loop(gui, a, common, settings):
                                     gui.widgets['resid_limit'].get(),
                                     gui.widgets['resid_type'].get(),
                                     None,
-                                    [gui.widgets['graph_param'].get()]
-                                    )
+                                    [gui.widgets['graph_param'].get()],
+                                    gui.widgets['interp_method'].get())
 
         # Add the the results dataframe
         row = [fname, info['spec_no'], info['time']]
@@ -343,7 +343,8 @@ def scan_loop(gui, a, common, settings):
                                             gui.widgets['resid_limit'].get(),
                                             gui.widgets['resid_type'].get(),
                                             None,
-                                            [gui.widgets['graph_param'].get()]
+                                            [gui.widgets['graph_param'].get()],
+                                            gui.widgets['interp_method'].get()
                                             )
 
                 # Add to the results dataframe

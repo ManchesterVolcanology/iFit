@@ -76,7 +76,7 @@ class Analyser():
     
         # Divide by flat spectrum
         if self.common['flat_flag'] == True:
-            spec = np.multiply(spec, self.common['flat'])
+            spec = np.divide(spec, self.common['flat'])
     
         if 'solar_resid' in self.common.keys():
             spec = np.subtract(spec, self.common['solar_resid'])
@@ -89,7 +89,7 @@ class Analyser():
     
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
                      resid_type='Percentage', int_limit=None, calc_od=[], 
-                     pre_process=True):
+                     pre_process=True, interp_method='cubic'):
         
         '''
         Fit the supplied spectrum using a non-linear least squares minimisation
@@ -125,6 +125,11 @@ class Analyser():
             Flag to control whether the supplied spectrum requires 
             pre-prossessing or not
             
+        interp_method : str, optional, default="cubic"
+            Controls whether the interpolation at the end of the forward model
+            is cubic or linear. Must be either "cubic", "linear" or "nearest".
+            See scipy.interpolate.griddata for details.
+            
         Returns
         -------
         
@@ -133,8 +138,12 @@ class Analyser():
                 
         '''
 
+        # Check is spectrum requires preprocessing
         if pre_process:
             spectrum = self.pre_process(spectrum)
+        
+        # Define the interpolation mode
+        self.common['interp_method'] = interp_method
         
         # Unpack the spectrum
         grid, spec = spectrum
@@ -326,7 +335,8 @@ class Analyser():
         shift_model_grid = np.add(self.common['model_grid'], wl_shift)
     
         # Interpolate onto measurement wavelength grid
-        fit = griddata(shift_model_grid, F_conv, x, method='cubic')
+        fit = griddata(shift_model_grid, F_conv, x, 
+                       method=self.common['interp_method'])
     
         return fit
         

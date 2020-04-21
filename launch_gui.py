@@ -515,6 +515,20 @@ class myGUI(tk.Frame):
                    width = 12)
         row_n += 1
 
+        # Control the interpolation mode
+        interp_options = ['cubic', 'cubic', 'linear']
+        self.widgets['interp_method'] = tk.StringVar(model_frame, 
+                                                     value='cubic')
+        make_input(frame = model_frame,
+                   text = 'Interpolation\nMethod:',
+                   row = row_n, column = col_n,
+                   var = self.widgets['interp_method'],
+                   input_type = 'OptionMenu',
+                   options = interp_options,
+                   width=10,
+                   sticky = 'W')
+        row_n += 1
+
 #=========================== Spectrometer Settings ============================
 
         # Create a row counter
