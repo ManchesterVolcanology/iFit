@@ -489,11 +489,11 @@ class myGUI(tk.Frame):
                    var = self.widgets['update_flag'],
                    input_type = 'Checkbutton')
         row_n += 1
-        
+
         # Create entry to select the residual type
         resid_options = ['Absolute', 'Absolute', 'Percentage']
 
-        self.widgets['resid_type'] = tk.StringVar(model_frame, 
+        self.widgets['resid_type'] = tk.StringVar(model_frame,
                                                   value='Absolute')
         make_input(frame = model_frame,
                    text = 'Residual Display:',
@@ -517,7 +517,7 @@ class myGUI(tk.Frame):
 
         # Control the interpolation mode
         interp_options = ['cubic', 'cubic', 'linear']
-        self.widgets['interp_method'] = tk.StringVar(model_frame, 
+        self.widgets['interp_method'] = tk.StringVar(model_frame,
                                                      value='cubic')
         make_input(frame = model_frame,
                    text = 'Interpolation\nMethod:',
@@ -738,7 +738,7 @@ class myGUI(tk.Frame):
         # Set parameter to graph
         self.widgets['graph_param'] = tk.StringVar(figure_frame)
         make_input(frame = figure_frame,
-                   text = 'Paramater\nto graph:',
+                   text = 'Parameter\nto graph:',
                    row = row_n, column = col_n,
                    var = self.widgets['graph_param'],
                    input_type = 'Entry',
@@ -781,7 +781,7 @@ class myGUI(tk.Frame):
     def handler(self):
 
         # Turn on stopping flag
-        self.stop_flag = True
+        self.stop_flag = False
 
         # Open save dialouge
         text = 'Would you like to\nsave the settings?'

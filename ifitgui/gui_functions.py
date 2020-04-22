@@ -104,9 +104,9 @@ def analysis_loop(gui):
 
     # Generate the analyser
     a = Analyser(common)
-    
+
     gui.start_time = time.time()
-    
+
     # Begin the analysis
     spec_list = ['iFit','Master.Scope','Spectrasuite','Basic']
     if gui.widgets['spec_type'].get() in spec_list:
@@ -146,7 +146,7 @@ def spectra_loop(gui, a, common, settings):
 
     if common['stray_flag']:
         logging.info('Calculating the stray light window')
-        common['stray_idx'] = np.where(np.logical_and(x > settings['s_lo'],  
+        common['stray_idx'] = np.where(np.logical_and(x > settings['s_lo'],
                                                       x < settings['s_hi']))
 
     # Create a loop counter
@@ -167,12 +167,13 @@ def spectra_loop(gui, a, common, settings):
 
         # Fit the spectrum
         logging.debug(f'Fitting spectrum {fname}')
-        fit_result = a.fit_spectrum([x,y], 
+        fit_result = a.fit_spectrum([x,y],
                                     gui.widgets['update_flag'].get(),
                                     gui.widgets['resid_limit'].get(),
                                     gui.widgets['resid_type'].get(),
                                     None,
                                     [gui.widgets['graph_param'].get()],
+                                    True,
                                     gui.widgets['interp_method'].get())
 
         # Add the the results dataframe
@@ -338,12 +339,13 @@ def scan_loop(gui, a, common, settings):
 
                 # Fit the spectrum
                 logging.debug(f'Fitting spectrum {fname}')
-                fit_result = a.fit_spectrum([x,y], 
+                fit_result = a.fit_spectrum([x,y],
                                             gui.widgets['update_flag'].get(),
                                             gui.widgets['resid_limit'].get(),
                                             gui.widgets['resid_type'].get(),
                                             None,
                                             [gui.widgets['graph_param'].get()],
+                                            True,
                                             gui.widgets['interp_method'].get()
                                             )
 
@@ -390,7 +392,7 @@ def scan_loop(gui, a, common, settings):
                         plot_y = []
                         meas_od = np.full(fit_result.grid.shape, np.nan)
                         synth_od = np.full(fit_result.grid.shape, np.nan)
-                        
+
 
                     # Organise data to plot
                     #        x_data,          y_data
@@ -400,7 +402,7 @@ def scan_loop(gui, a, common, settings):
                             [fit_result.grid, fit_result.resid],
                             [fit_result.grid, meas_od         ],
                             [fit_result.grid, synth_od        ],
-                            [plot_x,          plot_y          ] 
+                            [plot_x,          plot_y          ]
                             ]
 
                     gui.figure.update_plots(data)
