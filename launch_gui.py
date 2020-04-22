@@ -94,7 +94,7 @@ class myGUI(tk.Frame):
     def build_gui(self):
 
         # Build GUI
-        self.root.title('iFit v3.0')
+        self.root.title('iFit v3.1')
 
         # Set default button Style
         ttk.Style().configure('TButton', width=15, height=20, relief="flat")
