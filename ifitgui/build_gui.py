@@ -15,12 +15,12 @@ import matplotlib.gridspec as gridspec
 from ifitgui.gui_functions import select_files
 
 
-#==============================================================================
-#================================ Make Input ==================================
-#==============================================================================
+# =============================================================================
+# Make Input 
+# =============================================================================
 
 def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
-               command = None, sticky = ['NSEW', None],
+               command = None, sticky = ['NSEW', None], state=None,
                label_font = ('Verdana', 10), width = None, options = None,
                vals = [0, 1000], increment = 1, rowspan = None,
                columnspan = None):
@@ -32,62 +32,45 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
 
     frame : tk.Frame or tk.LabelFrame
         Container in which to place the object
-
     text : str
         Text to display in the label
-
     var : tk variable
         Variable to assosiate with the input
-
     input_type : str
         Type of input to use. Must be one of Entry, Spinbox, OptionMenu,
         Checkbutton or Label
-
     row : int
         Row number, will be the same for label and input
-
     column : int
         Column number, the input will be column + 1
-
     padx : int, optional, default = 5
         X-padding to apply to the label and input.
-
     pady : int, optional, default = 5
         Y-padding to apply to the label and input.
-
     command : func, optional, default = 5
         function to run on change to the input value
-
     sticky : str or tuple of strings, optional, default = None
         Direction to stick the object (compass direction). If given as a tuple
         the first corresponds to the label and the second to the entry.
-
+    state : str, optional, default=None
+        Sets the state of the input
     label_font : tuple, optional, default = ('Verdana', 8)
         Font tuple in the form (font, size) for the label.
-
     width : float, optional, default = None
         Width of the entry. Default is None.
-
     options : list, optional, default = None
         List of options for an Option Menu. Default is None
-
     values : tuple or list, optional, default = (0, 10000)
         Sets the range of values for a spinbox. If two values are give it sets
         the limits (from, to)
-
     increment : int, optional, default = 1
         Value spacing for a spinbox.
-
     rowspan : int, optional, default = None
         Number of rows the entry will span.
-
     columnspan : int, optional, default = None
         Number of columns the entry will span.
 
     **Returns**
-
-    label : tk.Label object
-        Input label object
 
     entry : tk object
         Input entry object, type depends on the input_type
@@ -111,7 +94,7 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
 
     # Check that the entry type is valid
     if input_type not in ['Entry', 'Spinbox', 'OptionMenu', 'Label',
-                          'Checkbutton']:
+                          'Checkbutton', 'Combobox']:
         raise TypeError('Data entry type "' + input_type + '" not recognised')
 
 
@@ -157,6 +140,12 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
     # Checkbutton
     if input_type == 'Checkbutton':
         entry = ttk.Checkbutton(frame, variable = var)
+        
+    # Combobox
+    if input_type == 'Combobox':
+        entry = ttk.Combobox(frame, textvariable=var, width=width,
+                             postcommand=command, state=state)
+        entry['values'] = options
 
 
     # Add entry to the frame
@@ -165,9 +154,9 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
 
     return entry
 
-#==============================================================================
-#================================= Make Table =================================
-#==============================================================================
+# =============================================================================
+# Make Table 
+# =============================================================================
 
 class ParamTable(tk.Frame):
 
@@ -332,8 +321,9 @@ class ParamTable(tk.Frame):
         for widget in widgets:
             widget.destroy()
 
-        self._params[n] = []
-        self._widgets[n] = []
+        del(self._params[n])
+        del(self._widgets[n])
+        self.row -= 1
 
 #==============================================================================
 #============================= Polynomial Table ===============================
@@ -482,6 +472,7 @@ class PolyTable(tk.Frame):
 
         self._params[n] = []
         self._widgets[n] = []
+        self.row -= 1
 
 
 #==============================================================================

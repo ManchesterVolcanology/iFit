@@ -21,11 +21,11 @@ from ifitgui.read_write_config import read_config, write_config
 NORM_FONT = ('TkFixedFont', 10)
 LARGE_FONT = ('TkFixedFont', 12, 'bold')
 
-#==============================================================================
-#------------------------------------------------------------------------------
-#=========================== Set up logging handler ===========================
-#------------------------------------------------------------------------------
-#==============================================================================
+# =============================================================================
+# -----------------------------------------------------------------------------
+# Set up logging handler
+# -----------------------------------------------------------------------------
+# =============================================================================
 
 class TextHandler(logging.Handler):
 
@@ -55,11 +55,11 @@ class TextHandler(logging.Handler):
         # Force the gui to update
         self.gui.update()
 
-#==============================================================================
-#------------------------------------------------------------------------------
-#============================= Main GUI interface =============================
-#------------------------------------------------------------------------------
-#==============================================================================
+# =============================================================================
+# -----------------------------------------------------------------------------
+# Main GUI interface
+# -----------------------------------------------------------------------------
+# =============================================================================
 
 class myGUI(tk.Frame):
 
@@ -85,11 +85,14 @@ class myGUI(tk.Frame):
         # Try loading the default config file
         read_config(self, fpath = 'bin/config.yaml')
 
-#==============================================================================
-#------------------------------------------------------------------------------
-#================================= Build GUI ==================================
-#------------------------------------------------------------------------------
-#==============================================================================
+        # Update graph options
+        # self.update_option_menu()
+
+# =============================================================================
+# -----------------------------------------------------------------------------
+# Build GUI
+# -----------------------------------------------------------------------------
+# =============================================================================
 
     def build_gui(self):
 
@@ -123,17 +126,17 @@ class myGUI(tk.Frame):
         menubar.add_cascade(label = 'File', menu = filemenu)
         self.root.config(menu = menubar)
 
-#------------------------------------------------------------------------------
-#============================== Build containers ==============================
-#------------------------------------------------------------------------------
+# =============================================================================
+#         Build containers
+# =============================================================================
 
         # Create notebook to flick between real time and post analysis
         nb = ttk.Notebook(self.root)
         page1 = ttk.Frame(nb)
-        #page2 = ttk.Frame(nb)
+        # page2 = ttk.Frame(nb)
 
         # Create two frames, one for post analysis and one for real time
-        #nb.add(page2, text = 'Real Time Acquisition')
+        # nb.add(page2, text = 'Acquisition')
         nb.add(page1, text = 'Post Analysis')
         nb.grid(row = 0, column=0, padx=10, pady=10, sticky = 'NW')
 
@@ -156,7 +159,9 @@ class myGUI(tk.Frame):
         graph_settings.grid(row=0, column=1, padx=10, pady=10, rowspan=2,
                             sticky="NW")
 
-#========================== Set up spectra selection ==========================
+# =============================================================================
+#         Set up spectra selection
+# =============================================================================
 
         # Create entry to select spectra type
         spec_options = ['iFit',
@@ -169,8 +174,8 @@ class myGUI(tk.Frame):
 
         self.widgets['spec_type'] = tk.StringVar(setup_frame, value='iFit')
         make_input(frame = setup_frame,
-                   text = 'Spectra Type:',
-                   row = 1, column = 0,
+                   text = 'Format:',
+                   row = 0, column = 0,
                    var = self.widgets['spec_type'],
                    input_type = 'OptionMenu',
                    options = spec_options,
@@ -182,48 +187,55 @@ class myGUI(tk.Frame):
 
         # File dialouge for spectra
         message = 'No spectra selected'
+        ttk.Label(setup_frame, text='Spectra:', font=NORM_FONT
+                  ).grid(row=1, column=0, padx=5, pady=5, sticky='W')
         self.spec_ent = tk.StringVar(value = message)
         specfp_l = tk.Entry(setup_frame, font=NORM_FONT, width=30,
                             text=self.spec_ent)
-        specfp_l.grid(row=2, column=0, padx=5, pady=5, sticky='W',
+        specfp_l.grid(row=1, column=1, padx=5, pady=5, sticky='W',
                       columnspan=2)
-        ttk.Button(setup_frame, text="Select Spectra",
+        ttk.Button(setup_frame, text="Browse", width=10,
                    command=lambda: select_files(holder=self.spec_fnames,
                                                 entry=self.spec_ent)
-                   ).grid(row=2, column=2, padx=5, pady=5, sticky='W')
-
+                   ).grid(row=1, column=3, padx=5, pady=5, sticky='W')
+        
         # File dialouge for darks
+        ttk.Label(setup_frame, text='Darks:', font=NORM_FONT
+                  ).grid(row=2, column=0, padx=5, pady=5, sticky='W')
         self.dark_ent = tk.StringVar(value = message)
         darkfp_l = tk.Entry(setup_frame, font = NORM_FONT, width = 30,
                             text = self.dark_ent)
-        darkfp_l.grid(row=3, column=0, padx=5, pady=5, sticky='W',
+        darkfp_l.grid(row=2, column=1, padx=5, pady=5, sticky='W',
                       columnspan=2)
-        ttk.Button(setup_frame, text="Select Darks",
+        ttk.Button(setup_frame, text="Browse", width=10,
                    command=lambda: select_files(holder=self.dark_fnames,
                                                 entry=self.dark_ent)
-                   ).grid(row=3, column=2, padx=5, pady=5, sticky='W')
+                   ).grid(row=2, column=3, padx=5, pady=5, sticky='W')
 
         # Set the save path
         self.widgets['save_path'] = tk.StringVar(self, value='')
+        ttk.Label(setup_frame, text='Save Path:', font=NORM_FONT
+                  ).grid(row=3, column=0, padx=5, pady=5, sticky='W')
         ttk.Entry(setup_frame,
                   font=NORM_FONT,
                   width=30,
                   text=self.widgets['save_path']
-                  ).grid(row=4, column=0, padx=5, pady=5, sticky='W',
+                  ).grid(row=3, column=1, padx=5, pady=5, sticky='W',
                       columnspan=2)
-        ttk.Button(setup_frame, text="Browse",
+        ttk.Button(setup_frame, text="Browse", width=10,
                    command=lambda: select_save(holder=self.widgets['save_path'])
-                   ).grid(row=4, column=2, padx=5, pady=5, sticky='W')
+                   ).grid(row=3, column=3, padx=5, pady=5, sticky='W')
 
-
-
-#=============================== Create graphs ================================
+# =============================================================================
+#         Create graphs
+# =============================================================================
 
         # Set up the axes
         axes = [{'loc': [0,0,1,1],
                  'grid': True,
                  'ax_labels': [None, 'Intensity'],
-                 'lines': [{'marker':'o', 'ls':'', 'c':'C0', 'label':'Data', 'ms':4},
+                 'lines': [{'marker':'o', 'ls':'', 'c':'C0', 'label':'Data', 
+                            'ms':4},
                            {'lw':1.5, 'c':'C1', 'label':'Fit'}]},
                 {'loc': [0,1,1,1],
                  'grid': True,
@@ -249,21 +261,116 @@ class myGUI(tk.Frame):
                                 fig_kwargs={'figsize':[7,5]},
                                 axes_info = axes)
 
-        # Build the figure
-        #self.figure = GuiFigure()
+        #######################################################################
+
+        # self.canvas = tk.Canvas(graph_frame)
+        # self.frame = tk.Frame(self.canvas)
+        
+        # myscrollbary=tk.Scrollbar(graph_frame, orient="vertical",
+        #                          command=self.canvas.yview)
+        # myscrollbarx=tk.Scrollbar(graph_frame, orient="horizontal",
+        #                           command=self.canvas.xview)
+        # self.canvas.configure(yscrollcommand=myscrollbary.set,
+        #                       xscrollcommand=myscrollbarx.set)
+        
+        # myscrollbary.grid(row=0, column=1)
+        # myscrollbarx.grid(row=1, column=0)
+        
+        #######################################################################
 
         # Create the canvas to hold the graph in the GUI
         self.canvas = FigureCanvasTkAgg(self.figure.fig, graph_frame)
+        # self.canvas = tk.Canvas(graph_frame, background="green")
         self.canvas.draw()
-        self.canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady=10)
+        self.canvas.get_tk_widget().grid(row=1, column=0, padx=10, pady=10)
 
         # Add matplotlib toolbar above the plot canvas
         toolbar_frame = tk.Frame(graph_frame, bg = 'black')
-        toolbar_frame.grid(row=1, column=0, sticky='W', padx=5, pady=5)
+        toolbar_frame.grid(row=0, column=0, sticky='W', padx=5, pady=5)
         toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
         toolbar.update()
+        
+# =============================================================================
+#         Graph Controls
+# =============================================================================
 
-#=========================== Create control buttons ===========================
+        # Create container for the graph settings
+        graph_settings_frame = ttk.Frame(graph_frame)
+        graph_settings_frame.grid(row=2, column=0, stick='W', padx=5, pady=5)
+
+        row_n = 0
+        col_n = 0
+
+        # Control whether graphs are plotted
+        self.widgets['graph_flag'] = tk.BooleanVar(graph_settings_frame, 
+                                                   value = True)
+        make_input(frame = graph_settings_frame,
+                   text = 'Show graphs?',
+                   row = row_n, column = col_n,
+                   var = self.widgets['graph_flag'],
+                   input_type = 'Checkbutton')
+        col_n += 3
+        
+        # Update graph param combobox when combobox is clicked
+        def update_combobox():
+            
+            # Get the gas parameters
+            rows = self.gastable._params
+            options = []
+            
+            # Add the gases to the options
+            for row in rows:
+                options.append(row[0].get().strip())
+            
+            # Set the options
+            graph_p = self.widgets['graph_param'].get()
+            self.graph_cb['values'] = options
+            self.widgets['graph_param'].set(graph_p) 
+
+        # Set parameter to graph
+        self.widgets['graph_param'] = tk.StringVar(graph_settings_frame)
+        self.graph_cb = make_input(frame = graph_settings_frame,
+                                   text = 'Parameter\nto graph:',
+                                   row = row_n, column = col_n,
+                                   var = self.widgets['graph_param'],
+                                   input_type = 'Combobox',
+                                   width = 10,
+                                   command = update_combobox,
+                                   options = [],
+                                   state="readonly")
+        col_n += 3
+
+        # Control whether the graph scrolls
+        self.widgets['scroll_flag'] = tk.BooleanVar(graph_settings_frame, 
+                                                    value = True)
+        make_input(frame = graph_settings_frame,
+                   text = 'Scroll graphs?',
+                   row = row_n, column = col_n,
+                   var = self.widgets['scroll_flag'],
+                   input_type = 'Checkbutton')
+        col_n += 3
+
+        # Set number of measurements to scroll on the graph
+        self.widgets['scroll_amt'] = tk.IntVar(graph_settings_frame, value=100)
+        make_input(frame = graph_settings_frame,
+                   text = 'No. Spectra\nto display:',
+                   row = row_n, column = col_n,
+                   var = self.widgets['scroll_amt'],
+                   input_type = 'Spinbox',
+                   vals = [0, 1.0e6],
+                   increment = 100,
+                   width = 10)
+        col_n += 3
+        
+        # Create separator
+        for col in [2,5,8]:
+            ttk.Separator(graph_settings_frame, orient='vertical'
+                          ).grid(column=col, row = 0, rowspan=7, sticky='ns', 
+                                 padx=10, pady=5)
+
+# =============================================================================
+#         Create control buttons 
+# =============================================================================
 
         # Frame to hold the buttons
         button_frame = ttk.Frame(control_frame)
@@ -280,8 +387,10 @@ class myGUI(tk.Frame):
         stop_b = ttk.Button(button_frame, text='Stop',
                             command = lambda: stop(self))
         stop_b.grid(row=0, column=1, padx=25, pady=5)
-
-#============================ Create progress bar =============================
+        
+# =============================================================================
+#         Create progress bar
+# =============================================================================
 
         # Make a frame for the progress bar and status
         progress_frame = ttk.Frame(control_frame)
@@ -326,7 +435,9 @@ class myGUI(tk.Frame):
                    width = 10,
                    padx = 5)
 
-#============================= Set up text output =============================
+# =============================================================================
+#         Set up text output
+# =============================================================================
 
         # Add text widget to display logging info
         st = ScrolledText.ScrolledText(control_frame, state='disabled',
@@ -347,24 +458,28 @@ class myGUI(tk.Frame):
         # Add the handler to logger
         logger = logging.getLogger()
         logger.addHandler(text_handler)
-
-#------------------------------------------------------------------------------
-#============================== Program Settings ==============================
-#------------------------------------------------------------------------------
+        
+# =============================================================================
+# =============================================================================
+# #         Program Settings
+# =============================================================================
+# =============================================================================
 
         # Make a notebook to hold the settings pannels
         settings_nb = ttk.Notebook(settings_frame)
         model_frame = ttk.Frame(settings_nb)
         spect_frame = ttk.Frame(settings_nb)
         param_frame = ttk.Frame(settings_nb)
-        figure_frame = ttk.Frame(settings_nb)
+        spec_frame = ttk.Frame(settings_nb)
         settings_nb.add(model_frame, text = 'Model')
         settings_nb.add(spect_frame, text = 'Spectrometer')
         settings_nb.add(param_frame, text = 'Parameters')
-        settings_nb.add(figure_frame, text = 'Graph')
+        settings_nb.add(spec_frame, text = 'Spectra')
         settings_nb.grid(row=0, column=0, padx=10, pady=10)
-
-#=============================== Model Settings ===============================
+        
+# =============================================================================
+#         Model settings
+# =============================================================================
 
         # Create row counters
         row_n = 0
@@ -528,8 +643,10 @@ class myGUI(tk.Frame):
                    width=10,
                    sticky = 'W')
         row_n += 1
-
-#=========================== Spectrometer Settings ============================
+        
+# =============================================================================
+#         Spectrometer Settings
+# =============================================================================
 
         # Create a row counter
         row_n = 0
@@ -661,8 +778,10 @@ class myGUI(tk.Frame):
         self.widgets['a_k_fit'] = tk.BooleanVar(ils_frame)
         ttk.Checkbutton(ils_frame, text='Fit?', variable=self.widgets['a_k_fit']
                         ).grid(row=3, column=2)
-
-#============================= Parameter Settings =============================
+        
+# =============================================================================
+#         Parameter Settings
+# =============================================================================
 
         # Create a row counter
         row_n = 0
@@ -704,10 +823,7 @@ class myGUI(tk.Frame):
         param_nb.grid(row=row_n, column=0, padx=10, pady=10, columnspan = 10)
         row_n += 1
 
-
-#----------------------------- Absorber Settings ------------------------------
-
-
+        # Generate the tables to hold the parameters
         self.gastable = ParamTable(abs_page)
         self.gastable.grid(row=0, column=0, padx=5, pady=5, columnspan=6)
 
@@ -720,51 +836,59 @@ class myGUI(tk.Frame):
 
         self.shifttable = PolyTable(shift_page)
         self.shifttable.grid(row=0, column=0, padx=5, pady=5, columnspan=6)
+        
+# =============================================================================
+#         Graphing Settings
+# =============================================================================
 
-#============================= Graphing Settings ==============================
+        # row_n = 0
+        # col_n = 0
 
-        row_n = 0
-        col_n = 0
+        # # Control whether to update fit parameter with the last fit values
+        # self.widgets['graph_flag'] = tk.BooleanVar(figure_frame, value = True)
+        # make_input(frame = figure_frame,
+        #            text = 'Show graphs?',
+        #            row = row_n, column = col_n,
+        #            var = self.widgets['graph_flag'],
+        #            input_type = 'Checkbutton')
+        # row_n += 1
 
-        # Control whether to update fit parameter with the last fit values
-        self.widgets['graph_flag'] = tk.BooleanVar(figure_frame, value = True)
-        make_input(frame = figure_frame,
-                   text = 'Show graphs?',
-                   row = row_n, column = col_n,
-                   var = self.widgets['graph_flag'],
-                   input_type = 'Checkbutton')
-        row_n += 1
+        # # Set parameter to graph
+        # self.widgets['graph_param'] = tk.StringVar(figure_frame)
+        # make_input(frame = figure_frame,
+        #            text = 'Parameter\nto graph:',
+        #            row = row_n, column = col_n,
+        #            var = self.widgets['graph_param'],
+        #            input_type = 'Entry',
+        #            width = 10)
+        # row_n += 1
 
-        # Set parameter to graph
-        self.widgets['graph_param'] = tk.StringVar(figure_frame)
-        make_input(frame = figure_frame,
-                   text = 'Parameter\nto graph:',
-                   row = row_n, column = col_n,
-                   var = self.widgets['graph_param'],
-                   input_type = 'Entry',
-                   width = 10)
-        row_n += 1
+        # # Control whether the graph scrolls
+        # self.widgets['scroll_flag'] = tk.BooleanVar(figure_frame, value = True)
+        # make_input(frame = figure_frame,
+        #            text = 'Scroll graphs?',
+        #            row = row_n, column = col_n,
+        #            var = self.widgets['scroll_flag'],
+        #            input_type = 'Checkbutton')
+        # row_n += 1
 
-        # Control whether the graph scrolls
-        self.widgets['scroll_flag'] = tk.BooleanVar(figure_frame, value = True)
-        make_input(frame = figure_frame,
-                   text = 'Scroll graphs?',
-                   row = row_n, column = col_n,
-                   var = self.widgets['scroll_flag'],
-                   input_type = 'Checkbutton')
-        row_n += 1
-
-        # Set parameter to graph
-        self.widgets['scroll_amt'] = tk.IntVar(figure_frame, value=100)
-        make_input(frame = figure_frame,
-                   text = 'No. Spectra\nto display:',
-                   row = row_n, column = col_n,
-                   var = self.widgets['scroll_amt'],
-                   input_type = 'Spinbox',
-                   vals = [0, 1.0e6],
-                   increment = 100,
-                   width = 10)
-        row_n += 1
+        # # Set parameter to graph
+        # self.widgets['scroll_amt'] = tk.IntVar(figure_frame, value=100)
+        # make_input(frame = figure_frame,
+        #            text = 'No. Spectra\nto display:',
+        #            row = row_n, column = col_n,
+        #            var = self.widgets['scroll_amt'],
+        #            input_type = 'Spinbox',
+        #            vals = [0, 1.0e6],
+        #            increment = 100,
+        #            width = 10)
+        # row_n += 1
+        
+# =============================================================================
+# =============================================================================
+# #     General program functions
+# =============================================================================
+# =============================================================================
 
     # Report exceptions in a new window
     def report_callback_exception(self, *args):
@@ -797,9 +921,7 @@ class myGUI(tk.Frame):
             self.quit()
 
         if message == 'cancel':
-            pass
-
-
+            pass           
 
 if __name__ == '__main__':
 

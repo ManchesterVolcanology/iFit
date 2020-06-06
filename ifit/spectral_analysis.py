@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Feb 12 11:28:07 2020
-
 @author: mqbpwbe2
 """
 
@@ -17,10 +16,8 @@ class Analyser():
 
     '''
     Object to perform the spectral analysis
-
     Parameters
     ----------
-
     common : dict
         Common dictionary of parameters and variables passed from the main
         program to subroutines
@@ -32,7 +29,8 @@ class Analyser():
         self.common = common
 
         # Set the initial estimate for the fit parameters
-        self.p0 = self.common['params'].fittedvalueslist()
+        self.params = common['params'].make_copy()
+        self.p0 = self.params.fittedvalueslist()
 
     def pre_process(self, spectrum):
 
@@ -40,20 +38,15 @@ class Analyser():
         Function to pre-process the measured spectrum to prepare it for the
         fit, correcting for the dark and flat spectrum, stray light and
         extracting the fit wavelength window
-
         Parameters
         ----------
-
         spectrum : 2D numpy array
             The spectrum in [wavelength, intensities]
-
         common : dict
             Common dictionary of parameters and variables passed from the main
             program to subroutines
-
         Returns
         -------
-
         processed_spec : 2D numpy array
             The processed spectrum, corrected for dark, flat, stray light and
             cut to the desired wavelength window
@@ -93,49 +86,37 @@ class Analyser():
 
         '''
         Fit the supplied spectrum using a non-linear least squares minimisation
-
         Parameters
         ----------
-
         spectrum : tuple
             The measured spectrum in the form [wavelengths, intensities]
-
         update_params : bool, optional
             Flag whether to update the initial fit parameters upon a sucessful
             fit. Can speed up fitting for large datasets but requires robust
             quality checks to avoid getting stuck
-
         resid_limit : float, optional, default=None
             Sets the maximum residual value to allow the fit initial parameters
             to be updated. Ignored if None.
-
         resid_type : str, optional, default='Percentage'
             Controls how the residual is calculated:
                 - 'Percentage': calculated as (spec - fit) / spec * 100
                 - 'Absolute':   calculated as spec - fit
-
         int_limit : tuple of float, optional, default=None
             Sets the minimu and maximum intensity value for the fit window to
             allow the fit initial parameters to be updated. Ignored if None.
-
         calc_od : list, optional, default=[]
             List of parameters to calculate the optical depth for.
-
         pre_process : bool, optional, default=True
             Flag to control whether the supplied spectrum requires
             pre-prossessing or not
-
         interp_method : str, optional, default="cubic"
             Controls whether the interpolation at the end of the forward model
             is cubic or linear. Must be either "cubic", "linear" or "nearest".
             See scipy.interpolate.griddata for details.
-
         Returns
         -------
-
         fit_result : ifit.spectral_analysis.FitResult object
             An object that contains the fit results
-
         '''
 
         # Check is spectrum requires preprocessing
@@ -166,7 +147,7 @@ class Analyser():
 
         # Put the results into a FitResult object
         fit_result = FitResult(spectrum, popt, perr, nerr, self.fwd_model,
-                               self.common, resid_type)
+                               self.params, self.common, resid_type)
 
         if nerr:
 
@@ -194,21 +175,21 @@ class Analyser():
                 # Reset the parameters if the fit was ok
                 if reset_flag:
                     logging.info('Resetting initial guess parameters')
-                    self.p0 = self.common['params'].fittedvalueslist()
+                    self.p0 = self.params.fittedvalueslist()
                 else:
                     self.p0 = popt
 
             # Calculate the Optical depth spectra
             for par in calc_od:
-                if par in self.common['params']:
+                if par in self.params:
                     fit_result.calc_od(par, self.common)
 
         else:
             logging.warn(f'Fit failed!')
             if update_params:
-                self.p0 = self.common['params'].fittedvalueslist()
+                self.p0 = self.params.fittedvalueslist()
             for par in calc_od:
-                if par in self.common['params']:
+                if par in self.params:
                     fit_result.meas_od[par] = np.full(len(spec), np.nan)
                     fit_result.synth_od[par] = np.full(len(spec), np.nan)
 
@@ -223,11 +204,8 @@ class Analyser():
 
         '''
         iFit forward model to fit measured UV sky spectra:
-
         I(w) = ILS *conv* {I_off(w) + I*(w) x P(w) x exp( SUM[-xsec(w) . amt])}
-
         where w is the wavelength.
-
         Requires the following to be defined in the common dictionary:
             - params:       Parameters object holding the fit parameters
             - model_grid:   The wavelength grid on which the forward model is
@@ -243,13 +221,10 @@ class Analyser():
                             must be predefined in the common
             - ils           The instrument line shape of the spectrometer. Only
                             used if generate ILS is False.
-
         Parameters
         ----------
-
         grid, array
             Measurement wavelength grid
-
         *x0, list
             Forward model state vector. Should consist of:
                 - bg_polyx: Background polynomial coefficients
@@ -259,20 +234,17 @@ class Analyser():
                             including absorbing gases and Ring. Each "gas" is
                             converted to transmittance through:
                                       gas_T = exp(-xsec . amt)
-
                 For polynomial parameters x represents ascending intergers
                 starting from 0 which correspond to the decreasing power of
                 that coefficient
-
         Returns
         -------
-
         fit, array
             Fitted spectrum interpolated onto the spectrometer wavelength grid
         '''
 
         # Get dictionary of fitted parameters
-        params = self.common['params']
+        params = self.params
         p = params.valuesdict()
 
         # Update the fitted parameter values with those supplied to the forward
@@ -356,39 +328,31 @@ class FitResult():
         - synth_od:  dictionary of the synthetic optical depths
         - fit:       the final fitted spectrum
         - resid:     the fit residual
-
     Parameters
     ----------
-
     spectrum : tuple
         The fitted spectrum in the form [wavelengths, intensities]
-
     popt : list
         The optimised fit parameter values
-
     perr : list
         The calculated parameter fit errors
-
     nerr : int
         Signals success of the fit. 1 = successful, 0 = failed
-
     fwd_model : function
         The forward model used to perform the fit
-
     common : dictionary
         Common dictionary of program variables
-
     resid_type : str
         Controls how the fit residual is calculated:
             - 'Percentage': calculated as (spec - fit) / spec * 100
             - 'Absolute':   calculated as spec - fit
     '''
 
-    def __init__(self, spectrum, popt, perr, nerr, fwd_model, common,
+    def __init__(self, spectrum, popt, perr, nerr, fwd_model, params, common,
                  resid_type):
 
         # Make a copy of the parameters
-        self.params = common['params'].make_copy()
+        self.params = params.make_copy()
 
         # Assign the variables
         self.grid, self.spec = spectrum
