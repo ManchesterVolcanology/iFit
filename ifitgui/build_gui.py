@@ -323,7 +323,7 @@ class ParamTable(tk.Frame):
 
         del(self._params[n])
         del(self._widgets[n])
-        self.row -= 1
+        # self.row -= 1
 
 #==============================================================================
 #============================= Polynomial Table ===============================

@@ -25,7 +25,7 @@ class Parameters(OrderedDict):
 
         self.update(*args, **kwargs)
 
-    def add(self, name, value=0, vary=True, xpath=None):
+    def add(self, name, value=0, vary=True, lo_bound=-np.inf, hi_bound=np.inf):
         '''
         Method to add a Parameter to the Parameters object.
 
@@ -40,15 +40,13 @@ class Parameters(OrderedDict):
         vary : bool, optional
             If True then the parameter is fitted. Otherwise it is fixed to its
             value
-
-        xpath : str or None, optional, default = None
-            File path to the cross section
         '''
 
-        self.__setitem__(name, Parameter(name  = name,
-                                         value = value,
-                                         vary  = vary,
-                                         xpath = xpath))
+        self.__setitem__(name, Parameter(name     = name,
+                                         value    = value,
+                                         vary     = vary,
+                                         lo_bound = lo_bound,
+                                         hi_bound = hi_bound))
 
     def add_many(self, param_list):
         '''
@@ -101,9 +99,13 @@ class Parameters(OrderedDict):
 
 
     def popt_list(self):
-        ''''Return a list of the optimised parameters'''
+        '''Return a list of the optimised parameters'''
         return [(p.fit_val) for p in self.values() if p.vary]
-
+    
+    def bounds(self):
+        '''Return a list of the low and high bounds'''
+        return [[(p.lo_bound) for p in self.values() if p.vary],
+                [(p.hi_bound) for p in self.values() if p.vary]]
 
     def make_copy(self):
         '''Returns a deep copy of the Parameters object'''
@@ -226,18 +228,19 @@ class Parameter(object):
         value
     '''
 
-    def __init__(self, name, value, vary=True, fit_val=np.nan, fit_err=np.nan,
-                 xpath=None):
+    def __init__(self, name, value, vary=True, lo_bound=-np.inf, 
+                 hi_bound=np.inf, fit_val=np.nan, fit_err=np.nan):
 
         self.name = name
         self.value = value
         self.vary = vary
+        self.lo_bound = lo_bound
+        self.hi_bound = hi_bound
         self.fit_val = fit_val
         self.fit_err = fit_err
-        self.xpath = xpath
 
-    def set(self, value=None, vary=None, fit_val=None, fit_err=None,
-            xpath=None):
+    def set(self, value=None, vary=None, lo_bound=None, hi_bound=None,
+            fit_val=None, fit_err=None):
         '''Update the properties of a Parameter. All are None by default'''
 
         if value is not None:
@@ -246,11 +249,14 @@ class Parameter(object):
         if vary is not None:
             self.vary = vary
 
+        if lo_bound is not None:
+            self.lo_bound = lo_bound
+
+        if hi_bound is not None:
+            self.hi_bound = hi_bound
+
         if fit_val is not None:
             self.fit_val = fit_val
 
         if fit_err is not None:
             self.fit_err = fit_err
-
-        if xpath is not None:
-            self.xpath = xpath
