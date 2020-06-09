@@ -119,16 +119,7 @@ def model_setup(settings):
             common['generate_ils'] = False
 
         except OSError:
-            logging.error(f'No ILS file found for {settings["spec_name"]}!')
-
-    elif settings['ils_type'] == 'Fix':
-        logging.info('Building ILS...')
-
-        # Build the ILS
-        common['ils'] = make_ils(settings['model_spacing'],
-                                 settings['ils_width'])
-
-        logging.info('ILS built')
+            logging.error(f'No ILS file found for {settings["ils_path"]}!')
         
     # Otherwise tell the program to build the ILS at the model.
     else: common['generate_ils'] = True
