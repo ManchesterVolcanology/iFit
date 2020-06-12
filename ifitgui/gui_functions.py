@@ -87,8 +87,7 @@ def analysis_loop(gui):
             xpath = row[3].get().strip()
             params.add(name  = name,
                        value = value,
-                       vary  = vary,
-                       xpath = xpath)
+                       vary  = vary)
             settings['gas_data'][name] = [xpath]
 
     # Build the forward model
