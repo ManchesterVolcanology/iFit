@@ -484,54 +484,28 @@ class myGUI(tk.Frame):
         # Create row counters
         row_n = 0
         col_n = 0
+        
+        ttk.Label(model_frame, text='Fit Window:\n     (nm)', font=NORM_FONT
+                  ).grid(row=row_n, column=col_n, rowspan=2, padx=5, pady=5)
 
-        self.widgets['w_lo'] = tk.DoubleVar(model_frame, value = 310)
+        self.widgets['fit_lo'] = tk.DoubleVar(model_frame, value = 310)
         make_input(frame = model_frame,
-                   text = 'Fit Range:',
+                   text = None,
                    row = row_n, column = col_n,
-                   var = self.widgets['w_lo'],
+                   var = self.widgets['fit_lo'],
                    input_type = 'Spinbox',
                    width = 8,
-                   sticky = 'E')
-        ttk.Label(model_frame, text = 'nm', font = NORM_FONT
-                  ).grid(row = row_n, column = col_n+2, padx=5, pady=5)
+                   sticky = 'S')
         row_n += 1
 
-        self.widgets['w_hi'] = tk.DoubleVar(model_frame, value = 320)
+        self.widgets['fit_hi'] = tk.DoubleVar(model_frame, value = 320)
         make_input(frame = model_frame,
-                   text = 'to:',
+                   text = None,
                    row = row_n, column = col_n,
-                   var = self.widgets['w_hi'],
+                   var = self.widgets['fit_hi'],
                    input_type = 'Spinbox',
                    width = 8,
-                   sticky = 'E')
-        ttk.Label(model_frame, text = 'nm', font = NORM_FONT
-                  ).grid(row = row_n, column = col_n+2, padx=5, pady=5)
-        row_n += 1
-
-        # Set the stray light range
-        self.widgets['s_lo'] = tk.DoubleVar(model_frame, value = 280)
-        make_input(frame = model_frame,
-                   text = 'Stray light\nRange:',
-                   row = row_n, column = col_n,
-                   var = self.widgets['s_lo'],
-                   input_type = 'Spinbox',
-                   width = 8,
-                   sticky = 'E')
-        ttk.Label(model_frame, text = 'nm', font = NORM_FONT
-                  ).grid(row = row_n, column = col_n+2, padx=5, pady=5)
-        row_n += 1
-
-        self.widgets['s_hi'] = tk.DoubleVar(model_frame, value = 290)
-        make_input(frame = model_frame,
-                   text = 'to:',
-                   row = row_n, column = col_n,
-                   var = self.widgets['s_hi'],
-                   input_type = 'Spinbox',
-                   width = 8,
-                   sticky = 'E')
-        ttk.Label(model_frame, text = 'nm', font = NORM_FONT
-                  ).grid(row = row_n, column = col_n+2, padx=5, pady=5)
+                   sticky = 'N')
         row_n += 1
 
         # Set model grid padding
@@ -543,7 +517,7 @@ class myGUI(tk.Frame):
                    input_type = 'Spinbox',
                    increment = 0.1,
                    width = 8,
-                   sticky = 'E')
+                   sticky = 'S')
         row_n += 1
 
         # Set model grid spacing
@@ -555,13 +529,31 @@ class myGUI(tk.Frame):
                    input_type = 'Spinbox',
                    increment = 0.01,
                    width = 8,
-                   sticky = 'E')
+                   sticky = 'S')
+        row_n += 1
+
+        # Control the interpolation mode
+        interp_options = ['cubic', 'cubic', 'linear']
+        self.widgets['interp_method'] = tk.StringVar(model_frame,
+                                                     value='cubic')
+        make_input(frame = model_frame,
+                   text = 'Interpolation\nMethod:',
+                   row = row_n, column = col_n,
+                   var = self.widgets['interp_method'],
+                   input_type = 'OptionMenu',
+                   options = interp_options,
+                   width=8,
+                   sticky = 'W')
+        row_n += 1
+        
+        # New column
         row_n = 0
-        col_n += 4
+        col_n += 3
 
         # Create separator
-        sep = ttk.Separator(model_frame, orient='vertical')
-        sep.grid(column=3, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
+        ttk.Separator(model_frame, orient='vertical'
+                      ).grid(column=col_n-1, row=0, rowspan=7, sticky='ns', 
+                             padx=10, pady=5)
 
         # Control whether or not to remove dark spectra
         self.widgets['dark_flag'] = tk.BooleanVar(model_frame, value=True)
@@ -588,22 +580,40 @@ class myGUI(tk.Frame):
                    row = row_n, column = col_n,
                    var = self.widgets['stray_flag'],
                    input_type = 'Checkbutton')
+        row_n += 1
+
+        # Set the stray light range
+        ttk.Label(model_frame, text='Stray Window:\n       (nm)', 
+                  font=NORM_FONT).grid(row=row_n, column=col_n, rowspan=2, 
+                                       padx=5, pady=5)
+        self.widgets['stray_lo'] = tk.DoubleVar(model_frame, value=280)
+        make_input(frame = model_frame,
+                   text = None,
+                   row = row_n, column = col_n,
+                   var = self.widgets['stray_lo'],
+                   input_type = 'Spinbox',
+                   width = 8,
+                   sticky = 'S')
+        row_n += 1
+
+        self.widgets['stray_hi'] = tk.DoubleVar(model_frame, value=290)
+        make_input(frame = model_frame,
+                   text = None,
+                   row = row_n, column = col_n,
+                   var = self.widgets['stray_hi'],
+                   input_type = 'Spinbox',
+                   width = 8,
+                   sticky = 'N')
+        row_n += 1
+
+        # New column
+        row_n = 0
+        col_n += 4
 
         # Create separator
-        sep = ttk.Separator(model_frame, orient='vertical')
-        sep.grid(column=6, row = 0, rowspan=7, sticky='ns', padx=10, pady=5)
-
-        row_n = 0
-        col_n += 3
-
-        # Control whether to update fit parameter with the last fit values
-        self.widgets['update_flag'] = tk.BooleanVar(model_frame, value=True)
-        make_input(frame = model_frame,
-                   text = 'Auto-update\nfit parameters?',
-                   row = row_n, column = col_n,
-                   var = self.widgets['update_flag'],
-                   input_type = 'Checkbutton')
-        row_n += 1
+        ttk.Separator(model_frame, orient='vertical'
+                      ).grid(column=col_n-1, row=0, rowspan=7, sticky='ns', 
+                             padx=10, pady=5)
 
         # Create entry to select the residual type
         resid_options = ['Absolute', 'Absolute', 'Percentage']
@@ -620,28 +630,52 @@ class myGUI(tk.Frame):
                    sticky = 'W')
         row_n += 1
 
+        # Control whether to update fit parameter with the last fit values
+        self.widgets['update_flag'] = tk.BooleanVar(model_frame, value=True)
+        make_input(frame = model_frame,
+                   text = 'Auto-update\nfit parameters?',
+                   row = row_n, column = col_n,
+                   var = self.widgets['update_flag'],
+                   input_type = 'Checkbutton')
+        row_n += 1
+
         # Control bound of goodness of fit
         self.widgets['resid_limit'] = tk.DoubleVar(model_frame, value=10)
         make_input(frame = model_frame,
-                   text = 'Good Fit\nBound (%):',
+                   text = 'Residual Limit:',
                    row = row_n, column = col_n,
                    var = self.widgets['resid_limit'],
-                   input_type = 'Entry',
-                   width = 12)
+                   input_type = 'Spinbox',
+                   width = 8)
         row_n += 1
 
-        # Control the interpolation mode
-        interp_options = ['cubic', 'cubic', 'linear']
-        self.widgets['interp_method'] = tk.StringVar(model_frame,
-                                                     value='cubic')
+        # Control intensity limits
+        ttk.Label(model_frame, text='Intensity Limits:', 
+                  font=NORM_FONT).grid(row=row_n, column=col_n, rowspan=2, 
+                                       padx=5, pady=5)
+        self.widgets['lo_int_limit'] = tk.DoubleVar(model_frame, value=0)
         make_input(frame = model_frame,
-                   text = 'Interpolation\nMethod:',
+                   text = None,
                    row = row_n, column = col_n,
-                   var = self.widgets['interp_method'],
-                   input_type = 'OptionMenu',
-                   options = interp_options,
-                   width=10,
-                   sticky = 'W')
+                   var = self.widgets['lo_int_limit'],
+                   input_type = 'Spinbox',
+                   vals = [-10000, 100000],
+                   sticky='S',
+                   increment=1000,
+                   width = 8)
+        row_n += 1
+
+        # Control bound of goodness of fit
+        self.widgets['hi_int_limit'] = tk.DoubleVar(model_frame, value=70000)
+        make_input(frame = model_frame,
+                   text = None,
+                   row = row_n, column = col_n,
+                   var = self.widgets['hi_int_limit'],
+                   input_type = 'Spinbox',
+                   vals = [-10000, 100000],
+                   sticky='N',
+                   increment=1000,
+                   width = 8)
         row_n += 1
         
 # =============================================================================
@@ -653,7 +687,7 @@ class myGUI(tk.Frame):
         col_n = 0
 
         # Create entries for the ILS parameters
-        ils_options = ['File', 'File', 'Manual']
+        ils_options = ['Params', 'Params', 'File', 'Manual']
         self.widgets['ils_mode'] = tk.StringVar(spect_frame, value='File')
         make_input(frame = spect_frame,
                    text = 'Generate ILS:',
