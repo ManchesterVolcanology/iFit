@@ -25,7 +25,8 @@ class Parameters(OrderedDict):
 
         self.update(*args, **kwargs)
 
-    def add(self, name, value=0, vary=True, lo_bound=-np.inf, hi_bound=np.inf):
+    def add(self, name, value=0, vary=True, xpath=None, lo_bound=-np.inf, 
+            hi_bound=np.inf):
         '''
         Method to add a Parameter to the Parameters object.
 
@@ -45,6 +46,7 @@ class Parameters(OrderedDict):
         self.__setitem__(name, Parameter(name     = name,
                                          value    = value,
                                          vary     = vary,
+                                         xpath    = xpath,
                                          lo_bound = lo_bound,
                                          hi_bound = hi_bound))
 
@@ -112,7 +114,7 @@ class Parameters(OrderedDict):
         return copy.deepcopy(self)
 
 
-    def pretty_print(self, mincolwidth=10, precision=4, cols='all'):
+    def pretty_print(self, mincolwidth=10, precision=4, cols='basic'):
         '''
         Print the parameters in a nice way
 
@@ -125,7 +127,8 @@ class Parameters(OrderedDict):
             Number of significant figures to print to
 
         cols : str or list
-            The columns to be printed. Either "all" for all columns, or a list
+            The columns to be printed. Either "all" for all columns, "basic" 
+            for the name, value and if it is fixed or a list
             of the desired column names
 
         **Returns**
@@ -139,8 +142,11 @@ class Parameters(OrderedDict):
             mincolwidth = 7
 
         # Make list of columns
-        if cols == 'all':
+        if cols == 'all': 
             cols = ['name', 'value', 'vary', 'fit_val', 'fit_err']
+            
+        if cols == 'basic':
+            cols = ['name', 'value', 'vary']
 
         colwidth = [mincolwidth] * (len(cols))
 
@@ -183,6 +189,8 @@ class Parameters(OrderedDict):
             val = f'{p.value:.{precision}g}'
             fval = f'{p.fit_val:.{precision}g}'
             ferr = f'{p.fit_err:.{precision}g}'
+            # lo_b = f'{p.lo_bound:.{precision}g}'
+            # hi_b = f'{p.hi_bound:.{precision}g}'
 
             if p.vary: var = 'True'
             else: var = 'False'
@@ -193,6 +201,10 @@ class Parameters(OrderedDict):
                 msg += f'|{val:^{colwidth[cols.index("value")]}}'
             if 'vary' in cols:
                 msg += f'|{var:^{colwidth[cols.index("vary")]}}'
+            # if 'lo_bound' in cols:
+            #     msg += f'|{lo_b:^{colwidth[cols.index("lo_bound")]}}'
+            # if 'hi_bound' in cols:
+            #     msg += f'|{hi_b:^{colwidth[cols.index("hi_bound")]}}'
             if 'fit_val' in cols:
                 msg += f'|{fval:^{colwidth[cols.index("fit_val")]}}'
             if 'fit_err' in cols:
@@ -226,21 +238,25 @@ class Parameter(object):
     vary : bool, optional
         If True then the parameter is fitted. Otherwise it is fixed to its
         value
+        
+    xpath : str, optional
+        The file path to the cross-section for this parameter
     '''
 
-    def __init__(self, name, value, vary=True, lo_bound=-np.inf, 
+    def __init__(self, name, value, vary=True, xpath=None, lo_bound=-np.inf, 
                  hi_bound=np.inf, fit_val=np.nan, fit_err=np.nan):
 
         self.name = name
         self.value = value
         self.vary = vary
+        self.xpath = xpath
         self.lo_bound = lo_bound
         self.hi_bound = hi_bound
         self.fit_val = fit_val
         self.fit_err = fit_err
 
-    def set(self, value=None, vary=None, lo_bound=None, hi_bound=None,
-            fit_val=None, fit_err=None):
+    def set(self, value=None, vary=None, xpath=None, lo_bound=None, 
+            hi_bound=None, fit_val=None, fit_err=None):
         '''Update the properties of a Parameter. All are None by default'''
 
         if value is not None:
@@ -248,6 +264,9 @@ class Parameter(object):
 
         if vary is not None:
             self.vary = vary
+
+        if xpath is not None:
+            self.xpath = xpath            
 
         if lo_bound is not None:
             self.lo_bound = lo_bound

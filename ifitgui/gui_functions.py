@@ -14,7 +14,6 @@ from tkinter import filedialog as fd
 import tkinter.messagebox as tkMessageBox
 
 from ifit.parameters import Parameters
-from ifit.model_setup import model_setup
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import read_spectrum, average_spectra, read_scan
 
@@ -32,25 +31,21 @@ def analysis_loop(gui):
     # Set the stopping flag to False
     gui.stop_flag = False
 
-    # Pull the settings from the GUI
-    logging.info('Reading model settings')
-    settings = {'w_lo':          gui.widgets['w_lo'].get(),
-                'w_hi':          gui.widgets['w_hi'].get(),
-                's_lo':          gui.widgets['s_lo'].get(),
-                's_hi':          gui.widgets['s_hi'].get(),
-                'model_spacing': gui.widgets['model_spacing'].get(),
-                'model_padding': gui.widgets['model_padding'].get(),
-                'dark_flag':     gui.widgets['dark_flag'].get(),
-                'flat_flag':     gui.widgets['flat_flag'].get(),
-                'stray_flag':    gui.widgets['stray_flag'].get(),
-                'ils_type':      gui.widgets['ils_mode'].get(),
-                'frs_path':      gui.widgets['frs_path'].get(),
-                'flat_path':     gui.widgets['flat_path'].get(),
-                'ils_path':      gui.widgets['ils_path'].get()}
-
     # Pull the parameters from the parameter table
     params = Parameters()
     logging.info('Generating model parameters')
+    
+    # Add parameters from GUI table
+    for row in gui.gastable._params:
+        if row != []:
+            name  = row[0].get().strip()
+            value = float(row[1].get())
+            vary  = bool(row[2].get())
+            xpath = row[3].get().strip()
+            params.add(name  = name,
+                       value = value,
+                       vary  = vary,
+                       xpath = xpath)
 
     # Add polynomial parameters
     for i, p in enumerate(gui.polytable._params):
@@ -66,7 +61,7 @@ def analysis_loop(gui):
             params.add(f'shift{i}', value=p[1].get(), vary=p[2].get())
 
     # Check if ILS is in the fit
-    if settings['ils_type'] == 'Manual':
+    if gui.widgets['ils_mode'].get() == 'Manual':
         params.add('fwem', value=gui.widgets['fwem'].get(),
                     vary=gui.widgets['fwem_fit'].get())
         params.add('k', value=gui.widgets['k'].get(),
@@ -76,53 +71,45 @@ def analysis_loop(gui):
         params.add('a_k', value=gui.widgets['a_k'].get(),
                    vary=gui.widgets['a_k_fit'].get())
 
-    settings['gas_data'] = {}
-
-    # Add parameters from GUI table
-    for row in gui.gastable._params:
-        if row != []:
-            name  = row[0].get().strip()
-            value = float(row[1].get())
-            vary  = bool(row[2].get())
-            xpath = row[3].get().strip()
-            params.add(name  = name,
-                       value = value,
-                       vary  = vary)
-            settings['gas_data'][name] = [xpath]
-
-    # Build the forward model
-    logging.info('Setting up forward model')
-    common = model_setup(settings)
+    # Generate the analyser
+    analyser = Analyser(params=params,
+                        fit_window    = [gui.widgets['fit_lo'].get(), 
+                                         gui.widgets['fit_hi'].get()],
+                        frs_path      = gui.widgets['frs_path'].get(),
+                        model_padding = gui.widgets['model_padding'].get(),
+                        model_spacing = gui.widgets['model_spacing'].get(),
+                        flat_flag     = gui.widgets['flat_flag'].get(),
+                        flat_path     = gui.widgets['flat_path'].get(),
+                        stray_flag    = gui.widgets['stray_flag'].get(),
+                        stray_window  = [gui.widgets['stray_lo'].get(),
+                                         gui.widgets['stray_hi'].get()],
+                        dark_flag     = gui.widgets['dark_flag'].get(),
+                        ils_type      = gui.widgets['ils_mode'].get(),
+                        ils_path      = gui.widgets['ils_path'].get())
 
     # Report fitting parameters
     logging.info(params.pretty_print(cols=['name', 'value', 'vary']))
 
-    # Add the parameters to the common and make a copy of the initial params
-    common['params'] = params
-    common['x0'] = params.valueslist()
-
-    # Generate the analyser
-    a = Analyser(common)
-
+    # Record the start time
     gui.start_time = time.time()
 
     # Begin the analysis
     spec_list = ['iFit','Master.Scope','Spectrasuite','Basic']
     if gui.widgets['spec_type'].get() in spec_list:
-        spectra_loop(gui, a, common, settings)
+        spectra_loop(gui, analyser)
 
     elif gui.widgets['spec_type'].get() in ['FLAME', 'OpenSO2']:
-        scan_loop(gui, a, common, settings)
+        scan_loop(gui, analyser)
 
 #==============================================================================
 #================================ spectra_loop ================================
 #==============================================================================
 
-def spectra_loop(gui, a, common, settings):
+def spectra_loop(gui, analyser):
 
     # Make a list of column names
     cols = ['File', 'Number', 'Time']
-    for par in common['params']:
+    for par in analyser.params:
         cols += [par, f'{par}_err']
     cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 
@@ -136,17 +123,7 @@ def spectra_loop(gui, a, common, settings):
 
     # Read in the dark spectra
     logging.info('Reading dark spectra')
-    x, common['dark'] = average_spectra(dark_fnames, spec_type)
-
-    # Find the fit and stray windows
-    logging.info('Calculating the fit window')
-    common['fit_idx'] = np.where(np.logical_and(x > settings['w_lo'],
-                                                x < settings['w_hi']))
-
-    if common['stray_flag']:
-        logging.info('Calculating the stray light window')
-        common['stray_idx'] = np.where(np.logical_and(x > settings['s_lo'],
-                                                      x < settings['s_hi']))
+    x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
 
     # Create a loop counter
     gui.loop = 0
@@ -163,17 +140,25 @@ def spectra_loop(gui, a, common, settings):
         # Read in the spectrum
         logging.debug(f'Reading in spectrum {fname}')
         x, y, info, read_err = read_spectrum(fname, spec_type)
+                    
+        # Pull processing settings from the GUI
+        update_flag = gui.widgets['update_flag'].get()
+        resid_limit = gui.widgets['resid_limit'].get()
+        resid_type  = gui.widgets['resid_type'].get()
+        int_limit   = [gui.widgets['lo_int_limit'].get(),
+                       gui.widgets['hi_int_limit'].get()]
+        graph_p     = [gui.widgets['graph_param'].get()]
+        interp_meth = gui.widgets['interp_method'].get()
 
         # Fit the spectrum
         logging.debug(f'Fitting spectrum {fname}')
-        fit_result = a.fit_spectrum([x,y],
-                                    gui.widgets['update_flag'].get(),
-                                    gui.widgets['resid_limit'].get(),
-                                    gui.widgets['resid_type'].get(),
-                                    None,
-                                    [gui.widgets['graph_param'].get()],
-                                    True,
-                                    gui.widgets['interp_method'].get())
+        fit_result = analyser.fit_spectrum(spectrum=[x,y],
+                                           update_params = update_flag,
+                                           resid_limit   = resid_limit,
+                                           resid_type    = resid_type,
+                                           int_limit     = int_limit,
+                                           calc_od       = graph_p,
+                                           interp_method = interp_meth)
 
         # Add the the results dataframe
         row = [fname, info['spec_no'], info['time']]
@@ -276,30 +261,16 @@ def spectra_loop(gui, a, common, settings):
 #================================= scan_loop ==================================
 #==============================================================================
 
-def scan_loop(gui, a, common, settings):
+def scan_loop(gui, analyser):
 
     # Make a list of column names
     cols = ['Number', 'Time', 'Motor_Pos']
-    for par in common['params']:
+    for par in analyser.params:
         cols += [par, f'{par}_err']
     cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 
     # Get the wavelength grid of the spectrometer
     x = np.loadtxt(gui.widgets['wl_calib'].get())
-
-    # Find the fit and stray windows
-    logging.info('Calculating the fit window')
-    common['fit_idx'] = np.where(np.logical_and(x > settings['w_lo'],
-                                                x < settings['w_hi']))
-
-    if common['stray_flag']:
-        logging.info('Calculating the stray light window')
-        common['stray_idx'] = np.where(np.logical_and(x>280, x<290))
-
-        if len(common['stray_idx'][0]) == 0:
-            logging.warn('No stray light window found, ' + \
-                         'disabling stray light correction')
-            common['stray_flag'] = False
 
     # Create a loop counter
     gui.loop = 0
@@ -325,7 +296,7 @@ def scan_loop(gui, a, common, settings):
             df = pd.DataFrame(index=np.arange(len(spec_fnames)), columns=cols)
 
             # Get the dark
-            common['dark'] = spec_block[0]
+            analyser.dark_spec = spec_block[0]
 
             # Cycle through the scan block
             for n, y in enumerate(spec_block[1:]):
@@ -335,18 +306,26 @@ def scan_loop(gui, a, common, settings):
                     n_aq, h, m, s, motor_pos = info_block[:,n+1]
                 if spec_type == 'OpenSO2':
                     n_aq, h, m, s, motor_pos, int_t, coadds = info_block[n+1]
+                    
+                # Pull processing settings from the GUI
+                update_flag = gui.widgets['update_flag'].get()
+                resid_limit = gui.widgets['resid_limit'].get()
+                resid_type  = gui.widgets['resid_type'].get()
+                int_limit   = [gui.widgets['lo_int_limit'].get(),
+                               gui.widgets['hi_int_limit'].get()]
+                graph_p     = [gui.widgets['graph_param'].get()]
+                interp_meth = gui.widgets['interp_method'].get()
 
                 # Fit the spectrum
                 logging.debug(f'Fitting spectrum {fname}')
-                fit_result = a.fit_spectrum([x,y],
-                                            gui.widgets['update_flag'].get(),
-                                            gui.widgets['resid_limit'].get(),
-                                            gui.widgets['resid_type'].get(),
-                                            None,
-                                            [gui.widgets['graph_param'].get()],
-                                            True,
-                                            gui.widgets['interp_method'].get()
-                                            )
+                fit_result = analyser.fit_spectrum(spectrum=[x,y],
+                                                   update_params = update_flag,
+                                                   resid_limit   = resid_limit,
+                                                   resid_type    = resid_type,
+                                                   int_limit     = int_limit,
+                                                   calc_od       = graph_p,
+                                                   pre_process   = True,
+                                                   interp_method = interp_meth)
 
                 # Add to the results dataframe
                 time = dt.time(int(h), int(m), int(s))

@@ -12,11 +12,11 @@ from scipy.special import gamma
 #================================== make_ils ==================================
 #==============================================================================
 
-def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
+def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
 
     '''
     Function to generate a synthetic instrument line shape based on a super
-    gaussian function:
+    Gaussian function:
 
                      { exp(-| x / (w-a_w) | ^ (k-a_k)) for x <= 0
     G(x) = A(w, k) * {
@@ -51,7 +51,8 @@ def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
     '''
 
     # Create a grid 6 times that of the width
-    grid = np.arange(-FWEM * 4, FWEM * 4, interval)
+    # grid = np.arange(-FWEM * 4, FWEM * 4, interval)
+    grid = np.arange(-2, 2, interval)
 
     # Calculate w as half of the FWEM
     w = 0.5 * FWEM
@@ -77,46 +78,3 @@ def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
     ils = np.divide(ils, sum(ils))
 
     return ils
-
-#==============================================================================
-#=================================== smooth ===================================
-#==============================================================================
-
-def smooth(y, width):
-
-    '''
-    Function to smooth a 1D array using a boxcar of defined width This function
-    will have edge effects! Apply smooth BEFORE cutting window
-
-    **Parameters**
-
-    y : array
-        The array to smooth
-
-    width : int
-        The width of the boxcar (in array elements)
-
-    **Returns**
-
-    smooth_y : array
-        The smoothed array
-    '''
-
-    # Create the boxcar window
-    window = np.ones(int(width))/float(width)
-
-    # Pad the array with values to avoid edge effects
-    pre_array = np.ones(width-1) * y[0]
-    post_array = np.ones(width-1) * y[-1]
-
-    # Add padding to the origional array
-    y = np.append(pre_array,y)
-    y = np.append(y,post_array)
-
-    # Convolve with boxcar to smooth
-    smooth_y = np.convolve(y, window, 'same')
-
-    # Cut array to origional size
-    smooth_y = smooth_y[width-1:-(width-1)]
-
-    return smooth_y

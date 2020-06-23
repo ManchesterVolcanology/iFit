@@ -88,9 +88,10 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
         entry_sticky = sticky
 
     # Create the input label
-    label = ttk.Label(frame, text = text, font = label_font)
-    label.grid(row=row, column=column, padx=padx, pady=pady,
-               sticky=label_sticky)
+    if text != None:
+        label = ttk.Label(frame, text = text, font = label_font)
+        label.grid(row=row, column=column, padx=padx, pady=pady,
+                   sticky=label_sticky)
 
     # Check that the entry type is valid
     if input_type not in ['Entry', 'Spinbox', 'OptionMenu', 'Label',
