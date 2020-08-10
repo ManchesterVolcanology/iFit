@@ -50,8 +50,7 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
         and 5 times the width of the supplied FWEM
     '''
 
-    # Create a grid 6 times that of the width
-    # grid = np.arange(-FWEM * 4, FWEM * 4, interval)
+    # Create a 4 nm grid 
     grid = np.arange(-2, 2, interval)
 
     # Calculate w as half of the FWEM
