@@ -223,7 +223,9 @@ class myGUI(tk.Frame):
                   ).grid(row=3, column=1, padx=5, pady=5, sticky='W',
                       columnspan=2)
         ttk.Button(setup_frame, text="Browse", width=10,
-                   command=lambda: select_save(holder=self.widgets['save_path'])
+                   command=lambda: select_save(holder=self.widgets['save_path'],
+                                               save_flag=True,
+                                               extension='.csv')
                    ).grid(row=3, column=3, padx=5, pady=5, sticky='W')
 
 # =============================================================================

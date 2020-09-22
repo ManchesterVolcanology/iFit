@@ -428,7 +428,8 @@ def scan_loop(gui, analyser):
 #================================ select_files ================================
 #==============================================================================
 
-def select_files(single_file=False, holder=None, entry=None):
+def select_files(single_file=False, holder=None, entry=None, save_flag=False,
+                 filetypes=None):
 
     '''
     Function to select files
@@ -449,42 +450,51 @@ def select_files(single_file=False, holder=None, entry=None):
     spec_list : list or str
         The list of file paths, or a single file path
     '''
+    
+    if filetypes == None:
+        filetypes = [("all files", "*.*")]
+    else:
+        filetypes.append(("all files", "*.*"))
 
     # Get the cwd
-    cwd = os.getcwd().replace('\\', '/')
+    cwd = os.getcwd().replace("\\", "/")
 
     # Open dialouge to get a single file
     if single_file:
-        fpath = fd.askopenfilename()
+        # if save_flag: fname = fd.asksaveasfilename(defaultextension=extension)
+        if save_flag: fname = fd.asksaveasfilename(initialdir=cwd,
+                                                   title="Select file",
+                                                   filetypes=filetypes)
+        else: fname = fd.askopenfilename(filetypes=filetypes)
 
-        if fpath != '' and holder != None:
+        if fname != '' and holder != None:
 
             # Check if in the same cwd. If so trim the file path
-            if cwd in fpath:
-                fpath = fpath[len(cwd)+1:]
+            if cwd in fname:
+                fname = fname[len(cwd)+1:]
 
-            holder.set(fpath)
+            holder.set(fname)
 
-        return fpath
+        return fname
 
     # Open dialouge to get multiple files
     else:
-        fpaths = fd.askopenfilenames()
+        fnames = fd.askopenfilenames(filetypes=filetypes)
 
-        if fpaths != '':
+        if fnames != '':
 
             if holder != None:
                 # Clear the holder list
                 holder.clear()
 
-                for fname in fpaths:
+                for fname in fnames:
                     holder.append(str(fname))
 
             # Save output to input
             if entry != None:
                 entry.set(f'{len(holder)} files selected')
 
-        return fpaths
+        return fnames
 
 #==============================================================================
 #================================ select_files ================================
