@@ -389,7 +389,7 @@ class Analyser():
                     fit_result.calc_od(par, self)
 
         else:
-            logging.warn(f'Fit failed!')
+            logging.warn('Fit failed!')
             if update_params:
                 self.p0 = self.params.fittedvalueslist()
             for par in calc_od:
