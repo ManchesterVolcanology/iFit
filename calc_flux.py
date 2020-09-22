@@ -96,17 +96,17 @@ class mygui(tk.Tk):
                 for line in data:
 
                     # Read each line
-                    v_name, v_lon, v_lat, t_diff = line.strip().split('\t')
+                    v_name, v_lat, v_lon, t_diff = line.strip().split('\t')
 
                     # Remove white space from parameters
                     v_name = v_name.strip()
-                    v_lon  = v_lon.strip()
                     v_lat  = v_lat.strip()
+                    v_lon  = v_lon.strip()
                     t_diff = t_diff.strip()
 
                     # Add to choise array and populate volcano dictionary
                     self.volc_choice.append(v_name)
-                    self.volc_data[v_name] = [v_lon, v_lat, t_diff]
+                    self.volc_data[v_name] = [v_lat, v_lon, t_diff]
 
         except  FileNotFoundError:
             print('No input file found')
@@ -232,8 +232,8 @@ class mygui(tk.Tk):
 
         # Update parameters on choice
         def volc_update(event):
-            self.volc_lon.set(self.volc_data[self.volc_name.get()][0])
-            self.volc_lat.set(self.volc_data[self.volc_name.get()][1])
+            self.volc_lat.set(self.volc_data[self.volc_name.get()][0])
+            self.volc_lon.set(self.volc_data[self.volc_name.get()][1])
             self.time_diff.set(self.volc_data[self.volc_name.get()][2])
 
         # Create choice of imported volcanos
