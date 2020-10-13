@@ -50,7 +50,7 @@ params.add('shift0', value=0.0, vary=True)
 params.add('shift1', value=0.1, vary=True)
 ```
 
-This defines three gas `Parameter`s for SO2, O3 and Ring, as well as the polynomial coefficients for the background polynomial, intensity offset and wavelength shift. Once the `Parameters` is defined the `Analyser` can be generated.
+This defines three gas `Parameter`s for SO<sub>2</sub>, O<sub>3</sub> and Ring, as well as the polynomial coefficients for the background polynomial, intensity offset and wavelength shift. Once the `Parameters` is defined the `Analyser` can be generated.
 
 ### Analyser
 The `Analyser` handles the actual analysis of the spectra. It must be generated first, defining certain settings for the analysis, as well as the `Parameters` already defined:
@@ -60,11 +60,11 @@ The `Analyser` handles the actual analysis of the spectra. It must be generated 
 from ifit.spectral_analysis import Analyser
 
 # Generate the analyser
-analyser = Analyser(params       = params,
-                    fit_window   = [310, 320],
-                    frs_path     = 'Ref/sao2010.txt',
-                    stray_flag   = True,
-                    stray_window = [280, 290])
+analyser = Analyser(params=params,
+                    fit_window=[310, 320],
+                    frs_path='Ref/sao2010.txt',
+                    stray_flag=True,
+                    stray_window=[280, 290])
 ```
 
 This will generate an analyser that will fit the emasured spectra between 310 - 320 nm, performing a stray light correction using the measured intensities between 280 - 290 nm.
@@ -72,7 +72,7 @@ This will generate an analyser that will fit the emasured spectra between 310 - 
 Measured spectra can then be analysed by using `analyser.fit_spectrum`:
 
 ```python
-fit = analyser.fit_spectrum([x,y])
+fit = analyser.fit_spectrum([x, y])
 ```
 
 In this case x and y are the measured spectum wavelengths and intensities respectively. This returns a `FitResult` object which holds the fit data and useful information.
@@ -85,5 +85,3 @@ The `FitResult` object contains a copy of the `Parameters` object that was passe
 
 ## In Progress
 This is version 3.0 and is still in progress. Currently only post analysis is coded, but real time analysis with Ocean Optics spectrometer control is being added.
-
-This update required a significant rewrite of the iFit software but should make it more user friendly and flexible for future applications. 
