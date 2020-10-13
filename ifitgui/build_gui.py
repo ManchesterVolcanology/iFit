@@ -11,20 +11,18 @@ from tkinter import ttk
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-
-from ifitgui.gui_functions import select_files
+from .gui_functions import select_files
 
 
 # =============================================================================
-# Make Input 
+# Make Input
 # =============================================================================
 
-def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
-               command = None, sticky = ['NSEW', None], state=None,
-               label_font = ('Verdana', 10), width = None, options = None,
-               vals = [0, 1000], increment = 1, rowspan = None,
-               columnspan = None):
-
+def make_input(frame, text, var, input_type, row, column, padx=5, pady=5,
+               command=None, sticky=['NSEW', None], state=None,
+               label_font=('Verdana', 10), width=None, options=None,
+               vals=[0, 1000], increment=1, rowspan=None,
+               columnspan=None):
     '''
     Function to build GUI inputs consisting of a label and an input.
 
@@ -77,7 +75,7 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
     '''
 
     # Unpack stickyness
-    if sticky == None:
+    if sticky is None:
         label_sticky = None
         entry_sticky = None
     elif len(sticky) == 2:
@@ -88,8 +86,8 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
         entry_sticky = sticky
 
     # Create the input label
-    if text != None:
-        label = ttk.Label(frame, text = text, font = label_font)
+    if text is not None:
+        label = ttk.Label(frame, text=text, font=label_font)
         label.grid(row=row, column=column, padx=padx, pady=pady,
                    sticky=label_sticky)
 
@@ -98,56 +96,47 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
                           'Checkbutton', 'Combobox']:
         raise TypeError('Data entry type "' + input_type + '" not recognised')
 
-
     # Normal entry
     if input_type == 'Entry':
-        if command == None:
+        if command is None:
             validate = None
         else:
             validate = "focusout"
-        entry = ttk.Entry(frame, textvariable = var, width = width,
-                          validate = validate, validatecommand = command)
-
+        entry = ttk.Entry(frame, textvariable=var, width=width,
+                          validate=validate, validatecommand=command)
 
     # Spinbox
     if input_type == 'Spinbox':
 
         # Check if range is from:to or a list
         if len(vals) == 2:
-            entry = tk.Spinbox(frame, textvariable = var, width = width,
-                               from_ = vals[0], to = vals[1],
-                               command = command, increment = increment)
+            entry = tk.Spinbox(frame, textvariable=var, width=width,
+                               from_=vals[0], to=vals[1], command=command,
+                               increment=increment)
 
         else:
-            entry = tk.Spinbox(frame, textvariable = var, width = width,
-                               values = vals, command = command,
-                               increment = increment)
-
-        # Set first value
-        #entry.update(var.get())
-
+            entry = tk.Spinbox(frame, textvariable=var, width=width,
+                               values=vals, command=command,
+                               increment=increment)
 
     # Option Menu
     if input_type == 'OptionMenu':
-        entry = ttk.OptionMenu(frame, var, *options, command = command)
-        entry.config(width = width)
-
+        entry = ttk.OptionMenu(frame, var, *options, command=command)
+        entry.config(width=width)
 
     # Label
     if input_type == 'Label':
-        entry = ttk.Label(frame, textvariable = var, width = width)
-
+        entry = ttk.Label(frame, textvariable=var, width=width)
 
     # Checkbutton
     if input_type == 'Checkbutton':
-        entry = ttk.Checkbutton(frame, variable = var)
-        
+        entry = ttk.Checkbutton(frame, variable=var)
+
     # Combobox
     if input_type == 'Combobox':
         entry = ttk.Combobox(frame, textvariable=var, width=width,
                              postcommand=command, state=state)
         entry['values'] = options
-
 
     # Add entry to the frame
     entry.grid(row=row, column=column+1, padx=padx, pady=pady,
@@ -155,8 +144,9 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
 
     return entry
 
+
 # =============================================================================
-# Make Table 
+# Make Table
 # =============================================================================
 
 class ParamTable(tk.Frame):
@@ -176,7 +166,8 @@ class ParamTable(tk.Frame):
         The font for the header
     '''
 
-    def __init__(self, parent, font=('Verdana',10), header_font=('Verdana',14)):
+    def __init__(self, parent, font=('Verdana', 10),
+                 header_font=('Verdana', 14)):
 
         tk.Frame.__init__(self, parent)
 
@@ -184,7 +175,7 @@ class ParamTable(tk.Frame):
         self.parent = parent
         self.row = 2
 
-        self.cols = [1,3,5]
+        self.cols = [1, 3, 5]
 
         # Make a label
         ttk.Label(self, text='Name', font=header_font
@@ -211,14 +202,12 @@ class ParamTable(tk.Frame):
 
         ttk.Button(self, text="Add Parameter", command=self.add_row
                    ).grid(row=0, column=7, padx=5, pady=5, sticky='W',
-                   columnspan=2)
+                          columnspan=2)
 
         self._params = []
         self._widgets = []
 
         self.add_row()
-
-
 
     def clear(self):
         '''Clear the table'''
@@ -229,21 +218,20 @@ class ParamTable(tk.Frame):
         self._params = []
         self._widgets = []
 
-
-    def add_row(self, name = '', value = 0, vary = True, xpath = ''):
+    def add_row(self, name='', value=0, vary=True, xpath=''):
         '''Adds a row to the table'''
 
-        row_n = tk.IntVar(self, value = self.row-2)
+        row_n = tk.IntVar(self, value=self.row-2)
         col_n = 0
 
         # Make a name entry
         name_h = tk.StringVar(self.parent, value=name)
         name_w = ttk.Entry(self,
-                           textvariable = name_h,
+                           textvariable=name_h,
                            width=10,
                            font=self.font)
         name_w.grid(row=self.row, column=col_n, padx=2, pady=2)
-        col_n =+ 2
+        col_n += 2
 
         # Make a value entry
         value_h = tk.DoubleVar(self.parent, value=value)
@@ -270,22 +258,22 @@ class ParamTable(tk.Frame):
         col_n += 1
 
         # Add a browse button
-        b_button = ttk.Button(self, text = "Browse", width = 8,
-                   command = lambda: select_files(single_file = True,
-                                                  holder = xpath_h))
+        b_button = ttk.Button(self, text="Browse", width=8,
+                              command=lambda: select_files(single_file=True,
+                                                           holder=xpath_h))
         b_button.grid(row=self.row, column=col_n, padx=5, pady=5,
                       sticky='W')
         col_n += 1
 
         # Add a remove button
-        x_button = ttk.Button(self, text = "X", width = 2,
-                              command = lambda: self.remove_row(row_n.get(),
-                                                                *[name_w,
-                                                                  value_w,
-                                                                  vary_w,
-                                                                  xpath_w,
-                                                                  b_button,
-                                                                  x_button]))
+        x_button = ttk.Button(self, text="X", width=2,
+                              command=lambda: self.remove_row(row_n.get(),
+                                                              *[name_w,
+                                                              value_w,
+                                                              vary_w,
+                                                              xpath_w,
+                                                              b_button,
+                                                              x_button]))
 
         x_button.grid(row=self.row, column=col_n, padx=5, pady=5, sticky='W')
 
@@ -302,8 +290,6 @@ class ParamTable(tk.Frame):
         self._widgets.append([name_w, value_w, vary_w, xpath_w, b_button,
                               x_button])
 
-
-
     def set_params(self, params):
         '''Update the parameter table'''
 
@@ -316,7 +302,6 @@ class ParamTable(tk.Frame):
             except IndexError:
                 pass
 
-
     def remove_row(self, n, *widgets):
         '''Removes a single row'''
         for widget in widgets:
@@ -326,9 +311,10 @@ class ParamTable(tk.Frame):
         del(self._widgets[n])
         # self.row -= 1
 
-#==============================================================================
-#============================= Polynomial Table ===============================
-#==============================================================================
+
+# =============================================================================
+# Polynomial Table
+# =============================================================================
 
 class PolyTable(tk.Frame):
 
@@ -347,7 +333,8 @@ class PolyTable(tk.Frame):
         The font for the header
     '''
 
-    def __init__(self, parent, font=('Verdana',10), header_font=('Verdana',14)):
+    def __init__(self, parent, font=('Verdana', 10),
+                 header_font=('Verdana', 14)):
 
         tk.Frame.__init__(self, parent)
 
@@ -355,7 +342,7 @@ class PolyTable(tk.Frame):
         self.parent = parent
         self.row = 2
 
-        self.cols = [1,3]
+        self.cols = [1, 3]
 
         # Make a label
         ttk.Label(self, text='Coefficient', font=header_font
@@ -380,14 +367,12 @@ class PolyTable(tk.Frame):
 
         ttk.Button(self, text="Add Order", command=self.add_row
                    ).grid(row=0, column=7, padx=5, pady=5, sticky='W',
-                   columnspan=2)
+                          columnspan=2)
 
         self._params = []
         self._widgets = []
 
         self.add_row()
-
-
 
     def clear(self):
         '''Clear the table'''
@@ -398,20 +383,19 @@ class PolyTable(tk.Frame):
         self._params = []
         self._widgets = []
 
+    def add_row(self, value=0, vary=True):
 
-    def add_row(self, value = 0, vary = True):
-
-        row_n = tk.IntVar(self, value = self.row-2)
+        row_n = tk.IntVar(self, value=self.row-2)
         col_n = 0
 
         # Make a name entry
         name_h = tk.StringVar(self.parent, value=f'C{self.row-2}')
         name_w = ttk.Label(self,
-                           textvariable = name_h,
+                           textvariable=name_h,
                            width=10,
                            font=self.font)
-        name_w.grid(row=self.row, column=col_n, padx=2, pady=2, sticky = 'NS')
-        col_n =+ 2
+        name_w.grid(row=self.row, column=col_n, padx=2, pady=2, sticky='NS')
+        col_n += 2
 
         # Make a value entry
         value_h = tk.DoubleVar(self.parent, value=value)
@@ -429,12 +413,12 @@ class PolyTable(tk.Frame):
         col_n += 2
 
         # Add a remove button
-        x_button = ttk.Button(self, text = "X", width = 2,
-                              command = lambda: self.remove_row(row_n.get(),
-                                                                *[name_w,
-                                                                  value_w,
-                                                                  vary_w,
-                                                                  x_button]))
+        x_button = ttk.Button(self, text="X", width=2,
+                              command=lambda: self.remove_row(row_n.get(),
+                                                              *[name_w,
+                                                              value_w,
+                                                              vary_w,
+                                                              x_button]))
 
         x_button.grid(row=self.row, column=col_n, padx=5, pady=5, sticky='W')
 
@@ -450,8 +434,6 @@ class PolyTable(tk.Frame):
         self._params.append([name_h, value_h, vary_h])
         self._widgets.append([name_w, value_w, vary_w, x_button])
 
-
-
     def set_params(self, params):
         '''Update the parameter table'''
 
@@ -465,7 +447,6 @@ class PolyTable(tk.Frame):
             except IndexError:
                 pass
 
-
     def remove_row(self, n, *widgets):
         '''Removes a single row'''
         for widget in widgets:
@@ -476,9 +457,9 @@ class PolyTable(tk.Frame):
         self.row -= 1
 
 
-#==============================================================================
-#================================ Make Figure =================================
-#==============================================================================
+# =============================================================================
+# Make Figure
+# =============================================================================
 
 class GuiFigure():
 
@@ -496,8 +477,8 @@ class GuiFigure():
 
     def __init__(self,
                  fig_kwargs={},
-                 grid=[1,1],
-                 axes_info = [],
+                 grid=[1, 1],
+                 axes_info=[],
                  gridlines=True,
                  fontsize=10):
 
@@ -523,15 +504,14 @@ class GuiFigure():
         #  after to avoid the graphs jumping about
         self.rearange_flag = True
 
-
     def set_labels(self, ax, xlabel=None, ylabel=None):
         '''Sets the axis labels'''
 
-        if xlabel != None:
-            ax.set_xlabel(xlabel, fontsize = self.fontsize)
+        if xlabel is not None:
+            ax.set_xlabel(xlabel, fontsize=self.fontsize)
 
-        if ylabel != None:
-            ax.set_ylabel(ylabel, fontsize = self.fontsize)
+        if ylabel is not None:
+            ax.set_ylabel(ylabel, fontsize=self.fontsize)
 
     def update_plots(self, data):
         '''Updates the axes with supplied data'''
@@ -583,18 +563,19 @@ class GuiFigure():
             plt.tight_layout()
             self.rearange_flag = False
 
+
 class Axis():
 
     def __init__(self, fig, gs,
-                 loc=[0,0],
+                 loc=[0, 0],
                  lines=[],
                  ax_labels=[None, None],
                  grid=False):
 
         # Add the axis
         self.axis = fig.add_subplot(gs.new_subplotspec((loc[0], loc[1]),
-                                                        rowspan=loc[2],
-                                                        colspan=loc[3]))
+                                                       rowspan=loc[2],
+                                                       colspan=loc[3]))
 
         # Create an array to hold the lines for the axis
         self.lines = []
@@ -607,16 +588,19 @@ class Axis():
             line, = self.axis.plot([], [], **line_info)
 
             # If there is a label turn on the legend flag
-            if 'label' in line_info: legend_flag = True
+            if 'label' in line_info:
+                legend_flag = True
 
             # Add the line to the lines array
             self.lines.append(line)
 
         # If labels are provided add a legend
-        if legend_flag: self.axis.legend()
+        if legend_flag:
+            self.axis.legend()
 
         # If gidlines are requested add these
-        if grid: self.axis.grid(ls='--')
+        if grid:
+            self.axis.grid(ls='--')
 
         # Set the axis labels
         self.axis.set_xlabel(ax_labels[0])

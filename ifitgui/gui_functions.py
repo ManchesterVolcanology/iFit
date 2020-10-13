@@ -17,9 +17,10 @@ from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import read_spectrum, average_spectra, read_scan
 
-#==============================================================================
-#=============================== analysis_loop ================================
-#==============================================================================
+# =============================================================================
+# analysis_loop
+# =============================================================================
+
 
 def analysis_loop(gui):
     '''Function to handle the analysis loop'''
@@ -34,18 +35,18 @@ def analysis_loop(gui):
     # Pull the parameters from the parameter table
     params = Parameters()
     logging.info('Generating model parameters')
-    
+
     # Add parameters from GUI table
     for row in gui.gastable._params:
         if row != []:
-            name  = row[0].get().strip()
+            name = row[0].get().strip()
             value = float(row[1].get())
-            vary  = bool(row[2].get())
+            vary = bool(row[2].get())
             xpath = row[3].get().strip()
-            params.add(name  = name,
-                       value = value,
-                       vary  = vary,
-                       xpath = xpath)
+            params.add(name=name,
+                       value=value,
+                       vary=vary,
+                       xpath=xpath)
 
     # Add polynomial parameters
     for i, p in enumerate(gui.polytable._params):
@@ -63,7 +64,7 @@ def analysis_loop(gui):
     # Check if ILS is in the fit
     if gui.widgets['ils_mode'].get() == 'Manual':
         params.add('fwem', value=gui.widgets['fwem'].get(),
-                    vary=gui.widgets['fwem_fit'].get())
+                   vary=gui.widgets['fwem_fit'].get())
         params.add('k', value=gui.widgets['k'].get(),
                    vary=gui.widgets['k_fit'].get())
         params.add('a_w', value=gui.widgets['a_w'].get(),
@@ -73,19 +74,19 @@ def analysis_loop(gui):
 
     # Generate the analyser
     analyser = Analyser(params=params,
-                        fit_window    = [gui.widgets['fit_lo'].get(), 
-                                         gui.widgets['fit_hi'].get()],
-                        frs_path      = gui.widgets['frs_path'].get(),
-                        model_padding = gui.widgets['model_padding'].get(),
-                        model_spacing = gui.widgets['model_spacing'].get(),
-                        flat_flag     = gui.widgets['flat_flag'].get(),
-                        flat_path     = gui.widgets['flat_path'].get(),
-                        stray_flag    = gui.widgets['stray_flag'].get(),
-                        stray_window  = [gui.widgets['stray_lo'].get(),
-                                         gui.widgets['stray_hi'].get()],
-                        dark_flag     = gui.widgets['dark_flag'].get(),
-                        ils_type      = gui.widgets['ils_mode'].get(),
-                        ils_path      = gui.widgets['ils_path'].get())
+                        fit_window=[gui.widgets['fit_lo'].get(),
+                                    gui.widgets['fit_hi'].get()],
+                        frs_path=gui.widgets['frs_path'].get(),
+                        model_padding=gui.widgets['model_padding'].get(),
+                        model_spacing=gui.widgets['model_spacing'].get(),
+                        flat_flag=gui.widgets['flat_flag'].get(),
+                        flat_path=gui.widgets['flat_path'].get(),
+                        stray_flag=gui.widgets['stray_flag'].get(),
+                        stray_window=[gui.widgets['stray_lo'].get(),
+                                      gui.widgets['stray_hi'].get()],
+                        dark_flag=gui.widgets['dark_flag'].get(),
+                        ils_type=gui.widgets['ils_mode'].get(),
+                        ils_path=gui.widgets['ils_path'].get())
 
     # Report fitting parameters
     logging.info(params.pretty_print(cols=['name', 'value', 'vary']))
@@ -94,16 +95,17 @@ def analysis_loop(gui):
     gui.start_time = time.time()
 
     # Begin the analysis
-    spec_list = ['iFit','Master.Scope','Spectrasuite','Basic']
+    spec_list = ['iFit', 'Master.Scope', 'Spectrasuite', 'Basic']
     if gui.widgets['spec_type'].get() in spec_list:
         spectra_loop(gui, analyser)
 
     elif gui.widgets['spec_type'].get() in ['FLAME', 'OpenSO2']:
         scan_loop(gui, analyser)
 
-#==============================================================================
-#================================ spectra_loop ================================
-#==============================================================================
+# =============================================================================
+# spectra_loop
+# =============================================================================
+
 
 def spectra_loop(gui, analyser):
 
@@ -119,7 +121,7 @@ def spectra_loop(gui, analyser):
     spec_type = gui.widgets['spec_type'].get()
 
     # Make a dataframe to hold the fit results
-    df = pd.DataFrame(index = np.arange(len(spec_fnames)), columns = cols)
+    df = pd.DataFrame(index=np.arange(len(spec_fnames)), columns=cols)
 
     # Read in the dark spectra
     logging.info('Reading dark spectra')
@@ -140,25 +142,25 @@ def spectra_loop(gui, analyser):
         # Read in the spectrum
         logging.debug(f'Reading in spectrum {fname}')
         x, y, info, read_err = read_spectrum(fname, spec_type)
-                    
+
         # Pull processing settings from the GUI
         update_flag = gui.widgets['update_flag'].get()
         resid_limit = gui.widgets['resid_limit'].get()
-        resid_type  = gui.widgets['resid_type'].get()
-        int_limit   = [gui.widgets['lo_int_limit'].get(),
-                       gui.widgets['hi_int_limit'].get()]
-        graph_p     = [gui.widgets['graph_param'].get()]
+        resid_type = gui.widgets['resid_type'].get()
+        int_limit = [gui.widgets['lo_int_limit'].get(),
+                     gui.widgets['hi_int_limit'].get()]
+        graph_p = [gui.widgets['graph_param'].get()]
         interp_meth = gui.widgets['interp_method'].get()
 
         # Fit the spectrum
         logging.debug(f'Fitting spectrum {fname}')
-        fit_result = analyser.fit_spectrum(spectrum=[x,y],
-                                           update_params = update_flag,
-                                           resid_limit   = resid_limit,
-                                           resid_type    = resid_type,
-                                           int_limit     = int_limit,
-                                           calc_od       = graph_p,
-                                           interp_method = interp_meth)
+        fit_result = analyser.fit_spectrum(spectrum=[x, y],
+                                           update_params=update_flag,
+                                           resid_limit=resid_limit,
+                                           resid_type=resid_type,
+                                           int_limit=int_limit,
+                                           calc_od=graph_p,
+                                           interp_method=interp_meth)
 
         # Add the the results dataframe
         row = [fname, info['spec_no'], info['time']]
@@ -205,13 +207,13 @@ def spectra_loop(gui, analyser):
 
             # Organise data to plot
             #        x_data, y_data
-            data = [[fit_result.grid, fit_result.spec ],
-                    [fit_result.grid, fit_result.fit  ],
-                    [x,               y               ],
+            data = [[fit_result.grid, fit_result.spec],
+                    [fit_result.grid, fit_result.fit],
+                    [x,               y],
                     [fit_result.grid, fit_result.resid],
-                    [fit_result.grid, meas_od         ],
-                    [fit_result.grid, synth_od        ],
-                    [plot_x,          plot_y          ]
+                    [fit_result.grid, meas_od],
+                    [fit_result.grid, synth_od],
+                    [plot_x,          plot_y]
                     ]
 
             gui.figure.update_plots(data)
@@ -245,10 +247,11 @@ def spectra_loop(gui, analyser):
     except PermissionError:
 
         # Open save dialouge
-        text = 'Cannot save output: Permission Denied\nSelect new save location?'
+        text = 'Cannot save output: Permission Denied\n' + \
+               'Select new save location?'
         message = tkMessageBox.askquestion('Save Error',
-                                           message = text,
-                                           type = 'yesno')
+                                           message=text,
+                                           type='yesno')
 
         if message == 'yes':
             select_save(holder=gui.save_path)
@@ -257,9 +260,10 @@ def spectra_loop(gui, analyser):
         if message == 'no':
             pass
 
-#==============================================================================
-#================================= scan_loop ==================================
-#==============================================================================
+# =============================================================================
+# scan_loop
+# =============================================================================
+
 
 def scan_loop(gui, analyser):
 
@@ -303,29 +307,29 @@ def scan_loop(gui, analyser):
 
                 # Extract spectrum info
                 if spec_type == 'FLAME':
-                    n_aq, h, m, s, motor_pos = info_block[:,n+1]
+                    n_aq, h, m, s, motor_pos = info_block[:, n+1]
                 if spec_type == 'OpenSO2':
                     n_aq, h, m, s, motor_pos, int_t, coadds = info_block[n+1]
-                    
+
                 # Pull processing settings from the GUI
                 update_flag = gui.widgets['update_flag'].get()
                 resid_limit = gui.widgets['resid_limit'].get()
-                resid_type  = gui.widgets['resid_type'].get()
-                int_limit   = [gui.widgets['lo_int_limit'].get(),
-                               gui.widgets['hi_int_limit'].get()]
-                graph_p     = [gui.widgets['graph_param'].get()]
+                resid_type = gui.widgets['resid_type'].get()
+                int_limit = [gui.widgets['lo_int_limit'].get(),
+                             gui.widgets['hi_int_limit'].get()]
+                graph_p = [gui.widgets['graph_param'].get()]
                 interp_meth = gui.widgets['interp_method'].get()
 
                 # Fit the spectrum
                 logging.debug(f'Fitting spectrum {fname}')
-                fit_result = analyser.fit_spectrum(spectrum=[x,y],
-                                                   update_params = update_flag,
-                                                   resid_limit   = resid_limit,
-                                                   resid_type    = resid_type,
-                                                   int_limit     = int_limit,
-                                                   calc_od       = graph_p,
-                                                   pre_process   = True,
-                                                   interp_method = interp_meth)
+                fit_result = analyser.fit_spectrum(spectrum=[x, y],
+                                                   update_params=update_flag,
+                                                   resid_limit=resid_limit,
+                                                   resid_type=resid_type,
+                                                   int_limit=int_limit,
+                                                   calc_od=graph_p,
+                                                   pre_process=True,
+                                                   interp_method=interp_meth)
 
                 # Add to the results dataframe
                 time = dt.time(int(h), int(m), int(s))
@@ -371,16 +375,15 @@ def scan_loop(gui, analyser):
                         meas_od = np.full(fit_result.grid.shape, np.nan)
                         synth_od = np.full(fit_result.grid.shape, np.nan)
 
-
                     # Organise data to plot
                     #        x_data,          y_data
-                    data = [[fit_result.grid, fit_result.spec ],
-                            [fit_result.grid, fit_result.fit  ],
-                            [x,               y               ],
+                    data = [[fit_result.grid, fit_result.spec],
+                            [fit_result.grid, fit_result.fit],
+                            [x,               y],
                             [fit_result.grid, fit_result.resid],
-                            [fit_result.grid, meas_od         ],
-                            [fit_result.grid, synth_od        ],
-                            [plot_x,          plot_y          ]
+                            [fit_result.grid, meas_od],
+                            [fit_result.grid, synth_od],
+                            [plot_x,          plot_y]
                             ]
 
                     gui.figure.update_plots(data)
@@ -410,7 +413,7 @@ def scan_loop(gui, analyser):
 
             except PermissionError:
 
-                logging.warn(f'Unable to save file {fname}. File already open.')
+                logging.warn(f'Permission Error: Unable to save file {fname}.')
 
         else:
             logging.warn(f'Error reading file {fname}')
@@ -424,13 +427,13 @@ def scan_loop(gui, analyser):
         # Update the loop counter
         gui.loop += 1
 
-#==============================================================================
-#================================ select_files ================================
-#==============================================================================
+# =============================================================================
+# select_files
+# =============================================================================
+
 
 def select_files(single_file=False, holder=None, entry=None, save_flag=False,
                  filetypes=None):
-
     '''
     Function to select files
 
@@ -450,8 +453,8 @@ def select_files(single_file=False, holder=None, entry=None, save_flag=False,
     spec_list : list or str
         The list of file paths, or a single file path
     '''
-    
-    if filetypes == None:
+
+    if filetypes is not None:
         filetypes = [("all files", "*.*")]
     else:
         filetypes.append(("all files", "*.*"))
@@ -461,13 +464,14 @@ def select_files(single_file=False, holder=None, entry=None, save_flag=False,
 
     # Open dialouge to get a single file
     if single_file:
-        # if save_flag: fname = fd.asksaveasfilename(defaultextension=extension)
-        if save_flag: fname = fd.asksaveasfilename(initialdir=cwd,
-                                                   title="Select file",
-                                                   filetypes=filetypes)
-        else: fname = fd.askopenfilename(filetypes=filetypes)
+        if save_flag:
+            fname = fd.asksaveasfilename(initialdir=cwd,
+                                         title="Select file",
+                                         filetypes=filetypes)
+        else:
+            fname = fd.askopenfilename(filetypes=filetypes)
 
-        if fname != '' and holder != None:
+        if fname != '' and holder is not None:
 
             # Check if in the same cwd. If so trim the file path
             if cwd in fname:
@@ -483,7 +487,7 @@ def select_files(single_file=False, holder=None, entry=None, save_flag=False,
 
         if fnames != '':
 
-            if holder != None:
+            if holder is not None:
                 # Clear the holder list
                 holder.clear()
 
@@ -491,17 +495,17 @@ def select_files(single_file=False, holder=None, entry=None, save_flag=False,
                     holder.append(str(fname))
 
             # Save output to input
-            if entry != None:
+            if entry is not None:
                 entry.set(f'{len(holder)} files selected')
 
         return fnames
 
-#==============================================================================
-#================================ select_files ================================
-#==============================================================================
+# =============================================================================
+# select_files
+# =============================================================================
+
 
 def select_save(holder=None):
-
     '''
     Function to select a folder
 
@@ -522,22 +526,23 @@ def select_save(holder=None):
     # Open a file dialouge to get a folder
     fpath = fd.asksaveasfilename(defaultextension='.csv')
 
-    if fpath != None:
+    if fpath is not None:
 
         # Check if in the same cwd. If so trim the file path
         if cwd in fpath:
             fpath = fpath[len(cwd)+1:]
 
-        if holder != None:
+        if holder is not None:
             holder.set(fpath)
 
     return fpath
 
-#==============================================================================
-#=============================== import_params ================================
-#==============================================================================
+# =============================================================================
+# import_params
+# =============================================================================
 
-def import_params(fpath, table = None):
+
+def import_params(fpath, table=None):
     '''Reads in the param file'''
 
     # Create a Parameters object
@@ -561,7 +566,7 @@ def import_params(fpath, table = None):
 
             params.add(name, value, vary, xpath)
 
-    if table != None:
+    if table is not None:
 
         # Clear the table
         table.set_params(params)
@@ -569,9 +574,9 @@ def import_params(fpath, table = None):
     return params
 
 
-#==============================================================================
-#==================================== stop ====================================
-#==============================================================================
+# =============================================================================
+# stop
+# =============================================================================
 
 def stop(self):
     '''Stops the analysis loop'''

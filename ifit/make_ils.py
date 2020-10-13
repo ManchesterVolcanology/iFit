@@ -8,12 +8,12 @@ Created on Thu Oct 24 10:32:32 2019
 import numpy as np
 from scipy.special import gamma
 
-#==============================================================================
-#================================== make_ils ==================================
-#==============================================================================
+
+# =============================================================================
+# make_ils
+# =============================================================================
 
 def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
-
     '''
     Function to generate a synthetic instrument line shape based on a super
     Gaussian function:
@@ -50,7 +50,7 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
         and 5 times the width of the supplied FWEM
     '''
 
-    # Create a 4 nm grid 
+    # Create a 4 nm grid
     grid = np.arange(-2, 2, interval)
 
     # Calculate w as half of the FWEM
@@ -66,9 +66,9 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
     pos_grid = grid[pos_idx]
 
     # Calculate the asymetric supergaussian function
-    neg_g = np.multiply(A, np.exp(-np.power(np.abs((neg_grid) / (w - a_w) ),
+    neg_g = np.multiply(A, np.exp(-np.power(np.abs((neg_grid) / (w - a_w)),
                                             k - a_k)))
-    pos_g = np.multiply(A, np.exp(-np.power(np.abs((pos_grid) / (w + a_w) ),
+    pos_g = np.multiply(A, np.exp(-np.power(np.abs((pos_grid) / (w + a_w)),
                                             k + a_k)))
 
     # Combine

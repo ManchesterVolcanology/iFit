@@ -10,21 +10,22 @@ import yaml
 import logging
 from tkinter import filedialog as fd
 
-#==============================================================================
-#================================ load_config =================================
-#==============================================================================
 
-def read_config(gui, fpath = None):
+# =============================================================================
+# load_config
+# =============================================================================
+
+def read_config(gui, fpath=None):
     '''Read the config file'''
 
-    if fpath == None:
+    if fpath is None:
         fpath = fd.askopenfilename()
 
     # Open the config file
     try:
         with open(fpath, 'r') as ymlfile:
 
-            config = yaml.load(ymlfile, Loader = yaml.FullLoader)
+            config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
         for label in config:
 
@@ -59,16 +60,17 @@ def read_config(gui, fpath = None):
 
     return config
 
-#==============================================================================
-#=============================== write_config =================================
-#==============================================================================
+
+# =============================================================================
+# write_config
+# =============================================================================
 
 def write_config(gui, asksavepath=True):
     '''Write the config file'''
 
     # Pull the configuration of the parameter tables
     gas_params = []
-    for row in  gui.gastable._params:
+    for row in gui.gastable._params:
         gas_params.append([par.get() for par in row])
     poly_params = []
     for row in gui.polytable._params:
@@ -94,7 +96,7 @@ def write_config(gui, asksavepath=True):
 
     if asksavepath:
         # Get the desired path
-        fpath = fd.asksaveasfilename(defaultextension = '.yaml')
+        fpath = fd.asksaveasfilename(defaultextension='.yaml')
 
         # Save the config file
         with open(fpath, 'w') as outfile:
@@ -116,9 +118,3 @@ def write_config(gui, asksavepath=True):
 
     except FileNotFoundError:
         logging.info('Default config could not be saved')
-
-
-
-
-
-

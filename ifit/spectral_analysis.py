@@ -12,6 +12,7 @@ from scipy.interpolate import griddata
 
 from ifit.make_ils import make_ils
 
+
 # =============================================================================
 # =============================================================================
 # # Spectral Analyser
@@ -29,7 +30,7 @@ class Analyser():
         program to subroutines
     '''
 
-    def __init__(self, params, fit_window, frs_path, model_padding=1.0, 
+    def __init__(self, params, fit_window, frs_path, model_padding=1.0,
                  model_spacing=0.01, flat_flag=False, flat_path=None,
                  stray_flag=False, stray_window=[280, 290], dark_flag=False,
                  ils_type='Manual', ils_path=None):
@@ -44,36 +45,36 @@ class Analyser():
             The lower and upper wavelength limits of the fit window (nm).
         frs_path : str
             Path to the Fraunhofer Reference Spectrum. This is read in using
-            numpy.loadtxt and must consist of two columns: 
+            numpy.loadtxt and must consist of two columns:
             [wavelength, intensity]
         model_padding : float, optional
-            The padding in nm around the fit window to account for wavelength 
-            shifts and edge effects from the ils convolution. The default is 
+            The padding in nm around the fit window to account for wavelength
+            shifts and edge effects from the ils convolution. The default is
             1.0.
         model_spacing : float, optional
             The wavelength spacing of the model grid (nm). The default is 0.01.
         flat_flag : bool, optional
             If True then a flat correction is applied. The default is False.
         flat_path : str, optional
-            Path to the flat spectrum used if flat_flag is True. The default is 
+            Path to the flat spectrum used if flat_flag is True. The default is
             None.
         stray_flag : bool, optional
             If True then a stray correction is applied. The default is True.
         stray_window : tuple, optional
-            The lower and upper wavelength limits of the stray light window. 
+            The lower and upper wavelength limits of the stray light window.
             The default is [280, 290].
         dark_flag : bool, optional
             If True then a dark correction is applied. The default is True.
         ils_type : str, optional
             Controls how the ILS is generated:
-                - "File"   : Import a measured ils which is interpolated onto 
+                - "File"   : Import a measured ils which is interpolated onto
                              the model grid
                 - "Params" : Read in the ILS parameters from a file
                 - "Manual" : Define the ILS parameters manually.
             The default is 'Manual'.
         ils_path : str, optional
             Path to the ILS file, either a measured ILS is ils_type is set to
-            "File", or the ILS parameters if ils_type is set to "Params". 
+            "File", or the ILS parameters if ils_type is set to "Params".
             The default is None.
 
         Returns
@@ -81,142 +82,141 @@ class Analyser():
         None.
 
         '''
-        
+
         # Set the initial estimate for the fit parameters
         self.params = params.make_copy()
         self.p0 = self.params.fittedvalueslist()
-        
+
         # ---------------------------------------------------------------------
         # Model Grid
         # ---------------------------------------------------------------------
-        
+
         # Build model grid, a high res grid on which the forward model is build
         start = fit_window[0] - model_padding
         stop = fit_window[1] + model_padding + model_spacing
-        model_grid = np.arange(start, stop, step = model_spacing)
-    
+        model_grid = np.arange(start, stop, step=model_spacing)
+
         # Add the model grid to the common dict
         self.model_grid = model_grid
-        
+
         # ---------------------------------------------------------------------
         # Flat Spectrum
         # ---------------------------------------------------------------------
-        
+
         # Try importing flat spectrum
-        if flat_flag == True:
-    
+        if flat_flag:
+
             logging.info('Importing flat spectrum')
-    
+
             try:
                 # Import flat spectrum and extract the fit window
                 flat_x, flat_y = np.loadtxt(flat_path, unpack=True)
                 f_idx = np.where(np.logical_and(flat_x >= fit_window[0],
                                                 flat_x <= fit_window[1]))
                 self.flat = flat_y[f_idx]
-    
+
                 logging.info('Flat spectrum imported')
-    
+
             except OSError:
                 # If no flat spectrum then report and turn off the flat flag
                 logging.warning('No flat spectrum found!')
                 self.flat_flag = False
-        
+
         # ---------------------------------------------------------------------
         # Spectrometer ILS
         # ---------------------------------------------------------------------
-                
+
         # Import measured ILS
         if ils_type == 'File':
             logging.info('Importing ILS')
-    
+
             try:
                 # Read in measured ILS shape
                 x_ils, y_ils = np.loadtxt(ils_path, unpack=True)
-    
+
                 # Interpolate the measured ILS onto the model grid spacing
                 grid_ils = np.arange(x_ils[0], x_ils[-1], model_spacing)
                 ils = griddata(x_ils, y_ils, grid_ils, 'cubic')
                 self.ils = ils / np.sum(ils)
                 self.generate_ils = False
-    
+
             except OSError:
                 logging.error(f'{ils_path} file not found!')
-                
+
         # Import ILS params
         if ils_type == 'Params':
             logging.info('Importing ILS parameters')
             try:
                 # Import ils parameters
                 ils_params = np.loadtxt(ils_path, unpack=True)
-    
+
                 # Build ILS
                 self.ils = make_ils(model_spacing, *ils_params)
-                
+
                 self.generate_ils = False
                 logging.info('ILS imported')
-    
+
             except OSError:
                 logging.error(f'{ils_path} file not found!')
-                
+
         # Manually set the ILS params
         if ils_type == 'Manual':
             self.generate_ils = True
-        
+
         # ---------------------------------------------------------------------
         # Import solar spectrum
         # ---------------------------------------------------------------------
-            
+
         # Import solar reference spectrum
         logging.info('Importing solar reference spectrum...')
         sol_x, sol_y = np.loadtxt(frs_path, unpack=True)
-    
+
         # Interpolate onto model_grid
         self.frs = griddata(sol_x, sol_y, model_grid, method='cubic')
-    
+
         logging.info('Solar reference spectrum imported')
-        
+
         # ---------------------------------------------------------------------
         # Import Gas spectra
         # ---------------------------------------------------------------------
 
         logging.info('Importing gas cross-sections...')
-    
+
         # Create an empty dictionary to hold the gas cross-sections
         self.xsecs = {}
-        
+
         # Cycle through the parameters
         for name, param in self.params.items():
-            
+
             # If a parameter has a xpath defined, read it in
-            if param.xpath != None:                
+            if param.xpath is not None:
                 logging.info(f'Importing {name} reference spectrum...')
-    
+
                 # Read in the cross-section
                 x, xsec = np.loadtxt(param.xpath, unpack=True)
-    
+
                 # Interpolate onto the model grid
-                self.xsecs[name] = griddata(x, xsec, model_grid, 
+                self.xsecs[name] = griddata(x, xsec, model_grid,
                                             method='cubic')
-        
+
                 logging.info(f'{name} cross-section imported')
-        
+
         # ---------------------------------------------------------------------
         # Other model settings
         # ---------------------------------------------------------------------
-            
+
         self.fit_window = fit_window
         self.stray_window = stray_window
         self.stray_flag = stray_flag
         self.flat_flag = flat_flag
         self.dark_flag = dark_flag
-        self.model_spacing = model_spacing    
+        self.model_spacing = model_spacing
 
 # =============================================================================
 #   Spectrum Pre-processing
 # =============================================================================
 
     def pre_process(self, spectrum):
-
         '''
         Function to pre-process the measured spectrum to prepare it for the
         fit, correcting for the dark and flat spectrum, stray light and
@@ -239,24 +239,25 @@ class Analyser():
         x, y = spectrum
 
         # Remove the dark spectrum from the measured spectrum
-        if self.dark_flag == True:
+        if self.dark_flag:
             try:
                 y = np.subtract(y, self.dark_spec)
             except ValueError:
-                logging.exception('Error in dark correction. Is dark spectrum'+
-                                  ' the same shape as the measurement?')
+                logging.exception('Error in dark correction. Is dark spectrum'
+                                  + ' the same shape as the measurement?')
 
         # Remove stray light
-        if self.stray_flag == True:
+        if self.stray_flag:
             stray_idx = np.where(np.logical_and(x >= self.stray_window[0],
                                                 x <= self.stray_window[1]))
 
             if len(stray_idx[0]) == 0:
-                logging.warn('No stray window outside spectrum, disabling ' + 
-                             'stray correction')
+                logging.warn('No stray window outside spectrum, disabling '
+                             + 'stray correction')
                 self.stray_flag = False
-            
-            else: y = np.subtract(y, np.average(y[stray_idx]))
+
+            else:
+                y = np.subtract(y, np.average(y[stray_idx]))
 
         # Cut desired wavelength window
         fit_idx = np.where(np.logical_and(x >= self.fit_window[0],
@@ -265,16 +266,15 @@ class Analyser():
         spec = y[fit_idx]
 
         # Divide by flat spectrum
-        if self.flat_flag == True:
+        if self.flat_flag:
             try:
                 spec = np.divide(spec, self.flat)
             except ValueError:
-                logging.exception('Error in flat correction. Is flat spectrum'+
-                                  ' the same shape as the measurement?')
-                
+                logging.exception('Error in flat correction. Is flat spectrum'
+                                  + ' the same shape as the measurement?')
 
         return np.row_stack([grid, spec])
-        
+
 # =============================================================================
 #   fit_spectrum
 # =============================================================================
@@ -282,7 +282,6 @@ class Analyser():
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
                      resid_type='Percentage', int_limit=None, calc_od=[],
                      pre_process=True, interp_method='cubic'):
-
         '''
         Fit the supplied spectrum using a non-linear least squares minimisation
         Parameters
@@ -355,15 +354,15 @@ class Analyser():
                 reset_flag = False
 
                 # Check the residual level
-                if resid_limit != None:
-                    if fit_result.resid.max()>resid_limit:
+                if resid_limit is not None:
+                    if fit_result.resid.max() > resid_limit:
                         logging.info('High residual detected')
                         reset_flag = True
                         fit_result.nerr = 2
 
                 # Check for spectrum light levels
-                if int_limit != None:
-                    
+                if int_limit is not None:
+
                     # Check for low intensity
                     if min(spec) <= int_limit[0]:
                         logging.info('Low intensity detected')
@@ -397,7 +396,6 @@ class Analyser():
                     fit_result.meas_od[par] = np.full(len(spec), np.nan)
                     fit_result.synth_od[par] = np.full(len(spec), np.nan)
 
-
         return fit_result
 
 # =============================================================================
@@ -405,7 +403,6 @@ class Analyser():
 # =============================================================================
 
     def fwd_model(self, x, *p0):
-
         '''
         iFit forward model to fit measured UV sky spectra:
         I(w) = ILS *conv* {I_off(w) + I*(w) x P(w) x exp( SUM[-xsec(w) . amt])}
@@ -457,14 +454,14 @@ class Analyser():
         for par in params.values():
             if par.vary:
                 p[par.name] = p0[i]
-                i+=1
+                i += 1
             else:
                 p[par.name] = par.value
 
         # Unpack polynomial parameters
         bg_poly_coefs = [p[n] for n in p if 'bg_poly' in n]
-        offset_coefs  = [p[n] for n in p if 'offset' in n]
-        shift_coefs   = [p[n] for n in p if 'shift' in n]
+        offset_coefs = [p[n] for n in p if 'offset' in n]
+        shift_coefs = [p[n] for n in p if 'shift' in n]
 
         # Construct background polynomial
         bg_poly = np.polyval(bg_poly_coefs, self.model_grid)
@@ -514,6 +511,7 @@ class Analyser():
                        method=self.interp_method)
 
         return fit
+
 
 # =============================================================================
 # =============================================================================
@@ -581,12 +579,12 @@ class FitResult():
         for par in self.params.values():
 
             if par.vary:
-                par.set(fit_val = self.popt[n],
-                        fit_err = self.perr[n])
+                par.set(fit_val=self.popt[n],
+                        fit_err=self.perr[n])
                 n += 1
             else:
-                par.set(fit_val = par.value)
-                par.set(fit_err = 0)
+                par.set(fit_val=par.value)
+                par.set(fit_err=0)
 
         # If fit was successful then calculate the fit and residual
         if self.nerr:
@@ -638,7 +636,7 @@ class FitResult():
         offset = griddata(shift_model_grid,
                           offset,
                           self.grid,
-                          method = 'cubic')
+                          method='cubic')
 
         # Calculate the parameter od
         par_od = np.multiply(analyser.xsecs[par_name], p[par_name])
@@ -662,7 +660,7 @@ class FitResult():
         par_od = griddata(shift_model_grid,
                           np.convolve(par_od, ils, mode='same'),
                           self.grid,
-                          method = 'cubic')
+                          method='cubic')
 
         # Add to self
         self.meas_od[par_name] = -np.log(np.divide(self.spec-offset, fit))

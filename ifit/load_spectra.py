@@ -10,12 +10,12 @@ import datetime
 import linecache
 import numpy as np
 
-#==============================================================================
-#================================ read_spectrum ===============================
-#==============================================================================
+
+# =============================================================================
+# read_spectrum
+# =============================================================================
 
 def read_spectrum(fname, spec_type='iFit'):
-
     '''
     Function to read spectra and extract information, depending on the file
     format
@@ -53,7 +53,7 @@ def read_spectrum(fname, spec_type='iFit'):
         if spec_type == 'iFit':
 
             # Load data into a numpy array
-            grid, spec = np.loadtxt(fname, unpack = True)
+            grid, spec = np.loadtxt(fname, unpack=True)
 
             # Extract date and time string
             date_time = linecache.getline(fname, 5)[27:].strip()
@@ -69,14 +69,14 @@ def read_spectrum(fname, spec_type='iFit'):
             # Get spectrum number
             try:
                 spec_no = int(fname[-9:-4])
-            except:
+            except ValueError:
                 spec_no = 0
 
         if spec_type == 'Master.Scope':
 
             # Load data into a numpy array, skipping the header data
-            grid, spec = np.genfromtxt(fname, unpack=True, skip_header = 19,
-                                       skip_footer = 1)
+            grid, spec = np.genfromtxt(fname, unpack=True, skip_header=19,
+                                       skip_footer=1)
 
             # Extract date and time string
             date_time = linecache.getline(fname, 3)[6:].strip()
@@ -88,14 +88,14 @@ def read_spectrum(fname, spec_type='iFit'):
             # Get spectrum number
             try:
                 spec_no = int(fname[-18:-13])
-            except:
+            except ValueError:
                 spec_no = 0
 
         if spec_type == 'Spectrasuite':
 
             # Load data into a numpy array, skipping the header data
-            grid, spec = np.genfromtxt(fname, unpack=True, skip_header = 17,
-                                       skip_footer = 2)
+            grid, spec = np.genfromtxt(fname, unpack=True, skip_header=17,
+                                       skip_footer=2)
 
             # Extract date and time string
             date_time = linecache.getline(fname, 3).strip()
@@ -112,7 +112,7 @@ def read_spectrum(fname, spec_type='iFit'):
             # Generic file format that only holds the essential information
 
             # Load data into a numpy array
-            grid, spec = np.loadtxt(fname, unpack = True, skiprows = 2)
+            grid, spec = np.loadtxt(fname, unpack=True, skiprows=2)
 
             # Extract date and time string
             read_date = linecache.getline(fname, 1).strip()
@@ -135,18 +135,18 @@ def read_spectrum(fname, spec_type='iFit'):
 
     except Exception as e:
         # Something wrong with reading
-        grid, spec = np.row_stack([[],[]])
+        grid, spec = np.row_stack([[], []])
         spec_info = {}
         read_err = True, e
 
     return grid, spec, spec_info, read_err
 
-#==============================================================================
-#============================== average_spectra ===============================
-#==============================================================================
+
+# =============================================================================
+# average_spectra
+# =============================================================================
 
 def average_spectra(files, spec_type='iFit'):
-
     '''
     Fuction to average a selection of spectra
 
@@ -177,11 +177,11 @@ def average_spectra(files, spec_type='iFit'):
 
         # Load spectrum
         grid, y, spec_info, read_err = read_spectrum(fname, spec_type)
-        
+
         # Check for a read error
         if read_err[0]:
             logging.warn(f'Error reading spectrum:\n{read_err[1]}')
-            
+
         else:
             # Add to the spectra array
             spec[n] = y
@@ -191,12 +191,12 @@ def average_spectra(files, spec_type='iFit'):
 
     return grid, spec
 
-#==============================================================================
-#================================= read_scan ==================================
-#==============================================================================
+
+# =============================================================================
+# read_scan
+# =============================================================================
 
 def read_scan(fpath, scan_type):
-
     '''
     Function to read spectra and header info for a data block created by
     SpectraLan
@@ -231,7 +231,7 @@ def read_scan(fpath, scan_type):
             # Vbatt. Vpanel IBatt. Temp.
             # 12.9268 12.9116 -0.0323 29.7
             # nN_Acq Hour Min Sec MotorPos CoAdding Int_Time Ch_Num Scan_Numb
-            # Scan_MemInt_Time_Count Pixel_Mode Pixel_Mode_Param -> Spectral_Data
+            # Scan_MemInt_Time_Count Pixel_Mode Pixel_Mode_Param->Spectral_Data
 
             # Then spectra, each preceded by an info string
             # 00000 06 56 29 00000
@@ -243,12 +243,10 @@ def read_scan(fpath, scan_type):
                     CR_ind.append(n)
 
             # Unpack indices
-            #head_idx0 = CR_ind[0] + 1
-            #head_idx1 = CR_ind[1] - 1
             start_data_idx = CR_ind[2] + 1
 
             # Extract the Vbatt. Vpanel IBatt. Temp.
-            #header = data[head_idx0:head_idx1].decode('utf-8').split(' ')
+            # header = data[head_idx0:head_idx1].decode('utf-8').split(' ')
 
             # Read in all scans
             all_scans = data[start_data_idx:]
@@ -257,7 +255,7 @@ def read_scan(fpath, scan_type):
             n_spectra = int(len(all_scans)/4131.0)
 
             # Define arrays
-            info_block = np.ndarray([5,n_spectra])
+            info_block = np.ndarray([5, n_spectra])
             spec_block = np.ndarray([n_spectra, 2046])
 
             # Loop through each scan and add data to array
@@ -280,11 +278,11 @@ def read_scan(fpath, scan_type):
 
                 # Extract just string data from the header
                 # n_aq, hour, minute, second, motor_pos
-                info_block[0,n] = int(scan_info[0:5].decode('utf-8'))
-                info_block[1,n] = int(scan_info[6:9].decode('utf-8'))
-                info_block[2,n] = int(scan_info[9:12].decode('utf-8'))
-                info_block[3,n] = int(scan_info[12:15].decode('utf-8'))
-                info_block[4,n] = float(scan_info[15:20].decode('utf-8'))
+                info_block[0, n] = int(scan_info[0:5].decode('utf-8'))
+                info_block[1, n] = int(scan_info[6:9].decode('utf-8'))
+                info_block[2, n] = int(scan_info[9:12].decode('utf-8'))
+                info_block[3, n] = int(scan_info[12:15].decode('utf-8'))
+                info_block[4, n] = float(scan_info[15:20].decode('utf-8'))
 
                 # Extract the spectral data and copy into the spec_block
                 scan_data = scan[37:]
@@ -298,10 +296,9 @@ def read_scan(fpath, scan_type):
 
                 spec_block[n] = spec
 
-
             return 0, info_block, spec_block
 
-        except:
+        except Exception:
             return 1, 1, 1
 
     elif scan_type == 'OpenSO2':
@@ -327,12 +324,12 @@ def read_scan(fpath, scan_type):
         except Exception:
             return 1, 0, 0
 
-#==============================================================================
-#============================== get_spec_details ==============================
-#==============================================================================
+
+# =============================================================================
+# get_spec_details
+# =============================================================================
 
 def get_station_info(fname):
-
     '''
     Function to read in the scanning station details
 
@@ -376,20 +373,3 @@ def get_station_info(fname):
         spec_info[name] = [serial_no, pixel_no, poly_coefs]
 
     return spec_info
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
