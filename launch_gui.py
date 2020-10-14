@@ -8,19 +8,19 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, \
                                               NavigationToolbar2Tk
 
 from ifitgui.build_gui import make_input, GuiFigure, ParamTable, PolyTable
-from ifitgui.gui_functions import stop, select_files, analysis_loop
+from ifitgui.gui_functions import stop, file_io, analysis_loop
 from ifitgui.read_write_config import read_config, write_config
 
 # Define some fonts to use in the program
 NORM_FONT = ('TkFixedFont', 10)
 LARGE_FONT = ('TkFixedFont', 12, 'bold')
 
+
 # =============================================================================
 # -----------------------------------------------------------------------------
 # Set up logging handler
 # -----------------------------------------------------------------------------
 # =============================================================================
-
 
 class TextHandler(logging.Handler):
 
@@ -51,12 +51,12 @@ class TextHandler(logging.Handler):
         # Force the gui to update
         self.gui.update()
 
+
 # =============================================================================
 # -----------------------------------------------------------------------------
 # Main GUI interface
 # -----------------------------------------------------------------------------
 # =============================================================================
-
 
 class myGUI(tk.Frame):
 
@@ -124,7 +124,7 @@ class myGUI(tk.Frame):
         self.root.config(menu=menubar)
 
 # =============================================================================
-#         Build containers
+#       Build containers
 # =============================================================================
 
         # Create notebook to flick between real time and post analysis
@@ -157,7 +157,7 @@ class myGUI(tk.Frame):
                             sticky="NW")
 
 # =============================================================================
-#         Set up spectra selection
+#       Set up spectra selection
 # =============================================================================
 
         # Create entry to select spectra type
@@ -192,8 +192,8 @@ class myGUI(tk.Frame):
         specfp_l.grid(row=1, column=1, padx=5, pady=5, sticky='W',
                       columnspan=2)
         ttk.Button(setup_frame, text="Browse", width=10,
-                   command=lambda: select_files(holder=self.spec_fnames,
-                                                entry=self.spec_ent)
+                   command=lambda: file_io(holder=self.spec_fnames,
+                                           entry=self.spec_ent)
                    ).grid(row=1, column=3, padx=5, pady=5, sticky='W')
 
         # File dialouge for darks
@@ -205,8 +205,8 @@ class myGUI(tk.Frame):
         darkfp_l.grid(row=2, column=1, padx=5, pady=5, sticky='W',
                       columnspan=2)
         ttk.Button(setup_frame, text="Browse", width=10,
-                   command=lambda: select_files(holder=self.dark_fnames,
-                                                entry=self.dark_ent)
+                   command=lambda: file_io(holder=self.dark_fnames,
+                                           entry=self.dark_ent)
                    ).grid(row=2, column=3, padx=5, pady=5, sticky='W')
 
         # Set the save path
@@ -220,15 +220,15 @@ class myGUI(tk.Frame):
                   ).grid(row=3, column=1, padx=5, pady=5, sticky='W',
                          columnspan=2)
         ttk.Button(setup_frame, text="Browse", width=10,
-                   command=lambda: select_files(True,
-                                                self.widgets['save_path'],
-                                                None,
-                                                True,
-                                                [('Comma Separated', '.csv')])
+                   command=lambda: file_io(True,
+                                           self.widgets['save_path'],
+                                           None,
+                                           True,
+                                           [('Comma Separated', '.csv')])
                    ).grid(row=3, column=3, padx=5, pady=5, sticky='W')
 
 # =============================================================================
-#         Create graphs
+#       Create graphs
 # =============================================================================
 
         # Set up the axes
@@ -292,7 +292,7 @@ class myGUI(tk.Frame):
         toolbar.update()
 
 # =============================================================================
-#         Graph Controls
+#       Graph Controls
 # =============================================================================
 
         # Create container for the graph settings
@@ -370,7 +370,7 @@ class myGUI(tk.Frame):
                                  padx=10, pady=5)
 
 # =============================================================================
-#         Create control buttons
+#       Create control buttons
 # =============================================================================
 
         # Frame to hold the buttons
@@ -390,7 +390,7 @@ class myGUI(tk.Frame):
         stop_b.grid(row=0, column=1, padx=25, pady=5)
 
 # =============================================================================
-#         Create progress bar
+#       Create progress bar
 # =============================================================================
 
         # Make a frame for the progress bar and status
@@ -437,7 +437,7 @@ class myGUI(tk.Frame):
                    padx=5)
 
 # =============================================================================
-#         Set up text output
+#       Set up text output
 # =============================================================================
 
         # Add text widget to display logging info
@@ -462,7 +462,7 @@ class myGUI(tk.Frame):
 
 # =============================================================================
 # =============================================================================
-# #         Program Settings
+#       Program Settings
 # =============================================================================
 # =============================================================================
 
@@ -479,7 +479,7 @@ class myGUI(tk.Frame):
         settings_nb.grid(row=0, column=0, padx=10, pady=10)
 
 # =============================================================================
-#         Model settings
+#       Model settings
 # =============================================================================
 
         # Create row counters
@@ -701,7 +701,7 @@ class myGUI(tk.Frame):
         row_n += 1
 
 # =============================================================================
-#         Spectrometer Settings
+#       Spectrometer Settings
 # =============================================================================
 
         # Create a row counter
@@ -732,8 +732,8 @@ class myGUI(tk.Frame):
                    width=40)
         ttk.Button(spect_frame,
                    text="Browse",
-                   command=lambda: select_files(single_file=True,
-                                                holder=self.widgets['ils_path'])
+                   command=lambda: file_io(single_file=True,
+                                           holder=self.widgets['ils_path'])
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
 
         row_n += 1
@@ -748,8 +748,8 @@ class myGUI(tk.Frame):
                    width=40)
         ttk.Button(spect_frame,
                    text="Browse",
-                   command=lambda: select_files(single_file=True,
-                                                holder=self.widgets['flat_path'])
+                   command=lambda: file_io(single_file=True,
+                                           holder=self.widgets['flat_path'])
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
 
         row_n += 1
@@ -764,8 +764,8 @@ class myGUI(tk.Frame):
                    width=40)
         ttk.Button(spect_frame,
                    text="Browse",
-                   command=lambda: select_files(single_file=True,
-                                                holder=self.widgets['wl_calib'])
+                   command=lambda: file_io(single_file=True,
+                                           holder=self.widgets['wl_calib'])
                    ).grid(row=row_n, column=2, padx=5, pady=5, sticky='W')
 
         row_n += 1
@@ -836,7 +836,7 @@ class myGUI(tk.Frame):
                         variable=self.widgets['a_k_fit']).grid(row=3, column=2)
 
 # =============================================================================
-#         Parameter Settings
+#       Parameter Settings
 # =============================================================================
 
         # Create a row counter
@@ -855,9 +855,8 @@ class myGUI(tk.Frame):
                    columnspan=3)
         ttk.Button(param_frame,
                    text="Browse",
-                   command=lambda: select_files(single_file=True,
-                                                holder=self.widgets['frs_path']
-                                                )
+                   command=lambda: file_io(single_file=True,
+                                           holder=self.widgets['frs_path'])
                    ).grid(row=row_n, column=4, padx=5, pady=5, sticky='W')
 
         row_n += 1
@@ -896,7 +895,7 @@ class myGUI(tk.Frame):
 
 # =============================================================================
 # =============================================================================
-# #     General program functions
+#   General program functions
 # =============================================================================
 # =============================================================================
 

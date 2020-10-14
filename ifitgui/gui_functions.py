@@ -427,11 +427,11 @@ def scan_loop(gui, analyser):
 
 
 # =============================================================================
-# select_files
+# file_io
 # =============================================================================
 
-def select_files(single_file=False, holder=None, entry=None, save_flag=False,
-                 filetypes=None):
+def file_io(single_file=False, holder=None, entry=None, save_flag=False,
+            filetypes=None):
     '''
     Function to select files
 
