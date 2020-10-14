@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Nov  1 14:36:03 2019
-
-@author: mqbpwbe2
-"""
 import time
 import os
 import logging
@@ -86,7 +80,9 @@ def analysis_loop(gui):
                                       gui.widgets['stray_hi'].get()],
                         dark_flag=gui.widgets['dark_flag'].get(),
                         ils_type=gui.widgets['ils_mode'].get(),
-                        ils_path=gui.widgets['ils_path'].get())
+                        ils_path=gui.widgets['ils_path'].get(),
+                        despike_flag=gui.widgets['despike_flag'].get(),
+                        spike_limit=gui.widgets['spike_limit'].get())
 
     # Report fitting parameters
     logging.info(params.pretty_print(cols=['name', 'value', 'vary']))
@@ -102,10 +98,10 @@ def analysis_loop(gui):
     elif gui.widgets['spec_type'].get() in ['FLAME', 'OpenSO2']:
         scan_loop(gui, analyser)
 
+
 # =============================================================================
 # spectra_loop
 # =============================================================================
-
 
 def spectra_loop(gui, analyser):
 
@@ -254,16 +250,18 @@ def spectra_loop(gui, analyser):
                                            type='yesno')
 
         if message == 'yes':
-            select_save(holder=gui.save_path)
+            select_files(single_file=True, holder=gui.save_path,
+                         save_flag=True,  filetypes=(('Comma Separated',
+                                                      '.csv')))
             df.to_csv(gui.widgets['save_path'].get())
 
         if message == 'no':
             pass
 
+
 # =============================================================================
 # scan_loop
 # =============================================================================
-
 
 def scan_loop(gui, analyser):
 
@@ -427,10 +425,10 @@ def scan_loop(gui, analyser):
         # Update the loop counter
         gui.loop += 1
 
+
 # =============================================================================
 # select_files
 # =============================================================================
-
 
 def select_files(single_file=False, holder=None, entry=None, save_flag=False,
                  filetypes=None):
@@ -454,7 +452,7 @@ def select_files(single_file=False, holder=None, entry=None, save_flag=False,
         The list of file paths, or a single file path
     '''
 
-    if filetypes is not None:
+    if filetypes is None:
         filetypes = [("all files", "*.*")]
     else:
         filetypes.append(("all files", "*.*"))
@@ -499,79 +497,6 @@ def select_files(single_file=False, holder=None, entry=None, save_flag=False,
                 entry.set(f'{len(holder)} files selected')
 
         return fnames
-
-# =============================================================================
-# select_files
-# =============================================================================
-
-
-def select_save(holder=None):
-    '''
-    Function to select a folder
-
-    **Parameters**
-
-    holder : tk variable, optional, default = None
-        The tk variable to asign the file name(s). Ignored if None.
-
-    **Returns**
-
-    spec_list : list or str
-        The list of file paths, or a single file path
-    '''
-
-    # Get the cwd
-    cwd = os.getcwd().replace('\\', '/')
-
-    # Open a file dialouge to get a folder
-    fpath = fd.asksaveasfilename(defaultextension='.csv')
-
-    if fpath is not None:
-
-        # Check if in the same cwd. If so trim the file path
-        if cwd in fpath:
-            fpath = fpath[len(cwd)+1:]
-
-        if holder is not None:
-            holder.set(fpath)
-
-    return fpath
-
-# =============================================================================
-# import_params
-# =============================================================================
-
-
-def import_params(fpath, table=None):
-    '''Reads in the param file'''
-
-    # Create a Parameters object
-    params = Parameters()
-
-    # Read in the file
-    with open(fpath, 'r') as r:
-
-        lines = r.readlines()
-
-        # Skipping the header read each line
-        for line in lines[1:]:
-            cols = line.strip().split(',')
-            name = cols[0].strip()
-            value = float(cols[1])
-            if cols[2].strip() == 'True':
-                vary = True
-            else:
-                vary = False
-            xpath = cols[3].strip()
-
-            params.add(name, value, vary, xpath)
-
-    if table is not None:
-
-        # Clear the table
-        table.set_params(params)
-
-    return params
 
 
 # =============================================================================

@@ -1,16 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Feb 12 11:28:07 2020
-@author: mqbpwbe2
-"""
-
 import logging
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
+from scipy.signal import savgol_filter
 
-from ifit.make_ils import make_ils
+from .make_ils import make_ils
 
 
 # =============================================================================
@@ -33,7 +27,8 @@ class Analyser():
     def __init__(self, params, fit_window, frs_path, model_padding=1.0,
                  model_spacing=0.01, flat_flag=False, flat_path=None,
                  stray_flag=False, stray_window=[280, 290], dark_flag=False,
-                 ils_type='Manual', ils_path=None):
+                 ils_type='Manual', ils_path=None, despike_flag=False,
+                 spike_limit=None):
         '''
         Initialise the model for the analyser
 
@@ -211,6 +206,8 @@ class Analyser():
         self.flat_flag = flat_flag
         self.dark_flag = dark_flag
         self.model_spacing = model_spacing
+        self.despike_flag = despike_flag
+        self.spike_limit = spike_limit
 
 # =============================================================================
 #   Spectrum Pre-processing
@@ -258,6 +255,20 @@ class Analyser():
 
             else:
                 y = np.subtract(y, np.average(y[stray_idx]))
+
+        # Run de-spike
+        if self.despike_flag:
+            # Run a savgol filter on the spectrum
+            sy = savgol_filter(y, 11, 3)
+
+            # Calculate the difference
+            dspec = np.abs(np.subtract(y, sy))
+
+            # Find any points that are over the spike limit and replace with
+            # smoothed values
+            spike_idx = np.where(dspec > self.spike_limit)[0]
+            x = np.delete(x, spike_idx)
+            y = np.delete(y, spike_idx)
 
         # Cut desired wavelength window
         fit_idx = np.where(np.logical_and(x >= self.fit_window[0],

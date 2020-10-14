@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Nov  1 14:07:10 2019
-
-@author: mqbpwbe2
-"""
-
 import logging
 import traceback
 import tkinter as tk
@@ -15,8 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, \
                                               NavigationToolbar2Tk
 
 from ifitgui.build_gui import make_input, GuiFigure, ParamTable, PolyTable
-from ifitgui.gui_functions import stop, select_files, analysis_loop, \
-                                  select_save
+from ifitgui.gui_functions import stop, select_files, analysis_loop
 from ifitgui.read_write_config import read_config, write_config
 
 # Define some fonts to use in the program
@@ -228,9 +220,11 @@ class myGUI(tk.Frame):
                   ).grid(row=3, column=1, padx=5, pady=5, sticky='W',
                          columnspan=2)
         ttk.Button(setup_frame, text="Browse", width=10,
-                   command=lambda: select_save(holder=self.widgets['save_path'],
-                                               save_flag=True,
-                                               extension='.csv')
+                   command=lambda: select_files(True,
+                                                self.widgets['save_path'],
+                                                None,
+                                                True,
+                                                [('Comma Separated', '.csv')])
                    ).grid(row=3, column=3, padx=5, pady=5, sticky='W')
 
 # =============================================================================
@@ -613,6 +607,27 @@ class myGUI(tk.Frame):
                    sticky='N')
         row_n += 1
 
+        # Set the despike limits
+        self.widgets['despike_flag'] = tk.BooleanVar(model_frame, value=False)
+        make_input(frame=model_frame,
+                   text='Remove Spikey\nPixels?',
+                   row=row_n, column=col_n,
+                   var=self.widgets['despike_flag'],
+                   input_type='Checkbutton')
+        row_n += 1
+
+        # Set the spike limit
+        self.widgets['spike_limit'] = tk.DoubleVar(model_frame, value=1000)
+        make_input(frame=model_frame,
+                   text='Spike Size\n(counts):',
+                   row=row_n, column=col_n,
+                   var=self.widgets['spike_limit'],
+                   input_type='Spinbox',
+                   increment=100,
+                   width=8,
+                   sticky='W')
+        row_n += 1
+
         # New column
         row_n = 0
         col_n += 4
@@ -817,8 +832,8 @@ class myGUI(tk.Frame):
                    input_type='Entry',
                    width=12)
         self.widgets['a_k_fit'] = tk.BooleanVar(ils_frame)
-        ttk.Checkbutton(ils_frame, text='Fit?', variable=self.widgets['a_k_fit']
-                        ).grid(row=3, column=2)
+        ttk.Checkbutton(ils_frame, text='Fit?',
+                        variable=self.widgets['a_k_fit']).grid(row=3, column=2)
 
 # =============================================================================
 #         Parameter Settings
@@ -841,7 +856,8 @@ class myGUI(tk.Frame):
         ttk.Button(param_frame,
                    text="Browse",
                    command=lambda: select_files(single_file=True,
-                                                holder=self.widgets['frs_path'])
+                                                holder=self.widgets['frs_path']
+                                                )
                    ).grid(row=row_n, column=4, padx=5, pady=5, sticky='W')
 
         row_n += 1

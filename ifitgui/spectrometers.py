@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 27 17:04:57 2020
-
-@author: mqbpwbe2
-"""
-
 import logging
 import numpy as np
 
