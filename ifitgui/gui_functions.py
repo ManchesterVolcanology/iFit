@@ -250,9 +250,8 @@ def spectra_loop(gui, analyser):
                                            type='yesno')
 
         if message == 'yes':
-            select_files(single_file=True, holder=gui.save_path,
-                         save_flag=True,  filetypes=(('Comma Separated',
-                                                      '.csv')))
+            file_io(single_file=True, holder=gui.save_path, save_flag=True,
+                    filetypes=(('Comma Separated', '.csv')))
             df.to_csv(gui.widgets['save_path'].get())
 
         if message == 'no':

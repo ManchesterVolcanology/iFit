@@ -1,4 +1,5 @@
 import logging
+import platform
 import traceback
 import tkinter as tk
 from tkinter import ttk
@@ -73,6 +74,9 @@ class myGUI(tk.Frame):
         # Close program on closure of window
         self.root.protocol("WM_DELETE_WINDOW", self.handler)
 
+        # Set the intial window size
+        self.root.geometry("1350x750")
+
         # Make a dictionary to hold the gui widgets
         self.widgets = {}
 
@@ -124,11 +128,77 @@ class myGUI(tk.Frame):
         self.root.config(menu=menubar)
 
 # =============================================================================
+#       Add scrollbars for the whole app
+# =============================================================================
+
+        # Create a canvas
+        canv = tk.Canvas(self.root)
+        canv.grid(row=0, column=0, sticky="NSEW")
+
+        # Create the scrollbars
+        vsb = ttk.Scrollbar(self.root, orient=tk.VERTICAL,
+                            command=canv.yview)
+        vsb.grid(row=0, column=1, sticky="NS")
+
+        hsb = ttk.Scrollbar(self.root, orient=tk.HORIZONTAL,
+                            command=canv.xview)
+        hsb.grid(row=1, column=0, sticky="EW")
+
+        # Configure the canvas to scroll with the scrollbars
+        canv.configure(xscrollcommand=hsb.set, yscrollcommand=vsb.set)
+        canv.bind('<Configure>',
+                  lambda e: canv.configure(scrollregion=canv.bbox("all")))
+
+        # Add bindings to use the mousewheel. Note these are platform dependent
+        pltfrm = platform.system()
+
+        # For windows
+        if pltfrm == 'Windows':
+            canv.bind_all('<MouseWheel>',
+                          lambda e: canv.yview_scroll(-1*(e.delta//120),
+                                                      "units"))
+            canv.bind_all('<Shift-MouseWheel>',
+                          lambda e: canv.xview_scroll(-1*(e.delta//120),
+                                                      "units"))
+
+        # For Linux
+        elif pltfrm == 'Linux':
+            canv.bind_all('<Button-4>',
+                          lambda e: canv.yview_scroll(-1*(e.delta//120),
+                                                      "units"))
+            canv.bind_all('<Button-5>',
+                          lambda e: canv.yview_scroll(-1*(e.delta//120),
+                                                      "units"))
+            canv.bind_all('<Shift-Button-4>',
+                          lambda e: canv.xview_scroll(-1*(e.delta//120),
+                                                      "units"))
+            canv.bind_all('<Shift-Button-5>',
+                          lambda e: canv.xview_scroll(-1*(e.delta//120),
+                                                      "units"))
+
+        # For MacOS
+        elif pltfrm == 'Darwin':
+            canv.bind_all('<MouseWheel>',
+                          lambda e: canv.yview_scroll(-e.delta, "units"))
+            canv.bind_all('<Shift-MouseWheel>',
+                          lambda e: canv.xview_scroll(-e.delta, "units"))
+
+        # Allow the window to be resized
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        # Create another frame inside the canvas
+        root_frame = tk.Frame(canv)
+
+        # Add the new frame to a window in the canvas
+        canv.create_window((0, 0), window=root_frame, anchor="nw")
+
+# =============================================================================
 #       Build containers
 # =============================================================================
 
         # Create notebook to flick between real time and post analysis
-        nb = ttk.Notebook(self.root)
+        nb = ttk.Notebook(root_frame)
         page1 = ttk.Frame(nb)
         # page2 = ttk.Frame(nb)
 
@@ -142,11 +212,11 @@ class myGUI(tk.Frame):
         setup_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
         # Create a frame to hold the controls
-        control_frame = tk.LabelFrame(self.root, text='Control',
+        control_frame = tk.LabelFrame(root_frame, text='Control',
                                       font=LARGE_FONT)
         control_frame.grid(row=1, column=0, padx=10, pady=10, sticky="N")
 
-        graph_settings = ttk.Notebook(self.root)
+        graph_settings = ttk.Notebook(root_frame)
         graph_frame = ttk.Frame(graph_settings)
         settings_frame = ttk.Frame(graph_settings)
 
@@ -262,26 +332,8 @@ class myGUI(tk.Frame):
                                 fig_kwargs={'figsize': [7, 5]},
                                 axes_info=axes)
 
-        #######################################################################
-
-        # self.canvas = tk.Canvas(graph_frame)
-        # self.frame = tk.Frame(self.canvas)
-
-        # myscrollbary=tk.Scrollbar(graph_frame, orient="vertical",
-        #                          command=self.canvas.yview)
-        # myscrollbarx=tk.Scrollbar(graph_frame, orient="horizontal",
-        #                           command=self.canvas.xview)
-        # self.canvas.configure(yscrollcommand=myscrollbary.set,
-        #                       xscrollcommand=myscrollbarx.set)
-
-        # myscrollbary.grid(row=0, column=1)
-        # myscrollbarx.grid(row=1, column=0)
-
-        #######################################################################
-
         # Create the canvas to hold the graph in the GUI
         self.canvas = FigureCanvasTkAgg(self.figure.fig, graph_frame)
-        # self.canvas = tk.Canvas(graph_frame, background="green")
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=1, column=0, padx=10, pady=10)
 
