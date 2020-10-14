@@ -71,6 +71,13 @@ class Analyser():
             Path to the ILS file, either a measured ILS is ils_type is set to
             "File", or the ILS parameters if ils_type is set to "Params".
             The default is None.
+        despike_flag : bool, optional
+            Controls whether bad pixels are removed. Requires spike_limit to be
+            defined. The default is False
+        spike_limit : int, optional
+            The limit of the spike size to remove. Defined as the difference
+            between the raw spectrum and a savgol filtered spectrum. The
+            default is None
 
         Returns
         -------
