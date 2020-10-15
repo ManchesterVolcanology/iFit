@@ -1,13 +1,15 @@
 # iFit
 
-iFit is a program designed to retrieve SO2 column densities from scattered UV sunlight spectra, with the focus of measuring the SO2 flux from volcanoes. It also allows control of Ocean Optics USB series spectrometers, with simultaneous fitting.
+iFit is a program designed to retrieve SO<sub>2</sub> column densities from scattered UV sunlight spectra, with the focus of measuring the SO<sub>2</sub> flux from volcanoes. It also allows control of Ocean Optics USB series spectrometers, with simultaneous fitting.
 
 ## Install
 
 iFit is written to work with basic python libraries contained in scientific distributions (e.g. Anaconda). Simply clone iFit and run with Python! Work is underway on producing an executable for windows (as well other operating systems if required).
 
+The basic iFit library requires Python version 3.6 or later with `numpy`, `scipy` and `matplotlib` beyond the Python standard library. The iFit GUI also requires `tkinter`, `pyyaml` and `pandas` for post analysis, as well as [`python-seabreeze`](https://github.com/ap--/python-seabreeze) for real-time analysis.
+
 ## Using iFit
-An example script is given in iFit.py, but more details are given here. iFit retrieves SO2 slant column densities by fitting measured scattered sunlight UV spectra that contain absorption features after passing through a volcanic plume. The basic principal works on the Beer-Lambert law, using the following equation:
+An example script is given in iFit.py, but more details are given here. iFit retrieves SO<sub>2</sub> slant column densities by fitting measured scattered sunlight UV spectra that contain absorption features after passing through a volcanic plume. The basic principal works on the Beer-Lambert law, using the following equation:
 
 <img src="https://www.codecogs.com/eqnedit.php?latex=I(\lambda)&space;=&space;G(x)&space;\otimes&space;\left(&space;I_0(\lambda)&space;\cdot&space;P'(\lambda)&space;\cdot&space;\exp&space;\left(&space;\Sigma_i&space;\left[&space;-\sigma_i(\lambda)&space;\cdot&space;a_i&space;\right&space;]&space;\right&space;)\right&space;)&space;&plus;&space;I_{offset}(\lambda)" target="_blank"><img src="https://latex.codecogs.com/svg.latex?I(\lambda)&space;=&space;G(x)&space;\otimes&space;\left(&space;I_0(\lambda)&space;\cdot&space;P'(\lambda)&space;\cdot&space;\exp&space;\left(&space;\Sigma_i&space;\left[&space;-\sigma_i(\lambda)&space;\cdot&space;a_i&space;\right&space;]&space;\right&space;)\right&space;)&space;&plus;&space;I_{offset}(\lambda)" title="I(\lambda) = G(x) \otimes \left( I_0(\lambda) \cdot P'(\lambda) \cdot \exp \left( \Sigma_i \left[ -\sigma_i(\lambda) \cdot a_i \right ] \right )\right ) + I_{offset}(\lambda)" />
 
