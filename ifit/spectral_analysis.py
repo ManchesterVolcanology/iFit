@@ -15,22 +15,21 @@ from .make_ils import make_ils
 
 class Analyser():
 
-    '''
-    Object to perform the spectral analysis
+    """Object to perform the spectral analysis
+
     Parameters
     ----------
     common : dict
         Common dictionary of parameters and variables passed from the main
         program to subroutines
-    '''
+    """
 
     def __init__(self, params, fit_window, frs_path, model_padding=1.0,
                  model_spacing=0.01, flat_flag=False, flat_path=None,
                  stray_flag=False, stray_window=[280, 290], dark_flag=False,
                  ils_type='Manual', ils_path=None, despike_flag=False,
                  spike_limit=None):
-        '''
-        Initialise the model for the analyser
+        """Initialise the model for the analyser
 
         Parameters
         ----------
@@ -83,7 +82,7 @@ class Analyser():
         -------
         None.
 
-        '''
+        """
 
         # Set the initial estimate for the fit parameters
         self.params = params.make_copy()
@@ -221,10 +220,10 @@ class Analyser():
 # =============================================================================
 
     def pre_process(self, spectrum):
-        '''
-        Function to pre-process the measured spectrum to prepare it for the
+        """Function to pre-process the measured spectrum to prepare it for the
         fit, correcting for the dark and flat spectrum, stray light and
         extracting the fit wavelength window
+
         Parameters
         ----------
         spectrum : 2D numpy array
@@ -232,12 +231,13 @@ class Analyser():
         common : dict
             Common dictionary of parameters and variables passed from the main
             program to subroutines
+
         Returns
         -------
         processed_spec : 2D numpy array
             The processed spectrum, corrected for dark, flat, stray light and
             cut to the desired wavelength window
-        '''
+        """
 
         # Unpack spectrum
         x, y = spectrum
@@ -299,9 +299,10 @@ class Analyser():
 
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
                      resid_type='Percentage', int_limit=None, calc_od=[],
-                     pre_process=True, interp_method='cubic'):
-        '''
-        Fit the supplied spectrum using a non-linear least squares minimisation
+                     pre_process=True, interp_method='cubic', queue=None):
+        """Fit the supplied spectrum using a non-linear least squares
+        minimisation
+
         Parameters
         ----------
         spectrum : tuple
@@ -329,11 +330,14 @@ class Analyser():
             Controls whether the interpolation at the end of the forward model
             is cubic or linear. Must be either "cubic", "linear" or "nearest".
             See scipy.interpolate.griddata for details.
+        queue : Queue object
+            The queue in which to place the fit results if running as a Process
+
         Returns
         -------
         fit_result : ifit.spectral_analysis.FitResult object
             An object that contains the fit results
-        '''
+        """
 
         # Check is spectrum requires preprocessing
         if pre_process:
@@ -414,53 +418,44 @@ class Analyser():
                     fit_result.meas_od[par] = np.full(len(spec), np.nan)
                     fit_result.synth_od[par] = np.full(len(spec), np.nan)
 
-        return fit_result
+        if queue is None:
+            return fit_result
+        else:
+            queue.put(('fit_result', fit_result))
 
 # =============================================================================
 #   Forward Model
 # =============================================================================
 
     def fwd_model(self, x, *p0):
-        '''
-        iFit forward model to fit measured UV sky spectra:
+        """iFit forward model to fit measured UV sky spectra:
+
         I(w) = ILS *conv* {I_off(w) + I*(w) x P(w) x exp( SUM[-xsec(w) . amt])}
+
         where w is the wavelength.
-        Requires the following to be defined in the common dictionary:
-            - params:       Parameters object holding the fit parameters
-            - model_grid:   The wavelength grid on which the forward model is
-                            built
-            - frs:          The Fraunhofer reference spectrum interpolated onto
-                            the model_grid
-            - xsecs:        Dictionary of the absorber cross sections that have
-                            been pre-interpolated onto the model grid.
-                            Typically includes all gas spectra and the Ring
-                            spectrum
-            - generate_ils: Boolian flag telling the function whether to
-                            build the ILS or not. If False then the ILS
-                            must be predefined in the common
-            - ils           The instrument line shape of the spectrometer. Only
-                            used if generate ILS is False.
+
         Parameters
         ----------
-        grid, array
+        x, array
             Measurement wavelength grid
-        *x0, list
+        *p0, floats
             Forward model state vector. Should consist of:
-                - bg_polyx: Background polynomial coefficients
-                - offsetx:  The intensity offset polynomial coefficients
-                - shiftx:   The wavelength shift polynomial
+                - bg_polyn: Background polynomial coefficients
+                - offsetn:  The intensity offset polynomial coefficients
+                - shiftn:   The wavelength shift polynomial
                 - gases:    Any variable with an associated cross section,
                             including absorbing gases and Ring. Each "gas" is
                             converted to transmittance through:
                                       gas_T = exp(-xsec . amt)
-                For polynomial parameters x represents ascending intergers
+                For polynomial parameters n represents ascending intergers
                 starting from 0 which correspond to the decreasing power of
                 that coefficient
+
         Returns
         -------
         fit, array
             Fitted spectrum interpolated onto the spectrometer wavelength grid
-        '''
+        """
 
         # Get dictionary of fitted parameters
         params = self.params
@@ -538,9 +533,7 @@ class Analyser():
 # =============================================================================
 
 class FitResult():
-
-    '''
-    Contains the fit results including:
+    """Contains the fit results including:
         - params:    the Parameters object with the fitted values
         - grid:      the cut wavelength window
         - spec:      the cut intensity spectrum
@@ -552,6 +545,7 @@ class FitResult():
         - synth_od:  dictionary of the synthetic optical depths
         - fit:       the final fitted spectrum
         - resid:     the fit residual
+
     Parameters
     ----------
     spectrum : tuple
@@ -564,13 +558,13 @@ class FitResult():
         Signals success of the fit. 1 = successful, 0 = failed
     fwd_model : function
         The forward model used to perform the fit
-    common : dictionary
-        Common dictionary of program variables
+    params : Parameters object
+        The fit parameters
     resid_type : str
         Controls how the fit residual is calculated:
             - 'Percentage': calculated as (spec - fit) / spec * 100
             - 'Absolute':   calculated as spec - fit
-    '''
+    """
 
     def __init__(self, spectrum, popt, perr, nerr, fwd_model, params,
                  resid_type):
@@ -626,7 +620,7 @@ class FitResult():
 # =============================================================================
 
     def calc_od(self, par_name, analyser):
-        '''Calculates the optical depth for the given parameter'''
+        """Calculates the optical depth for the given parameter"""
 
         # Make a copy of the parameters to use in the OD calculation
         params = self.params.make_copy()

@@ -1,3 +1,4 @@
+import os
 import logging
 import platform
 import traceback
@@ -9,7 +10,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, \
                                               NavigationToolbar2Tk
 
 from ifitgui.build_gui import make_input, GuiFigure, ParamTable, PolyTable
-from ifitgui.gui_functions import stop, file_io, analysis_loop
+from ifitgui.gui_functions import stop, file_io, analysis_loop, test_spectrum,\
+                                  connect_spectrometer, read_darks,\
+                                  toggle_fitting
 from ifitgui.read_write_config import read_config, write_config
 
 # Define some fonts to use in the program
@@ -75,7 +78,7 @@ class myGUI(tk.Frame):
         self.root.protocol("WM_DELETE_WINDOW", self.handler)
 
         # Set the intial window size
-        self.root.geometry("1350x750")
+        self.root.geometry("1350x800")
 
         # Make a dictionary to hold the gui widgets
         self.widgets = {}
@@ -86,9 +89,6 @@ class myGUI(tk.Frame):
         # Try loading the default config file
         read_config(self, fpath='bin/config.yaml')
 
-        # Update graph options
-        # self.update_option_menu()
-
 # =============================================================================
 # -----------------------------------------------------------------------------
 # Build GUI
@@ -98,7 +98,7 @@ class myGUI(tk.Frame):
     def build_gui(self):
 
         # Build GUI
-        self.root.title('iFit v3.1')
+        self.root.title('iFit v3.2')
 
         # Set default button Style
         ttk.Style().configure('TButton', width=15, height=20, relief="flat")
@@ -200,15 +200,19 @@ class myGUI(tk.Frame):
         # Create notebook to flick between real time and post analysis
         nb = ttk.Notebook(root_frame)
         page1 = ttk.Frame(nb)
-        # page2 = ttk.Frame(nb)
+        page2 = ttk.Frame(nb)
 
         # Create two frames, one for post analysis and one for real time
-        # nb.add(page2, text = 'Acquisition')
+        nb.add(page2, text='Acquisition')
         nb.add(page1, text='Post Analysis')
         nb.grid(row=0, column=0, padx=10, pady=10, sticky='NW')
 
+        # Create the frames for real-time analysis
+        rt_frame = ttk.Frame(page2)
+        rt_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
         # Create frames for post analysis setups
-        setup_frame = tk.LabelFrame(page1, text='Setup', font=LARGE_FONT)
+        setup_frame = ttk.Frame(page1)
         setup_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
         # Create a frame to hold the controls
@@ -225,6 +229,118 @@ class myGUI(tk.Frame):
 
         graph_settings.grid(row=0, column=1, padx=10, pady=10, rowspan=2,
                             sticky="NW")
+
+# =============================================================================
+#       Realtime acquisition controls
+# =============================================================================
+
+        # Add control to connect to the spectrometer
+        self.spec_id = tk.StringVar(rt_frame, value='Not connected')
+        make_input(frame=rt_frame,
+                   text='Spectrometer:',
+                   row=0, column=0,
+                   var=self.spec_id,
+                   input_type='Label',
+                   width=15,
+                   sticky='W')
+        self.connect_flag = tk.BooleanVar(rt_frame, value=False)
+        self.con_b = ttk.Button(rt_frame, text="Connect", width=15,
+                                command=lambda: connect_spectrometer(self))
+        self.con_b.grid(row=0, column=2, padx=5, pady=5, sticky='W')
+
+        # Add button to read a test spectrum
+        ttk.Button(rt_frame, text='Test Spectrum', width=15,
+                   command=lambda: test_spectrum(self)
+                   ).grid(row=0, column=3, padx=5, pady=5, sticky='NS')
+
+        # Create a control for the spectrometer integration time
+        self.widgets["IntTime"] = tk.IntVar(rt_frame, value=100)
+        make_input(frame=rt_frame,
+                   text='Integration\nTime (ms):',
+                   row=1, column=0,
+                   var=self.widgets['IntTime'],
+                   input_type='Spinbox',
+                   vals=[0, 10000],
+                   increment=50,
+                   width=15,
+                   sticky='W')
+        ttk.Button(rt_frame, text='Update', width=15,
+                   command=lambda: self.spec.update_integration_time(self.widgets["IntTime"].get())
+                   ).grid(row=1, column=2, padx=5, pady=5, sticky='W')
+
+        # Create a control for the spectrometer coadds
+        self.widgets["Coadds"] = tk.IntVar(rt_frame, value=10)
+        make_input(frame=rt_frame,
+                   text='Coadds:',
+                   row=2, column=0,
+                   var=self.widgets['Coadds'],
+                   input_type='Spinbox',
+                   vals=[0, 100],
+                   increment=5,
+                   width=15,
+                   sticky='W')
+        ttk.Button(rt_frame, text='Update', width=15,
+                   command=lambda: self.spec.update_coadds(self.widgets["Coadds"].get())
+                   ).grid(row=2, column=2, padx=5, pady=5, sticky='W')
+
+        # Add a button to turn fitting on and off
+        self.fitting_flag = False
+        self.fit_b = tk.Button(rt_frame, text='Fitting OFF', width=10,
+                               fg='white', bg='red', font=LARGE_FONT,
+                               command=lambda: toggle_fitting(self))
+        self.fit_b.grid(row=1, column=3, padx=5, pady=5, rowspan=2,
+                        sticky='NSEW')
+
+        # Create a control for the number of darks to collect
+        self.widgets["ndarks"] = tk.IntVar(rt_frame, value=10)
+        make_input(frame=rt_frame,
+                   text='No. Dark\nSpectra:',
+                   row=3, column=0,
+                   var=self.widgets['ndarks'],
+                   input_type='Spinbox',
+                   vals=[0, 100],
+                   increment=1,
+                   width=15,
+                   sticky='W')
+
+        # Add buttons to acquire test spectra and dark spectra
+        ttk.Button(rt_frame, text='Read Darks', width=15,
+                   command=lambda: read_darks(self)
+                   ).grid(row=3, column=2, padx=5, pady=5, sticky='W')
+
+        # Set the save path
+        self.widgets['rt_save_path'] = tk.StringVar(self, value='')
+        ttk.Label(rt_frame, text='Save Path:', font=NORM_FONT
+                  ).grid(row=4, column=0, padx=5, pady=5, sticky='W')
+        ttk.Entry(rt_frame,
+                  font=NORM_FONT,
+                  width=30,
+                  text=self.widgets['rt_save_path']
+                  ).grid(row=4, column=1, padx=5, pady=5, sticky='W',
+                         columnspan=2)
+        ttk.Button(rt_frame, text="Browse", width=10,
+                   command=lambda: file_io(True,
+                                           False,
+                                           self.widgets['rt_save_path'],
+                                           None,
+                                           True,
+                                           [('Comma Separated', '.csv')])
+                   ).grid(row=4, column=3, padx=5, pady=5, sticky='W')
+
+        # Frame to hold the control buttons
+        rt_button_frame = ttk.Frame(rt_frame)
+        rt_button_frame.grid(row=5, column=0, padx=10, pady=10, columnspan=6,
+                             sticky="W")
+
+        # Create button to start
+        ttk.Button(rt_button_frame, text='Begin!',
+                   command=lambda: analysis_loop(self, rt_flag=True)
+                   ).grid(row=0, column=0, padx=25, pady=5)
+
+        # Create button to stop
+        self.stop_flag = False
+        ttk.Button(rt_button_frame, text='Stop', command=lambda: stop(self)
+                   ).grid(row=0, column=1, padx=25, pady=5)
 
 # =============================================================================
 #       Set up spectra selection
@@ -290,12 +406,28 @@ class myGUI(tk.Frame):
                   ).grid(row=3, column=1, padx=5, pady=5, sticky='W',
                          columnspan=2)
         ttk.Button(setup_frame, text="Browse", width=10,
-                   command=lambda: file_io(True,
+                   command=lambda: file_io(False,
+                                           True,
                                            self.widgets['save_path'],
                                            None,
                                            True,
                                            [('Comma Separated', '.csv')])
                    ).grid(row=3, column=3, padx=5, pady=5, sticky='W')
+
+        # Frame to hold the control buttons
+        button_frame = ttk.Frame(setup_frame)
+        button_frame.grid(row=4, column=0, padx=10, pady=10, columnspan=6,
+                          sticky="W")
+
+        # Create button to start
+        ttk.Button(button_frame, text='Begin!',
+                   command=lambda: analysis_loop(self, rt_flag=False)
+                   ).grid(row=0, column=0, padx=25, pady=5)
+
+        # Create button to stop
+        self.stop_flag = False
+        ttk.Button(button_frame, text='Stop', command=lambda: stop(self)
+                   ).grid(row=0, column=1, padx=25, pady=5)
 
 # =============================================================================
 #       Create graphs
@@ -422,26 +554,6 @@ class myGUI(tk.Frame):
                                  padx=10, pady=5)
 
 # =============================================================================
-#       Create control buttons
-# =============================================================================
-
-        # Frame to hold the buttons
-        button_frame = ttk.Frame(control_frame)
-        button_frame.grid(row=0, column=0, padx=10, pady=10, columnspan=6,
-                          sticky="W")
-
-        # Create button to start
-        start_b = ttk.Button(button_frame, text='Begin!',
-                             command=lambda: analysis_loop(self))
-        start_b.grid(row=0, column=0, padx=25, pady=5)
-
-        # Create button to stop
-        self.stop_flag = False
-        stop_b = ttk.Button(button_frame, text='Stop',
-                            command=lambda: stop(self))
-        stop_b.grid(row=0, column=1, padx=25, pady=5)
-
-# =============================================================================
 #       Create progress bar
 # =============================================================================
 
@@ -502,7 +614,9 @@ class myGUI(tk.Frame):
         text_handler = TextHandler(st, self)
 
         # Logging configuration
-        logging.basicConfig(filename='iFit.log',
+        if not os.path.isdir('bin/'):
+            os.makedirs('bin/')
+        logging.basicConfig(filename='bin/iFit.log',
                             level=logging.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s',
                             datefmt='%Y-%m-%d %H:%M:%S',
@@ -690,10 +804,10 @@ class myGUI(tk.Frame):
                              padx=10, pady=5)
 
         # Create entry to select the residual type
-        resid_options = ['Absolute', 'Absolute', 'Percentage']
+        resid_options = ['Percentage', 'Percentage', 'Absolute']
 
         self.widgets['resid_type'] = tk.StringVar(model_frame,
-                                                  value='Absolute')
+                                                  value='Percentage')
         make_input(frame=model_frame,
                    text='Residual Display:',
                    row=row_n, column=col_n,
@@ -954,12 +1068,15 @@ class myGUI(tk.Frame):
     # Report exceptions in a new window
     def report_callback_exception(self, *args):
 
-        # Report error
+        # Get error and format into a single string
         err = traceback.format_exception(*args)
-        tkMessageBox.showerror('Exception', err)
+        err_msg = ''.join(map(str, err))
 
-        # Reset formation of the forward model
-        self.build_model_flag = True
+        # Log error
+        logging.exception(err_msg)
+
+        # Report error
+        tkMessageBox.showerror('Exception', err_msg)
 
     # Close program on 'x' button
     def handler(self):

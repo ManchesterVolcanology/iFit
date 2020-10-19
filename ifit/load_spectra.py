@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Nov  6 15:58:19 2019
-
-@author: mqbpwbe2
-"""
-
 import logging
 import datetime
 import linecache
@@ -16,33 +9,30 @@ import numpy as np
 # =============================================================================
 
 def read_spectrum(fname, spec_type='iFit'):
-    '''
-    Function to read spectra and extract information, depending on the file
-    format
+    """Function to read spectra and extract information, depending on the file
+    format.
 
-    **Parameters**
-
+    Parameters
+    ----------
     fname : str
-        File path to spectrum file
-
-    spec_type : str, optional, default = 'iFit'
+        Spectrum file path.
+    spec_type : type, optional
         Format of spectrum file. Choices: iFit, Master.Scope, Spectrasuite or
-        Basic
+        Basic. Default is "iFit"
 
-    **Returns**
-
+    Returns
+    -------
     spectrum : 2D numpy array
         The spectrum as [wavelength, intensities]
-
     spec_info : dict
         Dictionary of information about the spectrum
-
     read_err, tuple
         Error message to flag if reading the spectrum fails. Has the format:
-        (bool, str), where Boolian = False for no error and True if an error
-        occurs. The string is 'No error' for no error, and the error message if
-        an error occurs.
-    '''
+        (bool, str), where bool=False for no error and True if an error occurs.
+        The string is 'No error' for no error, and the error message if an
+        error occurs.
+
+    """
 
     try:
 
@@ -147,25 +137,21 @@ def read_spectrum(fname, spec_type='iFit'):
 # =============================================================================
 
 def average_spectra(files, spec_type='iFit'):
-    '''
-    Fuction to average a selection of spectra
+    """Fuction to average a selection of spectra.
 
-    **Parameters**
+    Parameters
+    ----------
+    files : list
+        List of file paths to spectra to read in.
+    spec_type : str, optional
+        Format of spectrum file. See read_spectrum for choices. Default is
+        "iFit"
 
-    files, list
-        List of file paths to spectra to read in
-
-    spec_type, str
-        Format of spectrum file. Seeread_spectrum for choices
-
-    **Returns**
-
-    grid, array
-        Wavelength grid of the spectra
-
-    spec, array
-        The averaged spectrum
-    '''
+    Returns
+    -------
+    spectrum : 2d np.array
+        The averaged spectrum as [wavelength, intensity]
+    """
 
     # Load the first spectrum to get the shape
     grid, y, spec_info, read_err = read_spectrum(files[0], spec_type)
@@ -197,26 +183,25 @@ def average_spectra(files, spec_type='iFit'):
 # =============================================================================
 
 def read_scan(fpath, scan_type):
-    '''
-    Function to read spectra and header info for a data block created by
-    SpectraLan
+    """Function to read spectra and header info for a data block created by
+       SpectraLan or OpenSO2.
 
-    **parameters**
-
+    Parameters
+    ----------
     fpath : str
-        File path to data block
+        File path to spectra block.
+    scan_type : str
+        Format of spectrum file. See read_spectrum for choices.
 
-    **Returns**
-
+    Returns
+    -------
     error : bool
         An error code, 0 if all is OK, 1 if an error was produced
-
     info_block : array
         Spectra info: spec no, hours, minutes, seconds, motor position
-
     spec_block : array
         Array of the measured spectra for the scan block
-    '''
+    """
 
     if scan_type == 'FLAME':
 
@@ -323,53 +308,3 @@ def read_scan(fpath, scan_type):
 
         except Exception:
             return 1, 0, 0
-
-
-# =============================================================================
-# get_spec_details
-# =============================================================================
-
-def get_station_info(fname):
-    '''
-    Function to read in the scanning station details
-
-    **Parameters**
-
-    fname : str
-        File path to the file holding the scanner information
-
-    station_name : str
-        The name of the station
-
-    **Returns**
-
-    calib_coefs : np.array
-        A list of the calibration coefficients
-    '''
-
-    # Open the spectrometer setup file
-    with open(fname, 'r') as r:
-
-        # Read in the file
-        lines = r.readlines()
-
-    # Create a dictionary to hold the spectrometer information
-    spec_info = {}
-
-    for line in lines[1:]:
-
-        # Split the line by commas
-        line_data = line.strip().split(',')
-
-        # Get the spectrometer station name, serial number and pixel number
-        name = line_data[0].strip()
-        serial_no = line_data[1].strip()
-        pixel_no = int(line_data[2].strip())
-
-        # Unpack the polynomail coeficients
-        poly_coefs = [float(n) for n in line_data[3:]]
-
-        # Add to the dictionary
-        spec_info[name] = [serial_no, pixel_no, poly_coefs]
-
-    return spec_info

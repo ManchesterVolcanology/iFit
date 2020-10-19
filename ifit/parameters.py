@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 24 17:47:20 2019
-
-@author: mqbpwbe2
-"""
 import copy
 import numpy as np
 from collections import OrderedDict
@@ -14,13 +8,10 @@ from collections import OrderedDict
 # =============================================================================
 
 class Parameters(OrderedDict):
-    '''
-    An ordered dictionary of all the Paramter objects that will be included in
-    the forward model. Each Parameter has a single entry with a string label,
-    value and boolian control on whether it is varied in the fit.
-
-    Based on the Parameters class of lmfit.
-    '''
+    """An ordered dictionary of all the Paramter objects that will be included
+    in the forward model. Each Parameter has a single entry with a string
+    label, value and boolian control on whether it is varied in the fit.
+    """
 
     def __init__(self, *args, **kwargs):
 
@@ -28,21 +19,27 @@ class Parameters(OrderedDict):
 
     def add(self, name, value=0, vary=True, xpath=None, lo_bound=-np.inf,
             hi_bound=np.inf):
-        '''
-        Method to add a Parameter to the Parameters object.
+        """Method to add a Parameter to the Parameters object.
 
-        **Parameters**
-
+        Parameters
+        ----------
         name : str
             Identifier string for the parameter. Each must be unique
-
-        value : float
-            The initial numerical parameter value
-
+        value : float, optional
+            The initial numerical parameter value. Default is 0
         vary : bool, optional
             If True then the parameter is fitted. Otherwise it is fixed to its
-            value
-        '''
+            value. Default is True
+        xpath : str, optional
+            The file path to the cross-section file, used for gas parameters.
+            Default is None
+        lo_bound : float, optional
+            The lower bound of the allowed variation of the Parameter. Default
+            is -inf
+        hi_bound : float, optional
+            The higher bound of the allowed variation of the Parameter. Default
+            is +inf
+        """
 
         self.__setitem__(name, Parameter(name=name,
                                          value=value,
@@ -52,22 +49,19 @@ class Parameters(OrderedDict):
                                          hi_bound=hi_bound))
 
     def add_many(self, param_list):
-        '''
-        Method to add multiple Parameters to the Parameters object.
+        """ Method to add multiple Parameters to the Parameters object.
 
-        **Parameters**
-
+        Parameters
+        ----------
         param_list : list of Parameter like objects
-        '''
+        """
 
         for param in param_list:
 
             self.__setitem__(param.name, param)
 
     def update_values(self, new_values):
-        '''
-        Updates the values of each Parameter in order
-        '''
+        """Updates the values of each Parameter in order"""
         n = 0
         for name in self:
             if self[name].vary:
@@ -75,61 +69,58 @@ class Parameters(OrderedDict):
                 n += 1
 
     def valuesdict(self):
-        '''Return an ordered dictionary of all parameter values'''
+        """Return an ordered dictionary of all parameter values"""
         return OrderedDict((p.name, p.value) for p in self.values())
 
     def fittedvaluesdict(self):
-        '''Return an ordered dictionary of fitted parameter values'''
+        """Return an ordered dictionary of fitted parameter values"""
         return OrderedDict((p.name, p.value) for p in self.values() if p.vary)
 
     def popt_dict(self):
-        ''''Return a dictionary of the optimised parameters'''
+        """Return a dictionary of the optimised parameters"""
         return OrderedDict((p.name, p.fit_val)
                            for p in self.values() if p.vary)
 
     def valueslist(self):
-        '''Return a list of all parameter values'''
+        """Return a list of all parameter values"""
         return [(p.value) for p in self.values()]
 
     def fittedvalueslist(self):
-        '''Return a list of the fitted parameter values'''
+        """Return a list of the fitted parameter values"""
         return [(p.value) for p in self.values() if p.vary]
 
     def popt_list(self):
-        '''Return a list of the optimised parameters'''
+        """Return a list of the optimised parameters"""
         return [(p.fit_val) for p in self.values() if p.vary]
 
     def bounds(self):
-        '''Return a list of the low and high bounds'''
+        """Return a list of the low and high bounds"""
         return [[(p.lo_bound) for p in self.values() if p.vary],
                 [(p.hi_bound) for p in self.values() if p.vary]]
 
     def make_copy(self):
-        '''Returns a deep copy of the Parameters object'''
+        """Returns a deep copy of the Parameters object"""
         return copy.deepcopy(self)
 
     def pretty_print(self, mincolwidth=10, precision=4, cols='basic'):
-        '''
-        Print the parameters in a nice way
+        """Print the parameters in a nice way
 
-        **Parameters**
-
-        mincolwidth : int, optional, default = 10
-            Minimum width of the columns.
-
-        precision : int, optional, default = 4
-            Number of significant figures to print to
-
-        cols : str or list
+        Parameters
+        ----------
+        mincolwidth : int, optional
+            Minimum width of the columns. Default is 10
+        precision : int, optional
+            Number of significant figures to print to. Default is 4
+        cols : str or list, optional
             The columns to be printed. Either "all" for all columns, "basic"
-            for the name, value and if it is fixed or a list
-            of the desired column names
+            for the name, value and if it is fixed or a list of the desired
+            column names. Default is "basic"
 
-        **Returns**
-
+        Returns
+        -------
         msg : str
             The formatted message to print
-        '''
+        """
 
         # Check colwidth isn't less than 7
         if mincolwidth <= 7:
@@ -216,32 +207,34 @@ class Parameters(OrderedDict):
 # =============================================================================
 
 class Parameter(object):
-    '''
-    A parameter is a value that can be varied in the fit
+    """A parameter is a value that can be varied in the fit
 
     Each parameter has an assosiated name and value and can be set to either
     vary or be fixed in the model
 
     Based on the Parameter class of lmfit.
 
-    **Parameters**
-
+    Parameters
+    ----------
     name : str
         Identifier string for the parameter. Each must be unique
-
     value : float
         The initial numerical parameter value
-
     vary : bool, optional
         If True then the parameter is fitted. Otherwise it is fixed to its
-        value
-
+        value. Default is True
     xpath : str, optional
-        The file path to the cross-section for this parameter
-    '''
+        The file path to the cross-section for this parameter. Default is None
+    lo_bound : float, optional
+        The lower bound of the allowed variation of the Parameter. Default
+        is -inf
+    hi_bound : float, optional
+        The higher bound of the allowed variation of the Parameter. Default
+        is +inf
+    """
 
     def __init__(self, name, value, vary=True, xpath=None, lo_bound=-np.inf,
-                 hi_bound=np.inf, fit_val=np.nan, fit_err=np.nan):
+                 hi_bound=np.inf):
 
         self.name = name
         self.value = value
@@ -249,12 +242,12 @@ class Parameter(object):
         self.xpath = xpath
         self.lo_bound = lo_bound
         self.hi_bound = hi_bound
-        self.fit_val = fit_val
-        self.fit_err = fit_err
+        self.fit_val = np.nan
+        self.fit_err = np.nan
 
     def set(self, value=None, vary=None, xpath=None, lo_bound=None,
             hi_bound=None, fit_val=None, fit_err=None):
-        '''Update the properties of a Parameter. All are None by default'''
+        """Update the properties of a Parameter. All are None by default"""
 
         if value is not None:
             self.value = value

@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov  7 15:29:39 2019
-
-@author: mqbpwbe2
-"""
-
 import os
 import yaml
 import logging
@@ -98,12 +91,13 @@ def write_config(gui, asksavepath=True):
         # Get the desired path
         fpath = fd.asksaveasfilename(defaultextension='.yaml')
 
-        # Save the config file
-        with open(fpath, 'w') as outfile:
+        if fpath != '':
+            # Save the config file
+            with open(fpath, 'w') as outfile:
 
-            yaml.dump(config, outfile)
+                yaml.dump(config, outfile)
 
-            logging.info('Config file saved')
+                logging.info('Config file saved')
 
     # Also save the config to the default config location to load on startup
     try:

@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Sep 27 12:00:05 2018
-
-@author: mqbpwbe2
-"""
-
 import numpy as np
 import tkinter as tk
 from tkinter import ttk
@@ -23,8 +16,7 @@ def make_input(frame, text, var, input_type, row, column, padx=5, pady=5,
                label_font=('Verdana', 10), width=None, options=None,
                vals=[0, 1000], increment=1, rowspan=None,
                columnspan=None):
-    '''
-    Function to build GUI inputs consisting of a label and an input.
+    """Function to build GUI inputs consisting of a label and an input.
 
     **Parameters**
 
@@ -72,7 +64,7 @@ def make_input(frame, text, var, input_type, row, column, padx=5, pady=5,
 
     entry : tk object
         Input entry object, type depends on the input_type
-    '''
+    """
 
     # Unpack stickyness
     if sticky is None:
@@ -150,9 +142,7 @@ def make_input(frame, text, var, input_type, row, column, padx=5, pady=5,
 # =============================================================================
 
 class ParamTable(tk.Frame):
-
-    '''
-    Class to create a parameter table for the gas parameters and xsecs
+    """Class to create a parameter table for the gas parameters and xsecs
 
     **Parameters**
 
@@ -164,7 +154,7 @@ class ParamTable(tk.Frame):
 
     header_font : tuple of font and fontsize, optional, default=("Verdana", 14)
         The font for the header
-    '''
+    """
 
     def __init__(self, parent, font=('Verdana', 10),
                  header_font=('Verdana', 14)):
@@ -210,7 +200,7 @@ class ParamTable(tk.Frame):
         self.add_row()
 
     def clear(self):
-        '''Clear the table'''
+        """Clear the table"""
         for row in self._widgets:
             for w in row:
                 w.destroy()
@@ -219,7 +209,7 @@ class ParamTable(tk.Frame):
         self._widgets = []
 
     def add_row(self, name='', value=0, vary=True, xpath=''):
-        '''Adds a row to the table'''
+        """Adds a row to the table"""
 
         row_n = tk.IntVar(self, value=self.row-2)
         col_n = 0
@@ -291,7 +281,7 @@ class ParamTable(tk.Frame):
                               x_button])
 
     def set_params(self, params):
-        '''Update the parameter table'''
+        """Update the parameter table"""
 
         self.clear()
         self.row = 2
@@ -303,7 +293,7 @@ class ParamTable(tk.Frame):
                 pass
 
     def remove_row(self, n, *widgets):
-        '''Removes a single row'''
+        """Removes a single row"""
         for widget in widgets:
             widget.destroy()
 
@@ -317,9 +307,7 @@ class ParamTable(tk.Frame):
 # =============================================================================
 
 class PolyTable(tk.Frame):
-
-    '''
-    Class to create a parameter table for the polynomials
+    """Class to create a parameter table for the polynomials
 
     **Parameters**
 
@@ -331,7 +319,7 @@ class PolyTable(tk.Frame):
 
     header_font : tuple of font and fontsize, optional, default=("Verdana", 14)
         The font for the header
-    '''
+    """
 
     def __init__(self, parent, font=('Verdana', 10),
                  header_font=('Verdana', 14)):
@@ -375,7 +363,7 @@ class PolyTable(tk.Frame):
         self.add_row()
 
     def clear(self):
-        '''Clear the table'''
+        """Clear the table"""
         for row in self._widgets:
             for w in row:
                 w.destroy()
@@ -435,7 +423,7 @@ class PolyTable(tk.Frame):
         self._widgets.append([name_w, value_w, vary_w, x_button])
 
     def set_params(self, params):
-        '''Update the parameter table'''
+        """Update the parameter table"""
 
         self.clear()
         self.row = 2
@@ -448,7 +436,7 @@ class PolyTable(tk.Frame):
                 pass
 
     def remove_row(self, n, *widgets):
-        '''Removes a single row'''
+        """Removes a single row"""
         for widget in widgets:
             widget.destroy()
 
@@ -462,9 +450,7 @@ class PolyTable(tk.Frame):
 # =============================================================================
 
 class GuiFigure():
-
-    '''
-    Class to generate the graphing figure
+    """Class to generate the graphing figure
 
     **Parameters**
 
@@ -473,7 +459,7 @@ class GuiFigure():
 
     fontsize : int, optional, default = 10
         The fontsize to use on the graph labels
-    '''
+    """
 
     def __init__(self,
                  fig_kwargs={},
@@ -505,7 +491,7 @@ class GuiFigure():
         self.rearange_flag = True
 
     def set_labels(self, ax, xlabel=None, ylabel=None):
-        '''Sets the axis labels'''
+        """Sets the axis labels"""
 
         if xlabel is not None:
             ax.set_xlabel(xlabel, fontsize=self.fontsize)
@@ -514,7 +500,7 @@ class GuiFigure():
             ax.set_ylabel(ylabel, fontsize=self.fontsize)
 
     def update_plots(self, data):
-        '''Updates the axes with supplied data'''
+        """Updates the axes with supplied data"""
 
         # Check that the number of lines matches the data provided
         num_lines = np.sum([len(ax.lines) for ax in self.ax_list])

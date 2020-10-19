@@ -4,20 +4,67 @@ import logging
 import numpy as np
 import pandas as pd
 import datetime as dt
+# from queue import Queue
+# from threading import Thread
+from multiprocessing import Process, Queue
 from tkinter import filedialog as fd
 import tkinter.messagebox as tkMessageBox
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import read_spectrum, average_spectra, read_scan
+from .spectrometers import VSpectrometer
+
 
 # =============================================================================
-# analysis_loop
+# Plot fit results
 # =============================================================================
 
+def plot_fit_results(gui, spectrum, fit_result, tseries):
 
-def analysis_loop(gui):
-    '''Function to handle the analysis loop'''
+    # Pick the parameter to plot
+    try:
+        param = gui.widgets['graph_param'].get()
+        plot_x = tseries[0]
+        plot_y = tseries[1]
+        meas_od = fit_result.meas_od[param]
+        synth_od = fit_result.synth_od[param]
+
+        # Trim if required
+        if gui.widgets['scroll_flag'].get():
+            if gui.loop > gui.widgets['scroll_amt'].get():
+                diff = gui.loop - gui.widgets['scroll_amt'].get()
+                plot_x = plot_x[diff:]
+                plot_y = plot_y[diff:]
+
+    except KeyError:
+        plot_x = []
+        plot_y = []
+        meas_od = []
+        synth_od = []
+
+    # Organise data to plot
+    #        x_data, y_data
+    data = [[fit_result.grid, fit_result.spec],
+            [fit_result.grid, fit_result.fit],
+            spectrum,
+            [fit_result.grid, fit_result.resid],
+            [fit_result.grid, meas_od],
+            [fit_result.grid, synth_od],
+            [plot_x,          plot_y]
+            ]
+
+    gui.figure.update_plots(data)
+
+    gui.canvas.draw()
+    gui.update()
+
+
+# =============================================================================
+# Generate analyser
+# =============================================================================
+
+def generate_analyser(gui):
 
     # Set status
     gui.status.set('Loading')
@@ -87,27 +134,50 @@ def analysis_loop(gui):
     # Report fitting parameters
     logging.info(params.pretty_print(cols=['name', 'value', 'vary']))
 
+    gui.analyser = analyser
+
+
+# =============================================================================
+# analysis_loop
+# =============================================================================
+
+def analysis_loop(gui, rt_flag):
+    """Function to handle the analysis loop for post analysis"""
+
+    # Determine whether the analyser needs to be generated
+    if rt_flag and not gui.fitting_flag:
+        gui.analyser = None
+
+    else:
+        generate_analyser(gui)
+
     # Record the start time
     gui.start_time = time.time()
 
-    # Begin the analysis
-    spec_list = ['iFit', 'Master.Scope', 'Spectrasuite', 'Basic']
-    if gui.widgets['spec_type'].get() in spec_list:
-        spectra_loop(gui, analyser)
+    # Launch the analyser loop corresponding to the analysis type
 
+    # Real-time analysis
+    if rt_flag:
+        rt_analysis_loop(gui)
+
+    # Scanner analysis
     elif gui.widgets['spec_type'].get() in ['FLAME', 'OpenSO2']:
-        scan_loop(gui, analyser)
+        scan_loop(gui)
+
+    # Normal spectra analysis
+    else:
+        spectra_loop(gui)
 
 
 # =============================================================================
 # spectra_loop
 # =============================================================================
 
-def spectra_loop(gui, analyser):
+def spectra_loop(gui):
 
     # Make a list of column names
     cols = ['File', 'Number', 'Time']
-    for par in analyser.params:
+    for par in gui.analyser.params:
         cols += [par, f'{par}_err']
     cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 
@@ -121,7 +191,7 @@ def spectra_loop(gui, analyser):
 
     # Read in the dark spectra
     logging.info('Reading dark spectra')
-    x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
+    x, gui.analyser.dark_spec = average_spectra(dark_fnames, spec_type)
 
     # Create a loop counter
     gui.loop = 0
@@ -150,13 +220,13 @@ def spectra_loop(gui, analyser):
 
         # Fit the spectrum
         logging.debug(f'Fitting spectrum {fname}')
-        fit_result = analyser.fit_spectrum(spectrum=[x, y],
-                                           update_params=update_flag,
-                                           resid_limit=resid_limit,
-                                           resid_type=resid_type,
-                                           int_limit=int_limit,
-                                           calc_od=graph_p,
-                                           interp_method=interp_meth)
+        fit_result = gui.analyser.fit_spectrum(spectrum=[x, y],
+                                               update_params=update_flag,
+                                               resid_limit=resid_limit,
+                                               resid_type=resid_type,
+                                               int_limit=int_limit,
+                                               calc_od=graph_p,
+                                               interp_method=interp_meth)
 
         # Add the the results dataframe
         row = [fname, info['spec_no'], info['time']]
@@ -179,43 +249,8 @@ def spectra_loop(gui, analyser):
 
         # Plot the graphs
         if gui.widgets['graph_flag'].get():
-
-            # Pick the parameter to plot
-            try:
-                param = gui.widgets['graph_param'].get()
-                plot_x = df['Number']
-                plot_y = df[gui.widgets['graph_param'].get()]
-                meas_od = fit_result.meas_od[param]
-                synth_od = fit_result.synth_od[param]
-
-                # Trim if required
-                if gui.widgets['scroll_flag'].get():
-                    if gui.loop > gui.widgets['scroll_amt'].get():
-                        diff = gui.loop - gui.widgets['scroll_amt'].get()
-                        plot_x = plot_x[diff:]
-                        plot_y = plot_y[diff:]
-
-            except KeyError:
-                plot_x = []
-                plot_y = []
-                meas_od = []
-                synth_od = []
-
-            # Organise data to plot
-            #        x_data, y_data
-            data = [[fit_result.grid, fit_result.spec],
-                    [fit_result.grid, fit_result.fit],
-                    [x,               y],
-                    [fit_result.grid, fit_result.resid],
-                    [fit_result.grid, meas_od],
-                    [fit_result.grid, synth_od],
-                    [plot_x,          plot_y]
-                    ]
-
-            gui.figure.update_plots(data)
-
-            gui.canvas.draw()
-            gui.update()
+            tseries = [df['Number'], df[gui.widgets['graph_param'].get()]]
+            plot_fit_results(gui, [x, y], fit_result, tseries)
 
         # Update the progress bar
         gui.progress['value'] = (gui.loop+1)/len(gui.spec_fnames) * 100
@@ -262,11 +297,11 @@ def spectra_loop(gui, analyser):
 # scan_loop
 # =============================================================================
 
-def scan_loop(gui, analyser):
+def scan_loop(gui):
 
     # Make a list of column names
     cols = ['Number', 'Time', 'Motor_Pos']
-    for par in analyser.params:
+    for par in gui.analyser.params:
         cols += [par, f'{par}_err']
     cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 
@@ -297,7 +332,7 @@ def scan_loop(gui, analyser):
             df = pd.DataFrame(index=np.arange(len(spec_fnames)), columns=cols)
 
             # Get the dark
-            analyser.dark_spec = spec_block[0]
+            gui.analyser.dark_spec = spec_block[0]
 
             # Cycle through the scan block
             for n, y in enumerate(spec_block[1:]):
@@ -319,22 +354,22 @@ def scan_loop(gui, analyser):
 
                 # Fit the spectrum
                 logging.debug(f'Fitting spectrum {fname}')
-                fit_result = analyser.fit_spectrum(spectrum=[x, y],
-                                                   update_params=update_flag,
-                                                   resid_limit=resid_limit,
-                                                   resid_type=resid_type,
-                                                   int_limit=int_limit,
-                                                   calc_od=graph_p,
-                                                   pre_process=True,
-                                                   interp_method=interp_meth)
+                fit_res = gui.analyser.fit_spectrum(spectrum=[x, y],
+                                                    update_params=update_flag,
+                                                    resid_limit=resid_limit,
+                                                    resid_type=resid_type,
+                                                    int_limit=int_limit,
+                                                    calc_od=graph_p,
+                                                    pre_process=True,
+                                                    interp_method=interp_meth)
 
                 # Add to the results dataframe
                 time = dt.time(int(h), int(m), int(s))
                 row = [n_aq, time, motor_pos]
-                for par in fit_result.params.values():
+                for par in fit_res.params.values():
                     row += [par.fit_val, par.fit_err]
-                row += [fit_result.nerr, fit_result.int_lo, fit_result.int_hi,
-                        fit_result.int_av]
+                row += [fit_res.nerr, fit_res.int_lo, fit_res.int_hi,
+                        fit_res.int_av]
 
                 df.loc[n] = row
 
@@ -350,43 +385,9 @@ def scan_loop(gui, analyser):
 
                 # Plot the graphs
                 if gui.widgets['graph_flag'].get():
-
-                    # Pick the parameter to plot
-                    try:
-                        param = gui.widgets['graph_param'].get()
-                        plot_x = df['Number']
-                        plot_y = df[gui.widgets['graph_param'].get()]
-                        meas_od = fit_result.meas_od[param]
-                        synth_od = fit_result.synth_od[param]
-
-                        # Trim if required
-                        if gui.widgets['scroll_flag'].get():
-                            if n > gui.widgets['scroll_amt'].get():
-                                diff = n - gui.widgets['scroll_amt'].get()
-                                plot_x = plot_x[diff:]
-                                plot_y = plot_y[diff:]
-
-                    except KeyError:
-                        plot_x = []
-                        plot_y = []
-                        meas_od = np.full(fit_result.grid.shape, np.nan)
-                        synth_od = np.full(fit_result.grid.shape, np.nan)
-
-                    # Organise data to plot
-                    #        x_data,          y_data
-                    data = [[fit_result.grid, fit_result.spec],
-                            [fit_result.grid, fit_result.fit],
-                            [x,               y],
-                            [fit_result.grid, fit_result.resid],
-                            [fit_result.grid, meas_od],
-                            [fit_result.grid, synth_od],
-                            [plot_x,          plot_y]
-                            ]
-
-                    gui.figure.update_plots(data)
-
-                    gui.canvas.draw()
-                    gui.update()
+                    tseries = [df['Number'],
+                               df[gui.widgets['graph_param'].get()]]
+                    plot_fit_results(gui, [x, y], fit_res, tseries)
 
                 # Update the progress bar
                 gui.progress['value'] = (n+1)/len(spec_block) * 100
@@ -426,30 +427,313 @@ def scan_loop(gui, analyser):
 
 
 # =============================================================================
+# Real Time Analysis
+# =============================================================================
+
+def rt_analysis_loop(gui, buffer=1000):
+    """Handles real time spectra acquisition and analysis"""
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    gui.spec.fpath = 'Masaya_Traverse/spectrum_00366.txt'
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    # Log the start of acquisition
+    logging.info('Beginning spectra acquisition')
+    gui.status.set('Acquiring')
+
+    # Create holder for the previous spectrum
+    gui.last_spectrum = None
+
+    # Create a loop counter and spectrum number
+    gui.loop = 0
+    spec_no = 0
+
+    # Create the output spectra folder if it is missing
+    savepath = gui.widgets["rt_save_path"].get() + 'spectra/'
+    if not os.path.isdir(savepath):
+        os.makedirs(savepath)
+
+    # Begin the acquisition loop
+    while not gui.stop_flag:
+
+        # Generate the spectrum filename
+        spec_fname = f'{savepath}spectrum_{spec_no:05d}.txt'
+
+        # Check the file doesn't already exist
+        while os.path.isfile(spec_fname):
+            spec_no += 1
+            spec_fname = f'{savepath}spectrum_{spec_no:05d}.txt'
+
+        # Just acquire spectra
+        if not gui.fitting_flag:
+
+            # Take a spectrum
+            x, y = gui.spec.get_spectrum(spec_fname)
+
+            # Add to the plot
+            if gui.widgets['graph_flag'].get():
+
+                data = [[[], []], [[], []], [x, y], [[], []], [[], []],
+                        [[], []], [[], []]]
+                gui.figure.update_plots(data)
+
+                gui.canvas.draw()
+                gui.update()
+
+        # Analyse in real-time
+        else:
+
+            if gui.last_spectrum is None:
+
+                # Take a spectrum
+                x, y = gui.spec.get_spectrum(spec_fname)
+                gui.last_spectrum = [x, y]
+
+            else:
+
+                # Set the dark spectrum for the analyser
+                gui.analyser.dark_spec = gui.dark_spectrum
+
+                # Create a queue to hold results
+                results_queue = Queue()
+
+                # Pull processing settings from the GUI
+                update_flag = gui.widgets['update_flag'].get()
+                resid_limit = gui.widgets['resid_limit'].get()
+                resid_type = gui.widgets['resid_type'].get()
+                int_limit = [gui.widgets['lo_int_limit'].get(),
+                             gui.widgets['hi_int_limit'].get()]
+                graph_p = [gui.widgets['graph_param'].get()]
+                interp_meth = gui.widgets['interp_method'].get()
+
+                fit_args = (gui.last_spectrum, update_flag, resid_limit,
+                            resid_type, int_limit, graph_p, True, interp_meth,
+                            results_queue)
+
+                # Set one process to acquire the spectrum
+                # t1 = Process(target=gui.spec.get_spectrum,
+                #              args=(spec_fname, results_queue))
+
+                # Set another process to analyse the previous spectrum
+                t2 = Process(target=gui.analyser.fit_spectrum,
+                             args=fit_args)
+
+                # Launch the processes
+                # t1.start()
+                t2.start()
+
+                # Join once finished
+                # t1.join()
+                t2.join()
+
+                # Get the results from the processes
+                output = {}
+                while not results_queue.empty():
+                    result = results_queue.get()
+                    output[result[0]] = result[1]
+
+                spectrum = gui.last_spectrum
+                fit_result = output['fit_result']
+
+                # Update the numerical outputs
+                key = gui.widgets['graph_param'].get()
+                amt = fit_result.params[key].fit_val
+                err = fit_result.params[key].fit_err
+                gui.last_amt.set(f'{amt:.03g}')
+                gui.last_err.set(f'{err:.03g}')
+
+                # Plot the graphs
+                if gui.widgets['graph_flag'].get():
+                    tseries = [[], []]
+                    plot_fit_results(gui, spectrum, fit_result, tseries)
+
+                gui.last_spectrum = output['spectrum']
+
+                print('mark')
+
+        gui.update()
+
+
+# =============================================================================
+# Connect to spectrometer
+# =============================================================================
+
+def connect_spectrometer(gui):
+    """Connects or dissconnects to the spectrometer"""
+
+    if not gui.connect_flag.get():
+
+        # Connect to the spectrometer
+        gui.spec = VSpectrometer(integration_time=gui.widgets["IntTime"].get(),
+                                 coadds=gui.widgets["Coadds"].get())
+
+        # Update the GUI
+        gui.spec_id.set(gui.spec.serial_number)
+        gui.con_b.config(text='Disconnect')
+
+        # Create a holder for the dark spectra
+        gui.dark_spectrum = np.zeros(gui.spec.pixels)
+
+        gui.connect_flag.set(True)
+
+    else:
+        # Disconnect the spectrometer
+        gui.spec.close()
+
+        # Update the GUI
+        gui.spec_id.set('Not connected')
+        gui.con_b.config(text='Connect')
+
+        gui.connect_flag.set(False)
+
+
+# =============================================================================
+# Test Spectrum
+# =============================================================================
+
+def test_spectrum(gui):
+    """Measure a test spectrum and display"""
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    gui.spec.fpath = 'Masaya_Traverse/spectrum_00000.txt'
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    # Read the spectrum
+    # try:
+    x, y = gui.spec.get_spectrum()
+
+    # Plot the spectrum
+    data = [[[], []], [[], []], [x, y], [[], []], [[], []], [[], []],
+            [[], []]]
+    gui.figure.update_plots(data)
+
+    gui.canvas.draw()
+    gui.update()
+
+    # except AttributeError:
+    #     logging.warning('No spectrometer connected!')
+
+
+# =============================================================================
+# Read Darks
+# =============================================================================
+
+def read_darks(gui):
+    """Read in the dark spectra"""
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    gui.spec.fpath = 'Masaya_Traverse/dark.txt'
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    # Update the status
+    gui.status.set('Acquiring')
+
+    # Get the number of darks
+    ndarks = gui.widgets["ndarks"].get()
+    logging.info(f'Reading {ndarks} dark spectra')
+
+    # Generate the save location for the dark spectra
+    dark_path = gui.widgets["rt_save_path"].get() + 'dark/'
+
+    # Generate the output folder, generating a new one if it already exists
+    if not os.path.isdir(dark_path):
+        os.makedirs(dark_path)
+
+    else:
+        n = 0
+        while os.path.isdir(dark_path):
+            n += 1
+            dark_path = gui.widgets["rt_save_path"].get() + f'dark({n})/'
+        os.makedirs(dark_path)
+
+    try:
+        # Create a holder for the averaged dark spectrum
+        npixels = gui.spec.pixels
+        dark_arr = np.zeros([ndarks, npixels])
+
+        # Read the dark spectra
+        for i in range(ndarks):
+            fname = f'{dark_path}spectrum_{i:05d}.txt'
+            x, y = gui.spec.get_spectrum(fname=fname)
+            dark_arr[i] = y
+
+            # Update the progress bar
+            gui.progress['value'] = (i+1)/ndarks * 100
+
+            # Make GUI show updates
+            gui.update()
+
+        # Average the spectra
+        gui.dark_spectrum = np.average(dark_arr, axis=0)
+
+        # Plot the spectrum
+        data = [[[], []], [[], []], [x, gui.dark_spectrum], [[], []], [[], []],
+                [[], []], [[], []]]
+        gui.figure.update_plots(data)
+
+        gui.canvas.draw()
+        gui.update()
+
+    except AttributeError:
+        logging.warning('No spectrometer connected!')
+
+    gui.status.set('Standby')
+
+
+# =============================================================================
+# Toggle fitting
+# =============================================================================
+
+def toggle_fitting(gui):
+    """Toggle fitting on or off"""
+
+    # If fitting is ON --> turn it OFF
+    if gui.fitting_flag:
+        gui.fitting_flag = False
+        gui.fit_b.config(text='Fitting OFF', bg='red')
+        logging.info('Fitting turned off')
+
+    # If fitting is OFF --> turn it ON
+    else:
+        gui.fitting_flag = True
+        gui.fit_b.config(text='Fitting ON', bg='green')
+        logging.info('Fitting turned on')
+
+
+# =============================================================================
 # file_io
 # =============================================================================
 
-def file_io(single_file=False, holder=None, entry=None, save_flag=False,
-            filetypes=None):
-    '''
-    Function to select files
+def file_io(folder=False, single_file=False, holder=None, entry=None,
+            save_flag=False, filetypes=None):
+    """Function to handle file dialouges for input/output selection.
 
-    **Parameters**
+    Parameters
+    ----------
+    folder : bool, optional
+        If True then the dialouge selects a folder, otherwise a file/files are
+        selected. Overrides single_file. Default is False
+    single_file : bool, optional
+        Controls whether multiple file selection is supported or not. Default
+        is False
+    holder : tkinter Variable or None, optional
+        The tk variable to hold the returned file path. Ignored if None.
+        Default is None
+    entry : tk Object or None, optional
+        A tk Label or Entry to hold the number of selected files if selecting
+        multiple. Ignored if None or if single_file is True. Default is None
+    save_flag : bool, optional
+        If True then a "save as" dialouge is used. Default is False
+    filetypes : list of tuples or None, optional
+        The default file extensions to offer the user. Each tuple is a pair of
+        strings with a description and the extension. Default is None
 
-    single_file : bool, optional, default = False
-        Controls whether to select a single file or multiple
-
-    holder : tk variable, optional, default = None
-        The tk variable to asign the file name(s). Ignored if None.
-
-    entry : tk.Entry
-        The entry to which to print the number of spectra selected
-
-    **Returns**
-
-    spec_list : list or str
-        The list of file paths, or a single file path
-    '''
+    Returns
+    -------
+    str
+        The file path(s) selected by the user. If the file dialouge is
+        cancelled then an empty string is returned.
+    """
 
     if filetypes is None:
         filetypes = [("all files", "*.*")]
@@ -458,6 +742,24 @@ def file_io(single_file=False, holder=None, entry=None, save_flag=False,
 
     # Get the cwd
     cwd = os.getcwd().replace("\\", "/")
+
+    # Folder ==================================================================
+
+    # Open dialouge for a folder
+    if folder:
+        fpath = fd.askdirectory(initialdir=cwd, title="Select folder")
+
+        if fpath != '' and holder is not None:
+            fpath += '/'
+            # Check if in the same cwd. If so trim the file path
+            if cwd in fpath:
+                fpath = fpath[len(cwd)+1:]
+
+            holder.set(fpath)
+
+        return fpath
+
+    # Single File =============================================================
 
     # Open dialouge to get a single file
     if single_file:
@@ -477,6 +779,8 @@ def file_io(single_file=False, holder=None, entry=None, save_flag=False,
             holder.set(fname)
 
         return fname
+
+    # Multiple Files ==========================================================
 
     # Open dialouge to get multiple files
     else:
@@ -503,6 +807,6 @@ def file_io(single_file=False, holder=None, entry=None, save_flag=False,
 # =============================================================================
 
 def stop(self):
-    '''Stops the analysis loop'''
+    """Stops the analysis loop"""
     self.stop_flag = True
     logging.info('Analysis stoped')

@@ -2,6 +2,7 @@
 Results
 Spectrometer
 *.yaml
+spectrum*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Aug  5 09:00:20 2019
-
-@author: mqbpwbe2
-"""
-
 import numpy as np
 from math import sin, cos, atan2, asin, pi
 
@@ -15,8 +7,7 @@ from math import sin, cos, atan2, asin, pi
 # =============================================================================
 
 def haversine(start_coords, end_coords, radius=6371000):
-    '''
-    Function to calculate the distance and initial bearing between two points
+    """Function to calculate the distance and initial bearing between two points
 
     INPUTS
     ------
@@ -37,7 +28,7 @@ def haversine(start_coords, end_coords, radius=6371000):
 
     bearing, float
         The initial bearing between the two points (radians)
-    '''
+    """
 
     # Unpack the coordinates and convert to radians
     lat1, lon1 = np.radians(start_coords)
@@ -71,8 +62,7 @@ def haversine(start_coords, end_coords, radius=6371000):
 # =============================================================================
 
 def calc_end_point(start_coords, dist, bearing, radius=6371000):
-    '''
-    Function to calculate the final coordinates given a starting position and
+    """Function to calculate the final coordinates given a starting position and
     vector of travel.
 
     INPUTS
@@ -94,7 +84,7 @@ def calc_end_point(start_coords, dist, bearing, radius=6371000):
     -------
     end_coords, tuple
         The final coordinates (lat, lon) in decimal degrees (+ve = north/east)
-    '''
+    """
 
     # Convert the inputs to radians
     lat, lon = np.radians(start_coords)
@@ -118,7 +108,29 @@ def calc_end_point(start_coords, dist, bearing, radius=6371000):
 # Add a bearing checker
 # =============================================================================
 
-def bearing_check(bearing, max_iter=1000):
+def bearing_check(bearing, radians=True, max_iter=1000):
+    """Checks for a valid bearing (between 0 -> 360 degrees).
+
+    Parameters
+    ----------
+    bearing : float
+        The bearing value to check.
+    radians : bool, optional
+        If True then the bearing is treated as radians. Otherwise it is assumed
+        to be degrees. Default is True
+    max_iter : int
+        Maximum number of checks to avoid infinite loops. Default is 1000
+
+    Returns
+    -------
+    float
+        The checked bearing.
+
+    """
+
+    # Check if degrees
+    if not radians:
+        bearing = np.radians(bearing)
 
     i = 0
 
@@ -134,6 +146,10 @@ def bearing_check(bearing, max_iter=1000):
         if i >= max_iter:
             msg = f'Max iteration in bearing check reached {max_iter}'
             raise ValueError(msg)
+
+    # Check if degrees
+    if not radians:
+        bearing = np.degrees(bearing)
 
     return bearing
 
