@@ -91,7 +91,7 @@ def write_config(gui, asksavepath=True):
         # Get the desired path
         fpath = fd.asksaveasfilename(defaultextension='.yaml')
 
-        if fpath != '':
+        if fpath not in ['', 'cancel']:
             # Save the config file
             with open(fpath, 'w') as outfile:
 
@@ -99,16 +99,29 @@ def write_config(gui, asksavepath=True):
 
                 logging.info('Config file saved')
 
-    # Also save the config to the default config location to load on startup
-    try:
+            # Also save the config to the default config location
+            try:
+                if not os.path.exists('bin'):
+                    os.makedirs('bin')
 
-        if not os.path.exists('bin'):
-            os.makedirs('bin')
+                with open('bin/config.yaml', 'w') as outfile:
+                    yaml.dump(config, outfile)
 
-        with open('bin/config.yaml', 'w') as outfile:
-            yaml.dump(config, outfile)
+                logging.info('Default config updated')
 
-        logging.info('Default config updated')
+            except FileNotFoundError:
+                logging.info('Default config could not be saved')
 
-    except FileNotFoundError:
-        logging.info('Default config could not be saved')
+    # Otherwise just save the default config
+    else:
+        try:
+            if not os.path.exists('bin'):
+                os.makedirs('bin')
+
+            with open('bin/config.yaml', 'w') as outfile:
+                yaml.dump(config, outfile)
+
+            logging.info('Default config updated')
+
+        except FileNotFoundError:
+            logging.info('Default config could not be saved')
