@@ -606,7 +606,7 @@ class myGUI(tk.Frame):
 
         # Add text widget to display logging info
         st = ScrolledText.ScrolledText(control_frame, state='disabled',
-                                       width=60, height=12)
+                                       width=50, height=12)
         st.configure(font='TkFixedFont')
         st.grid(row=4, column=0, padx=10, pady=10, sticky="NW", columnspan=5)
 
