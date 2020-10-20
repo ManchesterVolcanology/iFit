@@ -3,10 +3,10 @@ import os
 import logging
 import numpy as np
 import pandas as pd
-import datetime as dt
-# from queue import Queue
-# from threading import Thread
-from multiprocessing import Process, Queue
+from datetime import datetime
+from queue import Queue
+from threading import Thread
+# from multiprocessing import Process, Queue
 from tkinter import filedialog as fd
 import tkinter.messagebox as tkMessageBox
 
@@ -32,8 +32,8 @@ def plot_fit_results(gui, spectrum, fit_result, tseries):
 
         # Trim if required
         if gui.widgets['scroll_flag'].get():
-            if gui.loop > gui.widgets['scroll_amt'].get():
-                diff = gui.loop - gui.widgets['scroll_amt'].get()
+            if len(plot_y) > gui.widgets['scroll_amt'].get():
+                diff = len(plot_y) - gui.widgets['scroll_amt'].get()
                 plot_x = plot_x[diff:]
                 plot_y = plot_y[diff:]
 
@@ -198,6 +198,7 @@ def spectra_loop(gui):
 
     logging.info('Beginning analysis loop')
     gui.status.set('Analysing')
+    gui.progress.config(length=300, mode='determinate')
 
     # Begin the analysis
     while not gui.stop_flag:
@@ -253,7 +254,9 @@ def spectra_loop(gui):
             plot_fit_results(gui, [x, y], fit_result, tseries)
 
         # Update the progress bar
-        gui.progress['value'] = (gui.loop+1)/len(gui.spec_fnames) * 100
+        prog = (gui.loop+1)/len(gui.spec_fnames) * 100
+        gui.progress['value'] = prog
+        gui.status.set(f'Analysing ({int(prog)}%)')
 
         # Make GUI show updates
         gui.update()
@@ -313,8 +316,10 @@ def scan_loop(gui):
     spec_fnames = gui.spec_fnames
     spec_type = gui.widgets['spec_type'].get()
 
+    # Log start and update notifiers
     logging.info('Beginning analysis loop')
     gui.status.set('Analysing')
+    gui.progress.config(length=300, mode='determinate')
 
     # Begin the analysis
     while not gui.stop_flag:
@@ -364,7 +369,8 @@ def scan_loop(gui):
                                                     interp_method=interp_meth)
 
                 # Add to the results dataframe
-                time = dt.time(int(h), int(m), int(s))
+                time = datetime(hour=int(h), minute=int(m),
+                                second=int(s)).time()
                 row = [n_aq, time, motor_pos]
                 for par in fit_res.params.values():
                     row += [par.fit_val, par.fit_err]
@@ -440,6 +446,7 @@ def rt_analysis_loop(gui, buffer=1000):
     # Log the start of acquisition
     logging.info('Beginning spectra acquisition')
     gui.status.set('Acquiring')
+    gui.progress.config(mode='indeterminate')
 
     # Create holder for the previous spectrum
     gui.last_spectrum = None
@@ -452,6 +459,22 @@ def rt_analysis_loop(gui, buffer=1000):
     savepath = gui.widgets["rt_save_path"].get() + 'spectra/'
     if not os.path.isdir(savepath):
         os.makedirs(savepath)
+
+    # If the results file doesn't exist, generate the header
+    save_fname = gui.widgets["rt_save_path"].get() + 'iFit_rt_output.csv'
+    if not os.path.exists(save_fname):
+        # Make a list of column names
+        cols = ['File', 'Number', 'Time']
+        for par in gui.analyser.params:
+            cols += [par, f'{par}_err']
+        cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
+
+        # Open the results file and write the header
+        with open(save_fname, 'a') as w:
+            w.write(cols[0])
+            for c in cols[1:]:
+                w.write(f',{c}')
+            w.write('\n')
 
     # Begin the acquisition loop
     while not gui.stop_flag:
@@ -468,12 +491,12 @@ def rt_analysis_loop(gui, buffer=1000):
         if not gui.fitting_flag:
 
             # Take a spectrum
-            x, y = gui.spec.get_spectrum(spec_fname)
+            spectrum, info = gui.spec.get_spectrum(spec_fname)
 
             # Add to the plot
             if gui.widgets['graph_flag'].get():
 
-                data = [[[], []], [[], []], [x, y], [[], []], [[], []],
+                data = [[[], []], [[], []], spectrum, [[], []], [[], []],
                         [[], []], [[], []]]
                 gui.figure.update_plots(data)
 
@@ -486,8 +509,7 @@ def rt_analysis_loop(gui, buffer=1000):
             if gui.last_spectrum is None:
 
                 # Take a spectrum
-                x, y = gui.spec.get_spectrum(spec_fname)
-                gui.last_spectrum = [x, y]
+                gui.last_spectrum = gui.spec.get_spectrum(spec_fname)
 
             else:
 
@@ -498,32 +520,30 @@ def rt_analysis_loop(gui, buffer=1000):
                 results_queue = Queue()
 
                 # Pull processing settings from the GUI
-                update_flag = gui.widgets['update_flag'].get()
-                resid_limit = gui.widgets['resid_limit'].get()
-                resid_type = gui.widgets['resid_type'].get()
-                int_limit = [gui.widgets['lo_int_limit'].get(),
-                             gui.widgets['hi_int_limit'].get()]
-                graph_p = [gui.widgets['graph_param'].get()]
-                interp_meth = gui.widgets['interp_method'].get()
-
-                fit_args = (gui.last_spectrum, update_flag, resid_limit,
-                            resid_type, int_limit, graph_p, True, interp_meth,
-                            results_queue)
-
+                fit_args = [gui.last_spectrum[0],
+                            gui.widgets['update_flag'].get(),
+                            None,  # gui.widgets['resid_limit'].get(),
+                            gui.widgets['resid_type'].get(),
+                            [gui.widgets['lo_int_limit'].get(),
+                             gui.widgets['hi_int_limit'].get()],
+                            [gui.widgets['graph_param'].get()],
+                            True,
+                            gui.widgets['interp_method'].get(),
+                            results_queue]
                 # Set one process to acquire the spectrum
-                # t1 = Process(target=gui.spec.get_spectrum,
-                #              args=(spec_fname, results_queue))
+                t1 = Thread(target=gui.spec.get_spectrum,
+                            args=(spec_fname, results_queue))
 
                 # Set another process to analyse the previous spectrum
-                t2 = Process(target=gui.analyser.fit_spectrum,
-                             args=fit_args)
+                t2 = Thread(target=gui.analyser.fit_spectrum,
+                            args=fit_args)
 
                 # Launch the processes
-                # t1.start()
+                t1.start()
                 t2.start()
 
                 # Join once finished
-                # t1.join()
+                t1.join()
                 t2.join()
 
                 # Get the results from the processes
@@ -532,8 +552,18 @@ def rt_analysis_loop(gui, buffer=1000):
                     result = results_queue.get()
                     output[result[0]] = result[1]
 
-                spectrum = gui.last_spectrum
+                spectrum = gui.last_spectrum[0]
+                spec_info = gui.last_spectrum[1]
                 fit_result = output['fit_result']
+
+                # Write the results to the results file
+                with open(save_fname, 'a') as w:
+                    w.write(f'{spec_info["fname"]},{spec_no - 1},'
+                            + f'{spec_info["time"]}')
+                    for par in fit_result.params.values():
+                        w.write(f',{par.fit_val},{par.fit_err}')
+                    w.write(f',{fit_result.nerr}, {fit_result.int_lo}'
+                            + f',{fit_result.int_hi}, {fit_result.int_av}\n')
 
                 # Update the numerical outputs
                 key = gui.widgets['graph_param'].get()
@@ -544,12 +574,28 @@ def rt_analysis_loop(gui, buffer=1000):
 
                 # Plot the graphs
                 if gui.widgets['graph_flag'].get():
-                    tseries = [[], []]
+
+                    # Get the number of lines in the output file
+                    nlines = line_counter(save_fname)
+                    nbuffer = gui.widgets['scroll_amt'].get()
+                    nskip = nlines - nbuffer
+
+                    if nskip < 0:
+                        skiprows = None
+                    else:
+                        skiprows = range(1, nskip)
+
+                    # Read in the output file
+                    df = pd.read_csv(save_fname, header=0, skiprows=skiprows)
+                    key = gui.widgets['graph_param'].get()
+                    tseries = [df['Number'], df[key]]
                     plot_fit_results(gui, spectrum, fit_result, tseries)
 
                 gui.last_spectrum = output['spectrum']
 
-                print('mark')
+        # Update the progress bar
+        gui.loop += 1
+        gui.progress['value'] = gui.loop
 
         gui.update()
 
@@ -600,18 +646,15 @@ def test_spectrum(gui):
 
     # Read the spectrum
     # try:
-    x, y = gui.spec.get_spectrum()
+    spectrum, info = gui.spec.get_spectrum()
 
     # Plot the spectrum
-    data = [[[], []], [[], []], [x, y], [[], []], [[], []], [[], []],
+    data = [[[], []], [[], []], spectrum, [[], []], [[], []], [[], []],
             [[], []]]
     gui.figure.update_plots(data)
 
     gui.canvas.draw()
     gui.update()
-
-    # except AttributeError:
-    #     logging.warning('No spectrometer connected!')
 
 
 # =============================================================================
@@ -627,6 +670,7 @@ def read_darks(gui):
 
     # Update the status
     gui.status.set('Acquiring')
+    gui.progress.config(length=300, mode='determinate')
 
     # Get the number of darks
     ndarks = gui.widgets["ndarks"].get()
@@ -654,7 +698,7 @@ def read_darks(gui):
         # Read the dark spectra
         for i in range(ndarks):
             fname = f'{dark_path}spectrum_{i:05d}.txt'
-            x, y = gui.spec.get_spectrum(fname=fname)
+            [x, y], info = gui.spec.get_spectrum(fname=fname)
             dark_arr[i] = y
 
             # Update the progress bar
@@ -806,7 +850,20 @@ def file_io(folder=False, single_file=False, holder=None, entry=None,
 # stop
 # =============================================================================
 
-def stop(self):
+def stop(gui):
     """Stops the analysis loop"""
-    self.stop_flag = True
+    gui.stop_flag = True
+    gui.status.set('Standby')
     logging.info('Analysis stoped')
+
+
+# =============================================================================
+# line counter
+# =============================================================================
+
+def line_counter(fname):
+    """Counts the number of lines in a file"""
+    with open(fname) as f:
+        for i, l in enumerate(f, 1):
+            pass
+    return i
