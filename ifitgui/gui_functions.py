@@ -563,10 +563,7 @@ def rt_analysis_loop(gui, buffer=1000):
                     df = pd.read_csv(save_fname, header=0, skiprows=skiprows)
                     key = gui.widgets['graph_param'].get()
                     tseries = [df['Number'], df[key]]
-                    pt = Process(target=plot_fit_results,
-                                 args=(gui, spectrum, fit_result, tseries))
-                    pt.start()
-                    # plot_fit_results(gui, spectrum, fit_result, tseries)
+                    plot_fit_results(gui, spectrum, fit_result, tseries)
 
                 gui.last_spectrum = output['spectrum']
 
