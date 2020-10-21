@@ -5,10 +5,9 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from queue import Queue
+from multiprocessing import Process
 from threading import Thread
-# from multiprocessing import Process, Queue
 from tkinter import filedialog as fd
-import tkinter.messagebox as tkMessageBox
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
@@ -23,25 +22,11 @@ from .spectrometers import VSpectrometer
 def plot_fit_results(gui, spectrum, fit_result, tseries):
 
     # Pick the parameter to plot
-    try:
-        param = gui.widgets['graph_param'].get()
-        plot_x = tseries[0]
-        plot_y = tseries[1]
-        meas_od = fit_result.meas_od[param]
-        synth_od = fit_result.synth_od[param]
-
-        # Trim if required
-        if gui.widgets['scroll_flag'].get():
-            if len(plot_y) > gui.widgets['scroll_amt'].get():
-                diff = len(plot_y) - gui.widgets['scroll_amt'].get()
-                plot_x = plot_x[diff:]
-                plot_y = plot_y[diff:]
-
-    except KeyError:
-        plot_x = []
-        plot_y = []
-        meas_od = []
-        synth_od = []
+    param = gui.widgets['graph_param'].get()
+    plot_x = tseries[0]
+    plot_y = tseries[1]
+    meas_od = fit_result.meas_od[param]
+    synth_od = fit_result.synth_od[param]
 
     # Organise data to plot
     #        x_data, y_data
@@ -186,8 +171,13 @@ def spectra_loop(gui):
     dark_fnames = gui.dark_fnames
     spec_type = gui.widgets['spec_type'].get()
 
-    # Make a dataframe to hold the fit results
-    df = pd.DataFrame(index=np.arange(len(spec_fnames)), columns=cols)
+    # Make the results file
+    save_path = gui.widgets['save_path'].get()
+    with open(save_path, 'w') as w:
+        w.write(cols[0])
+        for c in cols[1:]:
+            w.write(f',{c}')
+        w.write('\n')
 
     # Read in the dark spectra
     logging.info('Reading dark spectra')
@@ -229,28 +219,38 @@ def spectra_loop(gui):
                                                calc_od=graph_p,
                                                interp_method=interp_meth)
 
-        # Add the the results dataframe
-        row = [fname, info['spec_no'], info['time']]
-        for par in fit_result.params.values():
-            row += [par.fit_val, par.fit_err]
-        row += [fit_result.nerr, fit_result.int_lo, fit_result.int_hi,
-                fit_result.int_av]
-
-        df.loc[gui.loop] = row
+        # Write the results to the results file
+        with open(save_path, 'a') as w:
+            w.write(f'{fname},{info["spec_no"]},{info["time"]}')
+            for par in fit_result.params.values():
+                w.write(f',{par.fit_val},{par.fit_err}')
+            w.write(f',{fit_result.nerr}, {fit_result.int_lo}'
+                    + f',{fit_result.int_hi}, {fit_result.int_av}\n')
 
         # Update numerical outputs
-        try:
-            key = gui.widgets['graph_param'].get()
-            gui.last_amt.set(f'{df[key][gui.loop]:.03g}')
-            gui.last_err.set(f'{df[key+"_err"][gui.loop]:.03g}')
-
-        except KeyError:
-            gui.last_amt.set('-')
-            gui.last_err.set('-')
+        key = gui.widgets['graph_param'].get()
+        amt = fit_result.params[key].fit_val
+        err = fit_result.params[key].fit_err
+        gui.last_amt.set(f'{amt:.03g}')
+        gui.last_err.set(f'{err:.03g}')
 
         # Plot the graphs
         if gui.widgets['graph_flag'].get():
-            tseries = [df['Number'], df[gui.widgets['graph_param'].get()]]
+
+            # Get the number of lines in the output file
+            nlines = line_counter(save_path)
+            nbuffer = gui.widgets['scroll_amt'].get()
+            nskip = nlines - nbuffer
+
+            if nskip < 0 or not gui.widgets['scroll_flag'].get():
+                skiprows = None
+            else:
+                skiprows = range(1, nskip)
+
+            # Read in the output file
+            df = pd.read_csv(save_path, header=0, skiprows=skiprows)
+            key = gui.widgets['graph_param'].get()
+            tseries = [df['Number'], df[key]]
             plot_fit_results(gui, [x, y], fit_result, tseries)
 
         # Update the progress bar
@@ -273,27 +273,6 @@ def spectra_loop(gui):
     # Report the time taken to analyse
     gui.end_time = time.time()
     logging.info(f'Analysis time: {gui.end_time-gui.start_time:.02f}')
-
-    try:
-        # Save the results
-        df.to_csv(gui.widgets['save_path'].get())
-
-    except PermissionError:
-
-        # Open save dialouge
-        text = 'Cannot save output: Permission Denied\n' + \
-               'Select new save location?'
-        message = tkMessageBox.askquestion('Save Error',
-                                           message=text,
-                                           type='yesno')
-
-        if message == 'yes':
-            file_io(single_file=True, holder=gui.save_path, save_flag=True,
-                    filetypes=(('Comma Separated', '.csv')))
-            df.to_csv(gui.widgets['save_path'].get())
-
-        if message == 'no':
-            pass
 
 
 # =============================================================================
@@ -380,14 +359,9 @@ def scan_loop(gui):
                 df.loc[n] = row
 
                 # Update numerical outputs
-                try:
-                    key = gui.widgets['graph_param'].get()
-                    gui.last_amt.set(f'{df[key][n]:.03g}')
-                    gui.last_err.set(f'{df[key+"_err"][n]:.03g}')
-
-                except KeyError:
-                    gui.last_amt.set('-')
-                    gui.last_err.set('-')
+                key = gui.widgets['graph_param'].get()
+                gui.last_amt.set(f'{df[key][n]:.03g}')
+                gui.last_err.set(f'{df[key+"_err"][n]:.03g}')
 
                 # Plot the graphs
                 if gui.widgets['graph_flag'].get():
@@ -580,7 +554,7 @@ def rt_analysis_loop(gui, buffer=1000):
                     nbuffer = gui.widgets['scroll_amt'].get()
                     nskip = nlines - nbuffer
 
-                    if nskip < 0:
+                    if nskip < 0 or not gui.widgets['scroll_flag'].get():
                         skiprows = None
                     else:
                         skiprows = range(1, nskip)
@@ -589,7 +563,10 @@ def rt_analysis_loop(gui, buffer=1000):
                     df = pd.read_csv(save_fname, header=0, skiprows=skiprows)
                     key = gui.widgets['graph_param'].get()
                     tseries = [df['Number'], df[key]]
-                    plot_fit_results(gui, spectrum, fit_result, tseries)
+                    pt = Process(target=plot_fit_results,
+                                 args=(gui, spectrum, fit_result, tseries))
+                    pt.start()
+                    # plot_fit_results(gui, spectrum, fit_result, tseries)
 
                 gui.last_spectrum = output['spectrum']
 

@@ -122,16 +122,13 @@ class Parameters(OrderedDict):
             The formatted message to print
         """
 
-        # Check colwidth isn't less than 7
-        if mincolwidth <= 7:
-            mincolwidth = 7
+        # Set default column choices
+        def_cols = {'all':   ['name', 'value', 'vary', 'fit_val', 'fit_err'],
+                    'basic': ['name', 'value', 'vary']}
 
         # Make list of columns
-        if cols == 'all':
-            cols = ['name', 'value', 'vary', 'fit_val', 'fit_err']
-
-        if cols == 'basic':
-            cols = ['name', 'value', 'vary']
+        if cols == 'all' or cols == 'basic':
+            cols = def_cols[cols]
 
         colwidth = [mincolwidth] * (len(cols))
 
@@ -162,6 +159,7 @@ class Parameters(OrderedDict):
             if w < mincolwidth:
                 colwidth[n] = mincolwidth
 
+        # Generate the string
         title = ''
         for n, c in enumerate(cols):
             title += f'|{c:^{colwidth[n]}}'
@@ -171,31 +169,15 @@ class Parameters(OrderedDict):
               f'{"-"*len(title)}\n'
 
         for name, p in self.items():
-            val = f'{p.value:.{precision}g}'
-            fval = f'{p.fit_val:.{precision}g}'
-            ferr = f'{p.fit_err:.{precision}g}'
-            # lo_b = f'{p.lo_bound:.{precision}g}'
-            # hi_b = f'{p.hi_bound:.{precision}g}'
+            d = {'name': f'{p.name}',
+                 'value': f'{p.value:.{precision}g}',
+                 'fit_val': f'{p.fit_val:.{precision}g}',
+                 'fit_err': f'{p.fit_err:.{precision}g}',
+                 'vary': f'{p.vary}'
+                 }
 
-            if p.vary:
-                var = 'True'
-            else:
-                var = 'False'
-
-            if 'name' in cols:
-                msg += f'|{name:^{colwidth[cols.index("name")]}}'
-            if 'value' in cols:
-                msg += f'|{val:^{colwidth[cols.index("value")]}}'
-            if 'vary' in cols:
-                msg += f'|{var:^{colwidth[cols.index("vary")]}}'
-            # if 'lo_bound' in cols:
-            #     msg += f'|{lo_b:^{colwidth[cols.index("lo_bound")]}}'
-            # if 'hi_bound' in cols:
-            #     msg += f'|{hi_b:^{colwidth[cols.index("hi_bound")]}}'
-            if 'fit_val' in cols:
-                msg += f'|{fval:^{colwidth[cols.index("fit_val")]}}'
-            if 'fit_err' in cols:
-                msg += f'|{ferr:^{colwidth[cols.index("fit_err")]}}'
+            for col in cols:
+                msg += f'|{d[col]:^{colwidth[cols.index(col)]}}'
 
             msg += '|\n'
 

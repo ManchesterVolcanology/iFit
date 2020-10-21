@@ -366,57 +366,16 @@ class Analyser():
             nerr = 0
 
         # Put the results into a FitResult object
-        fit_result = FitResult(spectrum, popt, perr, nerr, self.fwd_model,
-                               self.params, resid_type)
+        fit_result = FitResult(self, spectrum, popt, perr, nerr,
+                               self.fwd_model, self.params, resid_type,
+                               resid_limit, int_limit, calc_od)
 
-        if nerr:
-
-            # Update the initial guess
-            if update_params:
-                reset_flag = False
-
-                # Check the residual level
-                if resid_limit is not None:
-                    if fit_result.resid.max() > resid_limit:
-                        logging.info('High residual detected')
-                        reset_flag = True
-                        fit_result.nerr = 2
-
-                # Check for spectrum light levels
-                if int_limit is not None:
-
-                    # Check for low intensity
-                    if min(spec) <= int_limit[0]:
-                        logging.info('Low intensity detected')
-                        reset_flag = True
-                        fit_result.nerr = 2
-
-                    # Check for high intensity
-                    elif max(spec) >= int_limit[1]:
-                        logging.info('High intensity detected')
-                        reset_flag = True
-                        fit_result.nerr = 2
-
-                # Reset the parameters if the fit was ok
-                if reset_flag:
-                    logging.info('Resetting initial guess parameters')
-                    self.p0 = self.params.fittedvalueslist()
-                else:
-                    self.p0 = popt
-
-            # Calculate the Optical depth spectra
-            for par in calc_od:
-                if par in self.params:
-                    fit_result.calc_od(par, self)
-
+        # If the fit was good then update the initial parameters
+        if update_params and fit_result.nerr == 1:
+            self.p0 = popt
         else:
-            logging.warn('Fit failed!')
-            if update_params:
-                self.p0 = self.params.fittedvalueslist()
-            for par in calc_od:
-                if par in self.params:
-                    fit_result.meas_od[par] = np.full(len(spec), np.nan)
-                    fit_result.synth_od[par] = np.full(len(spec), np.nan)
+            logging.info('Resetting initial guess parameters')
+            self.p0 = self.params.fittedvalueslist()
 
         if queue is None:
             return fit_result
@@ -548,6 +507,8 @@ class FitResult():
 
     Parameters
     ----------
+    analyser : Analyser
+        Analyser object used to generate the results
     spectrum : tuple
         The fitted spectrum in the form [wavelengths, intensities]
     popt : list
@@ -564,10 +525,16 @@ class FitResult():
         Controls how the fit residual is calculated:
             - 'Percentage': calculated as (spec - fit) / spec * 100
             - 'Absolute':   calculated as spec - fit
+    resid_limit : float
+        Limit on the maximum residual for a good fit
+    int_limit : float
+        Limit on the spectrum intensity for a good fit
+    calc_od : list of strings
+        The parameters to calculate the optical depth spectrum for
     """
 
-    def __init__(self, spectrum, popt, perr, nerr, fwd_model, params,
-                 resid_type):
+    def __init__(self, analyser, spectrum, popt, perr, nerr, fwd_model,
+                 params, resid_type, resid_limit, int_limit, calc_od):
 
         # Make a copy of the parameters
         self.params = params.make_copy()
@@ -610,10 +577,38 @@ class FitResult():
             elif resid_type == 'Percentage':
                 self.resid = (self.spec - self.fit)/self.spec * 100
 
+            # Check the fit quality
+            if resid_limit is not None and max(self.resid) > resid_limit:
+                logging.info('High residual detected')
+                self.nerr = 2
+
+            # Check for spectrum light levels
+            if int_limit is not None:
+
+                # Check for low intensity
+                if min(self.spec) <= int_limit[0]:
+                    logging.info('Low intensity detected')
+                    self.nerr = 2
+
+                # Check for high intensity
+                elif max(self.spec) >= int_limit[1]:
+                    logging.info('High intensity detected')
+                    self.nerr = 2
+
+            # Calculate optical depth spectra
+            for par in calc_od:
+                if par in self.params:
+                    self.calc_od(par, analyser)
+
         # If not then return nans
         else:
+            logging.warn('Fit failed!')
             self.fit = np.full(len(self.spec), np.nan)
             self.resid = np.full(len(self.spec), np.nan)
+            for par in calc_od:
+                if par in self.params:
+                    self.meas_od[par] = np.full(len(self.spec), np.nan)
+                    self.synth_od[par] = np.full(len(self.spec), np.nan)
 
 # =============================================================================
 #   Calculate Optical Depths

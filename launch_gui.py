@@ -264,8 +264,10 @@ class myGUI(tk.Frame):
                    increment=50,
                    width=15,
                    sticky='W')
-        ttk.Button(rt_frame, text='Update', width=15,
-                   command=lambda: self.spec.update_integration_time(self.widgets["IntTime"].get())
+
+        def b_func1():
+            self.spec.update_integration_time(self.widgets["IntTime"].get())
+        ttk.Button(rt_frame, text='Update', width=15, command=b_func1
                    ).grid(row=1, column=2, padx=5, pady=5, sticky='W')
 
         # Create a control for the spectrometer coadds
@@ -279,8 +281,10 @@ class myGUI(tk.Frame):
                    increment=5,
                    width=15,
                    sticky='W')
-        ttk.Button(rt_frame, text='Update', width=15,
-                   command=lambda: self.spec.update_coadds(self.widgets["Coadds"].get())
+
+        def b_func2():
+            self.spec.update_coadds(self.widgets["Coadds"].get())
+        ttk.Button(rt_frame, text='Update', width=15, command=b_func2
                    ).grid(row=2, column=2, padx=5, pady=5, sticky='W')
 
         # Add a button to turn fitting on and off
