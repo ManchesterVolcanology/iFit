@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from queue import Queue
-from multiprocessing import Process
 from threading import Thread
 from tkinter import filedialog as fd
 
