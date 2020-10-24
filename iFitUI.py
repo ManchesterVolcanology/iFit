@@ -1,23 +1,35 @@
 import os
 import sys
+import yaml
 import logging
 import numpy as np
 import pyqtgraph as pg
 from functools import partial
+from logging.handlers import RotatingFileHandler
 from PyQt5.QtGui import QIcon, QPalette, QColor
-from PyQt5.QtCore import Qt, QThreadPool
+from PyQt5.QtCore import Qt, QThreadPool, QTimer
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QComboBox, QTextEdit,
                              QLineEdit, QPushButton, QProgressBar, QFrame,
                              QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
-                             QTabWidget, QAction)
+                             QTabWidget, QAction, QFileDialog, QScrollArea)
 
-from ifit.gui_functions import (control_loop, Widgets, SpinBox, Table, browse,
-                                load_config, save_config, Worker,
-                                QTextEditLogger)
+from ifit.gui_functions import (analysis_loop, Widgets, SpinBox, Table, Worker,
+                                QTextEditLogger, connect_spectrometer,
+                                test_spectrum)
 
 __version__ = '3.3'
 __author__ = 'Ben Esse'
+
+# Set up logging
+if not os.path.isdir('bin/'):
+    os.makedirs('bin/')
+# fh = logging.FileHandler('bin/iFit.log', mode='w')
+fh = RotatingFileHandler('bin/iFit.log', maxBytes=20000, backupCount=5)
+fh.setLevel(logging.INFO)
+fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
+fh.setFormatter(logging.Formatter(fmt))
+logging.getLogger().addHandler(fh)
 
 
 class MainWindow(QMainWindow):
@@ -30,16 +42,21 @@ class MainWindow(QMainWindow):
         # Set the window properties
         self.setWindowTitle(f'iFit {__version__}')
         self.statusBar().showMessage('Ready')
-        self.setGeometry(40, 40, 400, 140)
+        self.setGeometry(40, 40, 1200, 600)
         self.setWindowIcon(QIcon('bin/icon.ico'))
 
         # Set the window layout
         self.generalLayout = QGridLayout()
-        self._centralWidget = QWidget(self)
+        self._centralWidget = QScrollArea()
+        self.widget = QWidget()
         self.setCentralWidget(self._centralWidget)
-        self._centralWidget.setLayout(self.generalLayout)
+        self.widget.setLayout(self.generalLayout)
 
-        # Generate the threadpool
+        # Scroll Area Properties
+        self._centralWidget.setWidgetResizable(True)
+        self._centralWidget.setWidget(self.widget)
+
+        # Generate the threadpool for launching background processes
         self.threadpool = QThreadPool()
 
         # Setup widget stylesheets
@@ -52,7 +69,11 @@ class MainWindow(QMainWindow):
         self._createApp()
 
         # Update widgets from loaded config file
-        load_config(self, fname='bin/config.yaml')
+        self.config_fname = None
+        if os.path.isfile('bin/config'):
+            with open('bin/config', 'r') as r:
+                self.config_fname = r.readline().strip()
+            self.load_config(fname=self.config_fname)
 
     def _createApp(self):
         """Handles building the main GUI"""
@@ -60,12 +81,12 @@ class MainWindow(QMainWindow):
         # Add file menubar
         saveAct = QAction('&Save', self)
         saveAct.setShortcut('Ctrl+S')
-        saveAct.triggered.connect(partial(save_config, self, False))
+        saveAct.triggered.connect(partial(self.save_config, False))
         saveasAct = QAction('&Save As', self)
         saveasAct.setShortcut('Ctrl+Shift+S')
-        saveasAct.triggered.connect(partial(save_config, self, True))
+        saveasAct.triggered.connect(partial(self.save_config, True))
         loadAct = QAction('&Load', self)
-        loadAct.triggered.connect(partial(load_config, None))
+        loadAct.triggered.connect(partial(self.load_config, None))
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
@@ -108,12 +129,98 @@ class MainWindow(QMainWindow):
 
     def _createControls(self):
         """Builds the main GUI controls"""
-        layout = QGridLayout(self.controlFrame)
+
+        # Setup tab layout
+        tablayout = QGridLayout(self.controlFrame)
+
+        # Generate tabs for the gaphs and settings
+        tab1 = QWidget()
+        tab2 = QWidget()
+
+        # Form the tab widget
+        tabwidget = QTabWidget()
+        tabwidget.addTab(tab1, 'Real-Time')
+        tabwidget.addTab(tab2, 'Post-Analysis')
+        tablayout.addWidget(tabwidget, 0, 0)
+
+# =============================================================================
+#       Real time controls
+# =============================================================================
+
+        # Setup the layout
+        layout = QGridLayout(tab1)
+        layout.setAlignment(Qt.AlignTop)
+
+        # Set a label for the spectrometer ID
+        self.connected_flag = False
+        layout.addWidget(QLabel('Spectrometer:'), 0, 0)
+        self.spec_id = QLabel('Not connected')
+        layout.addWidget(self.spec_id, 0, 1)
+
+        # Create a button to connect to a spectrometer
+        self.connect_btn = QPushButton('Connect')
+        self.connect_btn.clicked.connect(partial(connect_spectrometer, self))
+        layout.addWidget(self.connect_btn, 0, 2)
+
+        # Create a button to acquire a test spectrum
+        btn = QPushButton('Test Spectrum')
+        btn.clicked.connect(partial(test_spectrum, self))
+        layout.addWidget(btn, 0, 3)
+
+        # Create a control for the spectrometer integration time
+        layout.addWidget(QLabel('Integration\nTime (ms):'), 1, 0)
+        self.widgets['int_time'] = SpinBox(100, [10, 1000000])
+        layout.addWidget(self.widgets['int_time'], 1, 1)
+
+        # Create a control for the spectrometer coadds
+        layout.addWidget(QLabel('Coadds:'), 2, 0)
+        self.widgets['coadds'] = SpinBox(10, [1, 1000000])
+        layout.addWidget(self.widgets['coadds'], 2, 1)
+
+        # Create a control for the spectrometer coadds
+        layout.addWidget(QLabel('No. Dark\nSpectra:'), 3, 0)
+        self.widgets['ndarks'] = SpinBox(10, [1, 1000000])
+        layout.addWidget(self.widgets['ndarks'], 3, 1)
+
+        # Add an input for the save selection
+        layout.addWidget(QLabel('Save:'), 4, 0)
+        self.widgets['rt_save_path'] = QLineEdit()
+        layout.addWidget(self.widgets['rt_save_path'], 4, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(self.browse, self.widgets['rt_save_path'],
+                                    'folder'))
+        layout.addWidget(btn, 4, 4)
+
+        # Add button to begin analysis
+        self.rt_start_btn = QPushButton('Begin!')
+        self.rt_start_btn.clicked.connect(partial(self.begin))
+        self.rt_start_btn.setFixedSize(90, 25)
+        layout.addWidget(self.rt_start_btn, 5, 1)
+
+        # Add button to pause analysis
+        self.rt_pause_btn = QPushButton('Pause')
+        self.rt_pause_btn.clicked.connect(partial(self.pause))
+        self.rt_pause_btn.setFixedSize(90, 25)
+        layout.addWidget(self.rt_pause_btn, 5, 2)
+
+        # Add button to stop analysis
+        self.rt_stop_btn = QPushButton('Stop')
+        self.rt_stop_btn.clicked.connect(partial(self.stop))
+        self.rt_stop_btn.setFixedSize(90, 25)
+        layout.addWidget(self.rt_stop_btn, 5, 3)
+
+# =============================================================================
+#       Post-procesing controls
+# =============================================================================
+
+        # Setup the layout
+        layout = QGridLayout(tab2)
         layout.setAlignment(Qt.AlignTop)
 
         # Create an option menu for the spectra format
         layout.addWidget(QLabel('Format:'), 0, 0)
-        self.widgets.add('spec_type', QComboBox())
+        self.widgets['spec_type'] = QComboBox()
         self.widgets['spec_type'].addItems(['iFit',
                                             'Master.Scope',
                                             'Spectrasuite',
@@ -128,7 +235,8 @@ class MainWindow(QMainWindow):
         self.widgets['spec_fnames'] = QTextEdit()
         layout.addWidget(self.widgets['spec_fnames'], 1, 1, 1, 3)
         btn = QPushButton('Browse')
-        btn.clicked.connect(partial(browse, self.widgets['spec_fnames'],
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(self.browse, self.widgets['spec_fnames'],
                                     'multi'))
         layout.addWidget(btn, 1, 4)
 
@@ -137,7 +245,8 @@ class MainWindow(QMainWindow):
         self.widgets['dark_fnames'] = QTextEdit()
         layout.addWidget(self.widgets['dark_fnames'], 2, 1, 1, 3)
         btn = QPushButton('Browse')
-        btn.clicked.connect(partial(browse, self.widgets['dark_fnames'],
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(self.browse, self.widgets['dark_fnames'],
                                     'multi'))
         layout.addWidget(btn, 2, 4)
 
@@ -146,8 +255,9 @@ class MainWindow(QMainWindow):
         self.widgets['save_path'] = QLineEdit()
         layout.addWidget(self.widgets['save_path'], 3, 1, 1, 3)
         btn = QPushButton('Browse')
-        btn.clicked.connect(partial(browse, self.widgets['save_path'],
-                                    'save'))
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(self.browse, self.widgets['save_path'],
+                                    'save', "Comma Separated (*.csv)"))
         layout.addWidget(btn, 3, 4)
 
         # Add button to begin analysis
@@ -190,25 +300,12 @@ class MainWindow(QMainWindow):
         self.last_err = QLabel('-')
         layout.addWidget(self.last_err, 1, 3)
 
+        # Create a textbox to display the program logs
         self.logBox = QTextEditLogger(self)
-
-        # log to text box
         self.logBox.setFormatter(logging.Formatter('%(message)s'))
         logging.getLogger().addHandler(self.logBox)
         logging.getLogger().setLevel(logging.INFO)
-
-        # self.logBox.widget.setFixedSize(400, 150)
         layout.addWidget(self.logBox.widget, 2, 0, 1, 6)
-
-        # log to file
-        if not os.path.isdir('bin/'):
-            os.makedirs('bin/')
-        fh = logging.FileHandler('bin/iFit.log')
-        fh.setLevel(logging.INFO)
-        fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
-        fh.setFormatter(logging.Formatter(fmt))
-        logging.getLogger().addHandler(fh)
-
         msg = 'Welcome to iFit! Written by Ben Esse'
         self.logBox.widget.appendPlainText(msg)
 
@@ -220,7 +317,7 @@ class MainWindow(QMainWindow):
         """Build the graphical display and program settings"""
         layout = QGridLayout(self.graphFrame)
 
-        # Generate tabs for the gaphs and settings
+        # Generate tabs for the graphs and settings
         tab1 = QWidget()
         tab2 = QWidget()
 
@@ -228,16 +325,15 @@ class MainWindow(QMainWindow):
         tabwidget = QTabWidget()
         tabwidget.addTab(tab1, 'Graphs')
         tabwidget.addTab(tab2, 'Settings')
-        tabwidget.setStyleSheet('QTabWidget { font-size: 18pt; }')
         layout.addWidget(tabwidget, 0, 0)
 
 # =============================================================================
 #       Set up the graphs
 # =============================================================================
 
-        graphwin = pg.GraphicsLayoutWidget(show=True)
+        graphwin = pg.GraphicsWindow(show=True)
         pg.setConfigOptions(antialias=True)
-        graphwin.resize(1000, 600)
+        # pg.setConfigOptions(useOpenGL=True)
 
         glayout = QGridLayout(tab1)
 
@@ -247,6 +343,12 @@ class MainWindow(QMainWindow):
         ax2 = graphwin.addPlot(row=1, col=0)
         ax3 = graphwin.addPlot(row=1, col=1)
         ax4 = graphwin.addPlot(row=2, col=0, colspan=2)
+        self.plot_axes = [ax0, ax1, ax2, ax3, ax4]
+
+        for ax in self.plot_axes:
+            ax.setDownsampling(mode='peak')
+            ax.setClipToView(True)
+            ax.showGrid(x=True, y=True)
 
         # Add axis labels
         ax0.setLabel('left', 'Intensity (counts)')
@@ -259,27 +361,19 @@ class MainWindow(QMainWindow):
         ax4.setLabel('bottom', 'Spectrum Number')
 
         # Initialise the lines
-        p0 = pg.mkPen(color='#1f77b4', width=2)
-        p1 = pg.mkPen(color='#ff7f0e', width=2)
-        l0 = ax0.plot([], [], pen=p0, symbol='+', symbolSize=5,
-                      symbolBrush=('#1f77b4'), name='Spectrum')
+        p0 = pg.mkPen(color='#1f77b4', width=1.0)
+        p1 = pg.mkPen(color='#ff7f0e', width=1.0)
+        l0 = ax0.plot([], [], pen=p0, name='Spectrum')
         l1 = ax0.plot([], [], pen=p1, name='Fit')
         l2 = ax1.plot([], [], pen=p0)
-        l3 = ax2.plot([], [], pen=p0, symbol='+', symbolSize=5,
-                      symbolBrush=('#1f77b4'))
-        l4 = ax3.plot([], [], pen=p0, symbol='+', symbolSize=5,
-                      symbolBrush=('#1f77b4'))
+        l3 = ax2.plot([], [], pen=p0)
+        l4 = ax3.plot([], [], pen=p0)
         l5 = ax3.plot([], [], pen=p1)
-        l6 = ax4.plot([], [], pen=p0, symbol='+', symbolSize=5,
-                      symbolBrush=('#1f77b4'))
+        l6 = ax4.plot([], [], pen=p0)
 
         ax0.addLegend()
 
         self.plot_lines = [l0, l1, l2, l3, l4, l5, l6]
-        self.plot_axes = [ax0, ax0, ax1, ax2, ax3, ax3, ax4]
-
-        for ax in self.plot_axes:
-            ax.showGrid(x=True, y=True)
 
         # Add the graphs to the layout
         glayout.addWidget(graphwin, 0, 0, 1, 7)
@@ -477,7 +571,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['ils_path'], nrow, ncol+1, 1, 2)
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
-        btn.clicked.connect(partial(browse, self.widgets['ils_path'],
+        btn.clicked.connect(partial(self.browse, self.widgets['ils_path'],
                                     'single'))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
@@ -489,7 +583,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['flat_path'], nrow, ncol+1, 1, 2)
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
-        btn.clicked.connect(partial(browse, self.widgets['flat_path'],
+        btn.clicked.connect(partial(self.browse, self.widgets['flat_path'],
                                     'single'))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
@@ -501,7 +595,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['wl_calib'], nrow, ncol+1, 1, 2)
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
-        btn.clicked.connect(partial(browse, self.widgets['wl_calib'],
+        btn.clicked.connect(partial(self.browse, self.widgets['wl_calib'],
                                     'single'))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
@@ -565,7 +659,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['frs_path'], nrow, ncol+1)
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
-        btn.clicked.connect(partial(browse, self.widgets['frs_path'],
+        btn.clicked.connect(partial(self.browse, self.widgets['frs_path'],
                                     'single'))
         layout.addWidget(btn, nrow, ncol+2)
         nrow += 1
@@ -599,6 +693,39 @@ class MainWindow(QMainWindow):
         # Link the parameter table to the plot parameter combobox
         self.gas_table.cellChanged.connect(self.update_plot_params)
 
+# =============================================================================
+# Browse
+# =============================================================================
+
+    def browse(self, widget, mode='single', filter=False):
+
+        if not filter:
+            filter = None
+        else:
+            filter = filter + ';;All Files (*)'
+
+        if mode == 'single':
+            fname, _ = QFileDialog.getOpenFileName(self, 'Select File', '',
+                                                   filter)
+            if fname != '':
+                widget.setText(fname)
+
+        elif mode == 'multi':
+            fnames, _ = QFileDialog.getOpenFileNames(self, 'Select Files', '',
+                                                     filter)
+            if fnames != []:
+                widget.setText('\n'.join(fnames))
+
+        elif mode == 'save':
+            fname, _ = QFileDialog.getSaveFileName(self, 'Save As', '', filter)
+            if fname != '':
+                widget.setText(fname)
+
+        elif mode == 'folder':
+            fname = QFileDialog.getExistingDirectory(self, 'Select Foler')
+            if fname != '':
+                widget.setText(fname + '/')
+
     def update_plot_params(self):
         """Updates plot parameter options"""
         rows = self.gas_table.getData()
@@ -619,6 +746,75 @@ class MainWindow(QMainWindow):
             event.ignore()
 
 # =============================================================================
+# Save config
+# =============================================================================
+
+    def save_config(self, asksavepath=True):
+        '''Save the config file'''
+
+        config = {'gas_params':    self.gas_table.getData(),
+                  'bgpoly_params': self.bgpoly_table.getData(),
+                  'offset_params': self.offset_table.getData(),
+                  'shift_params':  self.shift_table.getData()}
+
+        for label in self.widgets:
+            config[label] = self.widgets.get(label)
+
+        if asksavepath or self.config_fname is None:
+            fname, s = QFileDialog.getSaveFileName()
+            if fname != '':
+                self.config_fname = fname
+
+        with open(self.config_fname, 'w') as outfile:
+            yaml.dump(config, outfile)
+
+        logging.info('Config file saved')
+
+        with open('bin/config', 'w') as w:
+            w.write(self.config_fname)
+
+# =============================================================================
+# Load config
+# =============================================================================
+
+    def load_config(self, fname=None):
+        '''Read the config file'''
+
+        if fname is None:
+            fname, tfile = QFileDialog.getOpenFileName()
+
+        # Open the config file
+        try:
+            with open(fname, 'r') as ymlfile:
+                config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+            for label in config:
+
+                if label == 'gas_params':
+                    self.gas_table.setData(config['gas_params'])
+
+                elif label == 'bgpoly_params':
+                    self.bgpoly_table.setData(config['bgpoly_params'])
+
+                elif label == 'offset_params':
+                    self.offset_table.setData(config['offset_params'])
+
+                elif label == 'shift_params':
+                    self.shift_table.setData(config['shift_params'])
+
+                else:
+                    self.widgets.set(label, config[label])
+
+            logging.info('Config file loaded')
+            self.config_fname = fname
+
+        except FileNotFoundError:
+            logging.warn('Unable to load config file')
+            config = {}
+
+        return config
+
+# =============================================================================
 #   Analysis Loop Setup
 # =============================================================================
 
@@ -627,62 +823,101 @@ class MainWindow(QMainWindow):
         # Renable the start button
         self.start_btn.setEnabled(True)
 
+        # Stop the plotting timer
+        self.plot_timer.stop()
+
+        # Set the status bar
+        self.statusBar().showMessage('Ready')
+
     def update_progress(self, prog):
         """Slot to update the progress bar"""
         self.progress.setValue(prog)
 
-    def update_plots(self, plot_info):
-        """Slot to update the plots"""
+    def update_status(self, status):
+        """Update the status"""
+        self.statusBar().showMessage(status)
+
+    def get_plot_data(self, plot_info):
+        """Catches plot info emitted by the analysis loop"""
         # Unpack the data
-        fit_result, spectrum, df = plot_info
-        key = self.widgets.get('graph_param')
+        self.fit_result, self.spectrum, self.df = plot_info
+
+        # Get the parameter to plot
+        self.key = self.widgets.get('graph_param')
 
         # Update the numerical output
-        amt = fit_result.params[key].fit_val
-        err = fit_result.params[key].fit_err
+        amt = self.fit_result.params[self.key].fit_val
+        err = self.fit_result.params[self.key].fit_err
         self.last_amt.setText(f'{amt:.03g}')
         self.last_err.setText(f'{err:.03g}')
 
-        if self.widgets.get('graph_flag'):
+        self.update_graph_flag = True
 
-            plotx = df['Number'].dropna().to_numpy()
-            ploty = df[key].dropna().to_numpy()
+        # Start the plot timer if it is not already running
+        if not self.plot_timer.isActive():
+            self.plot_timer.start()
 
-            # Check the length of the time series parameters
-            if self.widgets.get('scroll_flag'):
-                nscroll = self.widgets.get('scroll_amt')
-                npts = len(ploty)
-                if npts > nscroll:
-                    plotx = plotx[int(npts-nscroll):]
-                    ploty = ploty[int(npts-nscroll):]
+    def update_plots(self):
+        """Update the plots"""
 
-            # Pack the data to plot
-            data = [[fit_result.grid, fit_result.spec],
-                    [fit_result.grid, fit_result.fit],
-                    spectrum,
-                    [fit_result.grid, fit_result.resid],
-                    [fit_result.grid, fit_result.meas_od[key]],
-                    [fit_result.grid, fit_result.synth_od[key]],
-                    [plotx, ploty]]
+        # See if the graph data has been updated
+        if self.update_graph_flag:
 
-            # And plot!
-            for i, l in enumerate(self.plot_lines):
-                x, y = data[i]
-                if np.nanmax(y) > 1e6:
-                    order = int(np.ceil(np.log10(np.nanmax(y)))) - 1
-                    y = y / 10**order
-                    self.plot_axes[i].setLabel('left',
+            # Plot the data
+            if self.widgets.get('graph_flag') and not self.worker.is_paused:
+
+                plotx = self.df['Number'].dropna().to_numpy()
+                ploty = self.df[self.key].dropna().to_numpy()
+
+                if np.nanmax(ploty) > 1e6:
+                    order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
+                    ploty = ploty / 10**order
+                    self.plot_axes[4].setLabel('left',
                                                f'Fit value (1e{order})')
 
-                l.setData(x, y)
+                self.plot_lines[0].setData(self.fit_result.grid,
+                                           self.fit_result.spec)
+                self.plot_lines[1].setData(self.fit_result.grid,
+                                           self.fit_result.fit)
+                self.plot_lines[2].setData(*self.spectrum)
+                self.plot_lines[3].setData(self.fit_result.grid,
+                                           self.fit_result.resid)
+                self.plot_lines[4].setData(self.fit_result.grid,
+                                           self.fit_result.meas_od[self.key])
+                self.plot_lines[5].setData(self.fit_result.grid,
+                                           self.fit_result.synth_od[self.key])
+                self.plot_lines[6].setData(plotx, ploty)
+
+                self.update_graph_flag = False
 
     def begin(self):
         """Function to set up and start the analysis worker"""
-        self.worker = Worker(control_loop, gui=self)
+
+        # Pull the plotting data from the GUI
+        widgetData = {'gas_params':    self.gas_table.getData(),
+                      'bgpoly_params': self.bgpoly_table.getData(),
+                      'offset_params': self.offset_table.getData(),
+                      'shift_params':  self.shift_table.getData()}
+
+        for label in self.widgets:
+            widgetData[label] = self.widgets.get(label)
+
+        # Initialise the analysis worker
+        self.worker = Worker(analysis_loop, widgetData)
         self.worker.signals.finished.connect(self.thread_complete)
         self.worker.signals.progress.connect(self.update_progress)
-        self.worker.signals.plotter.connect(self.update_plots)
+        self.worker.signals.status.connect(self.update_status)
+        self.worker.signals.plotter.connect(self.get_plot_data)
         self.threadpool.start(self.worker)
+
+        # Disable the start button
+        self.start_btn.setEnabled(False)
+
+        # Initialise the plotting timer
+        self.update_graph_flag = False
+        self.plot_timer = QTimer()
+        self.plot_timer.setInterval(1)
+        self.plot_timer.timeout.connect(self.update_plots)
 
     def pause(self):
         """Pauses the worker loop"""
@@ -716,7 +951,7 @@ def main():
 
     app.setStyle("Fusion")
 
-    # Now use a palette to switch to dark colors:
+    # Use a palette to switch to dark colors:
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(53, 53, 53))
     palette.setColor(QPalette.WindowText, Qt.white)

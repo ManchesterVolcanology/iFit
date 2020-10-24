@@ -1,7 +1,5 @@
-import os
 import sys
 import time
-import yaml
 import logging
 import traceback
 import numpy as np
@@ -16,8 +14,8 @@ from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
 
 from .parameters import Parameters
 from .spectral_analysis import Analyser
-from .load_spectra import read_spectrum, average_spectra, read_scan
-# from .spectrometers import VSpectrometer
+from .load_spectra import read_spectrum, average_spectra
+from .spectrometers import VSpectrometer
 
 
 class LogSignals(QObject):
@@ -72,6 +70,7 @@ class WorkerSignals(QObject):
     result = pyqtSignal(object)
     progress = pyqtSignal(int)
     plotter = pyqtSignal(list)
+    status = pyqtSignal(str)
 
 
 # Create a worker to handle QThreads
@@ -104,6 +103,7 @@ class Worker(QRunnable):
 
         # Add the callback to our kwargs
         self.kwargs['progress_callback'] = self.signals.progress
+        self.kwargs['status_callback'] = self.signals.status
         self.kwargs['plotter'] = self.signals.plotter
 
     @pyqtSlot()
@@ -142,143 +142,131 @@ class Worker(QRunnable):
 
 
 # =============================================================================
-# Program control loop
-# =============================================================================
-
-def control_loop(worker, progress_callback, plotter, gui):
-
-    # Disable the start button
-    gui.start_btn.setEnabled(False)
-
-    # Set the stopping flag to False
-    gui.terminate_flag = False
-
-    # Launch the analysis loop corresponding to the analysis type
-    spectra_loop(gui, worker, progress_callback, plotter)
-
-    gui.statusBar().showMessage('Ready')
-
-
-# =============================================================================
 # Generate analyser
 # =============================================================================
 
-def generate_analyser(gui):
-
-    # Set status
-    gui.statusBar().showMessage('Loading')
+def generate_analyser(widgetData):
 
     # Pull the parameters from the parameter table
     params = Parameters()
     logging.info('Generating model parameters')
 
     # Build the parameters from GUI tables
-    for line in gui.gas_table.getData():
+    for line in widgetData['gas_params']:
         params.add(name=line[0], value=line[1], vary=line[2], xpath=line[3])
-    for i, line in enumerate(gui.bgpoly_table.getData()):
+    for i, line in enumerate(widgetData['bgpoly_params']):
         params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
-    for i, line in enumerate(gui.offset_table.getData()):
+    for i, line in enumerate(widgetData['offset_params']):
         params.add(name=f'offset{i}', value=line[0], vary=line[1])
-    for i, line in enumerate(gui.shift_table.getData()):
+    for i, line in enumerate(widgetData['shift_params']):
         params.add(name=f'shift{i}', value=line[0], vary=line[1])
 
     # Check if ILS is in the fit
-    if str(gui.widgets['ils_mode'].currentText()) == 'Manual':
-        params.add('fwem', value=float(gui.widgets.get('fwem')),
-                   vary=gui.widgets.get('fwem_fit'))
-        params.add('k', value=gui.widgets.get('k'),
-                   vary=gui.widgets.get('k_fit'))
-        params.add('a_w', value=gui.widgets.get('a_w'),
-                   vary=gui.widgets.get('a_w_fit'))
-        params.add('a_k', value=gui.widgets.get('a_k'),
-                   vary=gui.widgets.get('a_k_fit'))
+    if widgetData['ils_mode'] == 'Manual':
+        params.add('fwem', value=float(widgetData['fwem']),
+                   vary=widgetData['fwem_fit'])
+        params.add('k', value=widgetData['k'],
+                   vary=widgetData['k_fit'])
+        params.add('a_w', value=widgetData['a_w'],
+                   vary=widgetData['a_w_fit'])
+        params.add('a_k', value=widgetData['a_k'],
+                   vary=widgetData['a_k_fit'])
 
     # Generate the analyser
     analyser = Analyser(params=params,
-                        fit_window=[gui.widgets.get('fit_lo'),
-                                    gui.widgets.get('fit_hi')],
-                        frs_path=gui.widgets.get('frs_path'),
-                        model_padding=gui.widgets.get('model_padding'),
-                        model_spacing=gui.widgets.get('model_spacing'),
-                        flat_flag=gui.widgets.get('flat_flag'),
-                        flat_path=gui.widgets.get('flat_path'),
-                        stray_flag=gui.widgets.get('stray_flag'),
-                        stray_window=[gui.widgets.get('stray_lo'),
-                                      gui.widgets.get('stray_hi')],
-                        dark_flag=gui.widgets.get('dark_flag'),
-                        ils_type=gui.widgets.get('ils_mode'),
-                        ils_path=gui.widgets.get('ils_path'),
-                        despike_flag=gui.widgets.get('despike_flag'),
-                        spike_limit=gui.widgets.get('spike_limit'))
+                        fit_window=[widgetData['fit_lo'],
+                                    widgetData['fit_hi']],
+                        frs_path=widgetData['frs_path'],
+                        model_padding=widgetData['model_padding'],
+                        model_spacing=widgetData['model_spacing'],
+                        flat_flag=widgetData['flat_flag'],
+                        flat_path=widgetData['flat_path'],
+                        stray_flag=widgetData['stray_flag'],
+                        stray_window=[widgetData['stray_lo'],
+                                      widgetData['stray_hi']],
+                        dark_flag=widgetData['dark_flag'],
+                        ils_type=widgetData['ils_mode'],
+                        ils_path=widgetData['ils_path'],
+                        despike_flag=widgetData['despike_flag'],
+                        spike_limit=widgetData['spike_limit'])
 
     # Report fitting parameters
     logging.info(params.pretty_print(cols=['name', 'value', 'vary']))
 
-    gui.analyser = analyser
+    return analyser
 
 
 # =============================================================================
 # Spectra analysis loop
 # =============================================================================
 
-def spectra_loop(gui, worker, progress_callback, plotter):
+def analysis_loop(worker, widgetData, progress_callback, plotter,
+                  status_callback):
 
     # Create a loop counter
     loop = 0
 
     # Generate the anlyser
-    generate_analyser(gui)
+    status_callback.emit('Loading')
+    analyser = generate_analyser(widgetData)
 
     # Make a list of column names
     cols = ['File', 'Number', 'Time']
-    for par in gui.analyser.params:
+    for par in analyser.params:
         cols += [par, f'{par}_err']
     cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 
     # Pull the spectra type and file paths
-    spec_fnames = gui.widgets.get('spec_fnames').split('\n')
-    dark_fnames = gui.widgets.get('dark_fnames').split('\n')
-    spec_type = gui.widgets.get('spec_type')
+    spec_fnames = widgetData['spec_fnames'].split('\n')
+    dark_fnames = widgetData['dark_fnames'].split('\n')
+    spec_type = widgetData['spec_type']
+
+    # Pull processing settings
+    update_flag = widgetData['update_flag']
+    resid_limit = widgetData['resid_limit']
+    resid_type = widgetData['resid_type']
+    int_limit = [widgetData['lo_int_limit'],
+                 widgetData['hi_int_limit']]
+    graph_p = [r[0] for r in widgetData['gas_params']]
+    interp_meth = widgetData['interp_method']
 
     # Make a dataframe to hold the fit results
     df = pd.DataFrame(index=np.arange(len(spec_fnames)), columns=cols)
 
     # Make the results file
-    save_path = gui.widgets.get('save_path')
+    save_path = widgetData['save_path']
 
     # Read in the dark spectra
-    logging.info('Reading dark spectra')
-    x, gui.analyser.dark_spec = average_spectra(dark_fnames, spec_type)
+    if widgetData['dark_flag']:
+        logging.info('Reading dark spectra')
+        x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
 
     # Set status
     logging.info('Beginning analysis loop')
-    gui.statusBar().showMessage('analysing')
+    worker.signals.status.emit('Analysing')
 
-    # Begin the analysis loop
-    while not worker.is_killed:
+    # Open the output file
+    with open(save_path, 'w') as w:
+        w.write(cols[0])
+        for c in cols[1:]:
+            w.write(f',{c}')
+        w.write('\n')
 
-        # Check if analysis is paused
-        while worker.is_paused:
-            time.sleep(0.01)
+        # Begin the analysis loop
+        while not worker.is_killed:
 
-        # Get the spectrum filename
-        fname = spec_fnames[loop]
+            # Check if analysis is paused
+            while worker.is_paused:
+                time.sleep(0.01)
 
-        # Read in the spectrum
-        x, y, info, read_err = read_spectrum(fname, spec_type)
+            # Get the spectrum filename
+            fname = spec_fnames[loop]
 
-        # Pull processing settings from the GUI
-        update_flag = gui.widgets.get('update_flag')
-        resid_limit = gui.widgets.get('resid_limit')
-        resid_type = gui.widgets.get('resid_type')
-        int_limit = [gui.widgets.get('lo_int_limit'),
-                     gui.widgets.get('hi_int_limit')]
-        graph_p = [gui.widgets.get('graph_param')]
-        graph_p = [r[0] for r in gui.gas_table.getData()]
-        interp_meth = gui.widgets.get('interp_method')
+            # Read in the spectrum
+            x, y, info, read_err = read_spectrum(fname, spec_type)
 
-        # Fit the spectrum
-        fit_result = gui.analyser.fit_spectrum(spectrum=[x, y],
+            # Fit the spectrum
+            fit_result = analyser.fit_spectrum(spectrum=[x, y],
                                                update_params=update_flag,
                                                resid_limit=resid_limit,
                                                resid_type=resid_type,
@@ -286,37 +274,85 @@ def spectra_loop(gui, worker, progress_callback, plotter):
                                                calc_od=graph_p,
                                                interp_method=interp_meth)
 
-        # Add results to the dataframe
-        row = [fname, info["spec_no"], info["time"]]
-        for par in fit_result.params.values():
-            row += [par.fit_val, par.fit_err]
-        row += [fit_result.nerr, fit_result.int_lo, fit_result.int_hi,
-                fit_result.int_av]
-        df.loc[loop] = row
+            # Add results to the dataframe
+            row = [fname, info["spec_no"], info["time"]]
+            for par in fit_result.params.values():
+                row += [par.fit_val, par.fit_err]
+            row += [fit_result.nerr, fit_result.int_lo, fit_result.int_hi,
+                    fit_result.int_av]
+            df.loc[loop] = row
 
-        # Bundle outputs to emit to the GUI
-        progress_callback.emit(((loop+1)/len(spec_fnames))*100)
+            # Write the results to file
+            w.write(f'{row[0]}')
+            for i in row[1:]:
+                w.write(f',{i}')
+            w.write('\n')
 
-        # Emit graph data
-        plotter.emit([fit_result, [x, y], df])
+            # Emit the progress
+            progress_callback.emit(((loop+1)/len(spec_fnames))*100)
 
-        # Check if analysis is finished
-        if loop == len(spec_fnames)-1:
-            logging.info('Analysis finished!')
-            worker.kill()
+            # Emit graph data
+            plotter.emit([fit_result, [x, y], df])
 
-        # Update loop counter
-        loop += 1
+            # Check if analysis is finished
+            if loop == len(spec_fnames)-1:
+                logging.info('Analysis finished!')
+                worker.kill()
 
-    # Save the results
-    try:
-        save_path = gui.widgets.get('save_path')
-        df.to_csv(save_path)
-    except PermissionError:
-        logging.warning('Permission Error: Ouptut file')
-        save_path, tfile = QFileDialog.getSaveFileName()
-        if save_path != '':
-            df.to_csv(save_path)
+            # Update loop counter
+            loop += 1
+
+
+# =============================================================================
+# Connect to spectrometer
+# =============================================================================
+
+def connect_spectrometer(gui):
+    """Connects or dissconnects to the spectrometer"""
+
+    if not gui.connected_flag:
+
+        # Connect to the spectrometer
+        gui.spec = VSpectrometer(integration_time=gui.widgets.get("int_time"),
+                                 coadds=gui.widgets.get("coadds"))
+
+        # Update the GUI
+        gui.spec_id.setText(gui.spec.serial_number)
+        gui.connect_btn.setText('Disconnect')
+
+        # Create a holder for the dark spectra
+        gui.dark_spectrum = np.zeros(gui.spec.pixels)
+
+        gui.connected_flag = True
+
+    else:
+        # Disconnect the spectrometer
+        gui.spec.close()
+
+        # Update the GUI
+        gui.spec_id.setText('Not connected')
+        gui.connect_btn.setText('Connect')
+
+        gui.connected_flag = False
+
+
+# =============================================================================
+# Test Spectrum
+# =============================================================================
+
+def test_spectrum(gui):
+    """Measure a test spectrum and display"""
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    gui.spec.fpath = 'Masaya_Traverse/spectrum_00000.txt'
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    # Read the spectrum
+    # try:
+    spectrum, info = gui.spec.get_spectrum()
+
+    # Plot the spectrum
+    gui.plot_lines[2].setData(*spectrum)
 
 
 # =============================================================================
@@ -329,10 +365,8 @@ class Widgets(dict):
     def __init__(self):
         super().__init__()
 
-    def add(self, key, widget):
-        self.__setitem__(key, widget)
-
     def get(self, key):
+        """Get the value of a widget"""
         if type(self[key]) == QTextEdit:
             return self[key].toPlainText()
         elif type(self[key]) == QLineEdit:
@@ -345,6 +379,7 @@ class Widgets(dict):
             return self[key].value()
 
     def set(self, key, value):
+        """Set the value of a widget"""
         if type(self[key]) in [QTextEdit, QLineEdit]:
             self[key].setText(str(value))
         if type(self[key]) == QComboBox:
@@ -486,96 +521,3 @@ class Table(QTableWidget):
             pass
 
         return data
-
-
-# =============================================================================
-# Save config
-# =============================================================================
-
-def save_config(gui, asksavepath=True):
-    '''Save the config file'''
-
-    config = {'gas_params':    gui.gas_table.getData(),
-              'bgpoly_params': gui.bgpoly_table.getData(),
-              'offset_params': gui.offset_table.getData(),
-              'shift_params':  gui.shift_table.getData()}
-
-    for label in gui.widgets:
-        config[label] = gui.widgets.get(label)
-
-    if not os.path.exists('bin'):
-        os.makedirs('bin')
-    fnames = ['bin/config.yaml']
-
-    if asksavepath:
-        fname, s = QFileDialog.getSaveFileName()
-        fnames.append(fname)
-
-    for fname in fnames:
-        with open(fname, 'w') as outfile:
-            yaml.dump(config, outfile)
-
-    logging.info('Config file saved')
-
-
-# =============================================================================
-# Load config
-# =============================================================================
-
-def load_config(gui, fname=None):
-    '''Read the config file'''
-
-    if fname is None:
-        fname, tfile = QFileDialog.getOpenFileName()
-
-    # Open the config file
-    try:
-        with open(fname, 'r') as ymlfile:
-            config = yaml.load(ymlfile, Loader=yaml.FullLoader)
-
-        for label in config:
-
-            if label == 'gas_params':
-                gui.gas_table.setData(config['gas_params'])
-
-            elif label == 'bgpoly_params':
-                gui.bgpoly_table.setData(config['bgpoly_params'])
-
-            elif label == 'offset_params':
-                gui.offset_table.setData(config['offset_params'])
-
-            elif label == 'shift_params':
-                gui.shift_table.setData(config['shift_params'])
-
-            else:
-                gui.widgets.set(label, config[label])
-
-        logging.info('Config file loaded')
-
-    except FileNotFoundError:
-        logging.warn('Unable to load config file')
-        config = {}
-
-    return config
-
-
-# =============================================================================
-# Browse
-# =============================================================================
-
-def browse(widget, mode='single'):
-
-    if mode == 'single':
-        fname, tfile = QFileDialog.getOpenFileName()
-        if fname != '':
-            widget.setText(fname)
-
-    elif mode == 'multi':
-        fnames, tfile = QFileDialog.getOpenFileNames()
-        if fnames != ['']:
-            widget.setText('\n'.join(fnames))
-
-    elif mode == 'save':
-        fname, tfile = QFileDialog.getSaveFileName()
-        if fname != '':
-            widget.setText(fname)
