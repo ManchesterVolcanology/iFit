@@ -375,7 +375,7 @@ class Widgets(dict):
             return str(self[key].currentText())
         elif type(self[key]) == QCheckBox:
             return self[key].isChecked()
-        elif type(self[key]) in [SpinBox, QSpinBox, QDoubleSpinBox]:
+        elif type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             return self[key].value()
 
     def set(self, key, value):
@@ -388,7 +388,7 @@ class Widgets(dict):
                 self[key].setCurrentIndex(index)
         if type(self[key]) == QCheckBox:
             self[key].setChecked(value)
-        if type(self[key]) in [SpinBox, QSpinBox, QDoubleSpinBox]:
+        if type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             self[key].setValue(value)
 
 
@@ -397,8 +397,17 @@ class Widgets(dict):
 # =============================================================================
 
 # Create a Spinbox object for ease
-class SpinBox(QDoubleSpinBox):
-    """Object for generating custom spinboxes"""
+class DSpinBox(QDoubleSpinBox):
+    """Object for generating custom float spinboxes"""
+
+    def __init__(self, value, range):
+        super().__init__()
+        self.setRange(*range)
+        self.setValue(value)
+
+
+class SpinBox(QSpinBox):
+    """Object for generating custom integer spinboxes"""
 
     def __init__(self, value, range):
         super().__init__()

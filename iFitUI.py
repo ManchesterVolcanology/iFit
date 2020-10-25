@@ -24,7 +24,6 @@ __author__ = 'Ben Esse'
 # Set up logging
 if not os.path.isdir('bin/'):
     os.makedirs('bin/')
-# fh = logging.FileHandler('bin/iFit.log', mode='w')
 fh = RotatingFileHandler('bin/iFit.log', maxBytes=20000, backupCount=5)
 fh.setLevel(logging.INFO)
 fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
@@ -435,25 +434,25 @@ class MainWindow(QMainWindow):
 
         # Add spinboxs for the fit window
         layout.addWidget(QLabel('Fit Window:\n    (nm)'), nrow, ncol, 2, 1)
-        self.widgets['fit_lo'] = SpinBox(310, [0, 10000])
+        self.widgets['fit_lo'] = DSpinBox(310, [0, 10000])
         self.widgets['fit_lo'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['fit_lo'], nrow, ncol+1)
         nrow += 1
-        self.widgets['fit_hi'] = SpinBox(320, [0, 10000])
+        self.widgets['fit_hi'] = DSpinBox(320, [0, 10000])
         self.widgets['fit_hi'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['fit_hi'], nrow, ncol+1)
         nrow += 1
 
         # Add spinbox for the model grid padding
         layout.addWidget(QLabel('Model Grid\nPadding (nm):'), nrow, ncol)
-        self.widgets['model_padding'] = SpinBox(1.0, [0, 10000])
+        self.widgets['model_padding'] = DSpinBox(1.0, [0, 10000])
         self.widgets['model_padding'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['model_padding'], nrow, ncol+1)
         nrow += 1
 
         # Add spinbox for the model grid spacing
         layout.addWidget(QLabel('Model Grid\nSpacing (nm):'), nrow, ncol)
-        self.widgets['model_spacing'] = SpinBox(0.01, [0, 10])
+        self.widgets['model_spacing'] = DSpinBox(0.01, [0, 10])
         self.widgets['model_spacing'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['model_spacing'], nrow, ncol+1)
         nrow += 1
@@ -482,11 +481,11 @@ class MainWindow(QMainWindow):
 
         # Add spinboxs for the stray light window
         layout.addWidget(QLabel('Stray Light\nWindow: (nm)'), nrow, ncol, 2, 1)
-        self.widgets['stray_lo'] = SpinBox(280, [0, 10000])
+        self.widgets['stray_lo'] = DSpinBox(280, [0, 10000])
         self.widgets['stray_lo'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['stray_lo'], nrow, ncol+1)
         nrow += 1
-        self.widgets['stray_hi'] = SpinBox(290, [0, 10000])
+        self.widgets['stray_hi'] = DSpinBox(290, [0, 10000])
         self.widgets['stray_hi'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['stray_hi'], nrow, ncol+1)
         nrow += 1
@@ -524,7 +523,7 @@ class MainWindow(QMainWindow):
 
         # Add spinbox for the residual limit
         layout.addWidget(QLabel('Residual Limit:'), nrow, ncol)
-        self.widgets['resid_limit'] = SpinBox(1.0, [0, 10000])
+        self.widgets['resid_limit'] = DSpinBox(1.0, [0, 10000])
         self.widgets['resid_limit'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['resid_limit'], nrow, ncol+1)
         nrow += 1
@@ -913,10 +912,16 @@ class MainWindow(QMainWindow):
         # Disable the start button
         self.start_btn.setEnabled(False)
 
+        # Set plot x limits where known
+        for i in [0, 2, 3]:
+            self.plot_axes[i].setXRange(self.widgets.get('fit_lo'),
+                                        self.widgets.get('fit_hi'),
+                                        padding=0.05)
+
         # Initialise the plotting timer
         self.update_graph_flag = False
         self.plot_timer = QTimer()
-        self.plot_timer.setInterval(1)
+        self.plot_timer.setInterval(10)
         self.plot_timer.timeout.connect(self.update_plots)
 
     def pause(self):
