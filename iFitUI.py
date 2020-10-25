@@ -14,9 +14,9 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
                              QTabWidget, QAction, QFileDialog, QScrollArea)
 
-from ifit.gui_functions import (analysis_loop, Widgets, SpinBox, Table, Worker,
-                                QTextEditLogger, connect_spectrometer,
-                                test_spectrum)
+from ifit.gui_functions import (analysis_loop, Widgets, SpinBox, DSpinBox,
+                                Table, Worker, QTextEditLogger, test_spectrum,
+                                connect_spectrometer)
 
 __version__ = '3.3'
 __author__ = 'Ben Esse'
@@ -176,10 +176,15 @@ class MainWindow(QMainWindow):
         self.widgets['coadds'] = SpinBox(10, [1, 1000000])
         layout.addWidget(self.widgets['coadds'], 2, 1)
 
-        # Create a control for the spectrometer coadds
+        # Create a control for the number of dark spectra
         layout.addWidget(QLabel('No. Dark\nSpectra:'), 3, 0)
         self.widgets['ndarks'] = SpinBox(10, [1, 1000000])
         layout.addWidget(self.widgets['ndarks'], 3, 1)
+
+        # Create a button to acquire the dark spectra
+        btn = QPushButton('Acquire')
+        btn.clicked.connect(partial(test_spectrum, self))
+        layout.addWidget(btn, 0, 3)
 
         # Add an input for the save selection
         layout.addWidget(QLabel('Save:'), 4, 0)
@@ -865,15 +870,19 @@ class MainWindow(QMainWindow):
             # Plot the data
             if self.widgets.get('graph_flag') and not self.worker.is_paused:
 
+                # Get the time sereis data
                 plotx = self.df['Number'].dropna().to_numpy()
                 ploty = self.df[self.key].dropna().to_numpy()
 
+                # Check for large number in the time series. This is due to a
+                # bug in pyqtgraph not displaying large numbers
                 if np.nanmax(ploty) > 1e6:
                     order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
                     ploty = ploty / 10**order
                     self.plot_axes[4].setLabel('left',
                                                f'Fit value (1e{order})')
 
+                # Plot the data
                 self.plot_lines[0].setData(self.fit_result.grid,
                                            self.fit_result.spec)
                 self.plot_lines[1].setData(self.fit_result.grid,
@@ -886,6 +895,13 @@ class MainWindow(QMainWindow):
                 self.plot_lines[5].setData(self.fit_result.grid,
                                            self.fit_result.synth_od[self.key])
                 self.plot_lines[6].setData(plotx, ploty)
+
+                # Check of the graphs need autoscaling
+                if self.autoscale_flag:
+                    self.autoscale_flag = False
+                    for i in [0, 1, 2, 3]:
+                        xlims = self.plot_axes[i].getAxis('bottom').range
+                        self.plot_axes[i].setXRange(*xlims, 0)
 
                 self.update_graph_flag = False
 
@@ -913,15 +929,12 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(False)
 
         # Set plot x limits where known
-        for i in [0, 2, 3]:
-            self.plot_axes[i].setXRange(self.widgets.get('fit_lo'),
-                                        self.widgets.get('fit_hi'),
-                                        padding=0.05)
+        self.autoscale_flag = True
 
         # Initialise the plotting timer
         self.update_graph_flag = False
         self.plot_timer = QTimer()
-        self.plot_timer.setInterval(10)
+        self.plot_timer.setInterval(100)
         self.plot_timer.timeout.connect(self.update_plots)
 
     def pause(self):
