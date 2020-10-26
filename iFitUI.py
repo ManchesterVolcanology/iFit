@@ -14,9 +14,9 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
                              QTabWidget, QAction, QFileDialog, QScrollArea)
 
-from ifit.gui_functions import (analysis_loop, Widgets, SpinBox, DSpinBox,
-                                Table, Worker, QTextEditLogger, test_spectrum,
-                                connect_spectrometer)
+from ifit.gui_functions import (analysis_loop, acquire_spectra, Widgets,
+                                SpinBox, DSpinBox, Table, Worker,
+                                QTextEditLogger, connect_spectrometer)
 
 __version__ = '3.3'
 __author__ = 'Ben Esse'
@@ -163,7 +163,7 @@ class MainWindow(QMainWindow):
 
         # Create a button to acquire a test spectrum
         btn = QPushButton('Test Spectrum')
-        btn.clicked.connect(partial(test_spectrum, self))
+        btn.clicked.connect(partial(self.begin_acquisition, 'acquire_single'))
         layout.addWidget(btn, 0, 3)
 
         # Create a control for the spectrometer integration time
@@ -171,10 +171,27 @@ class MainWindow(QMainWindow):
         self.widgets['int_time'] = SpinBox(100, [10, 1000000])
         layout.addWidget(self.widgets['int_time'], 1, 1)
 
+        # Create a button to update the integration time
+        btn = QPushButton('Update')
+        btn.clicked.connect(partial(self.begin_acquisition, 'acquire_darks'))
+        layout.addWidget(btn, 1, 2)
+
+        # Create a button to toggle real-time analysis
+        self.rt_fitting_flag = False
+        self.rt_flag_btn = QPushButton('Fitting OFF')
+        self.rt_flag_btn.clicked.connect(self.toggle_fitting)
+        self.rt_flag_btn.setStyleSheet("background-color: red")
+        layout.addWidget(self.rt_flag_btn, 0, 4)
+
         # Create a control for the spectrometer coadds
         layout.addWidget(QLabel('Coadds:'), 2, 0)
         self.widgets['coadds'] = SpinBox(10, [1, 1000000])
         layout.addWidget(self.widgets['coadds'], 2, 1)
+
+        # Create a button to update the coadds
+        btn = QPushButton('Update')
+        btn.clicked.connect(partial(self.begin_acquisition, 'acquire_darks'))
+        layout.addWidget(btn, 2, 2)
 
         # Create a control for the number of dark spectra
         layout.addWidget(QLabel('No. Dark\nSpectra:'), 3, 0)
@@ -183,8 +200,8 @@ class MainWindow(QMainWindow):
 
         # Create a button to acquire the dark spectra
         btn = QPushButton('Acquire')
-        btn.clicked.connect(partial(test_spectrum, self))
-        layout.addWidget(btn, 0, 3)
+        btn.clicked.connect(partial(self.begin_acquisition, 'acquire_darks'))
+        layout.addWidget(btn, 3, 2)
 
         # Add an input for the save selection
         layout.addWidget(QLabel('Save:'), 4, 0)
@@ -198,7 +215,8 @@ class MainWindow(QMainWindow):
 
         # Add button to begin analysis
         self.rt_start_btn = QPushButton('Begin!')
-        self.rt_start_btn.clicked.connect(partial(self.begin))
+        self.rt_start_btn.clicked.connect(partial(self.begin_acquisition,
+                                                  'acquire_cont'))
         self.rt_start_btn.setFixedSize(90, 25)
         layout.addWidget(self.rt_start_btn, 5, 1)
 
@@ -206,12 +224,14 @@ class MainWindow(QMainWindow):
         self.rt_pause_btn = QPushButton('Pause')
         self.rt_pause_btn.clicked.connect(partial(self.pause))
         self.rt_pause_btn.setFixedSize(90, 25)
+        self.rt_pause_btn.setEnabled(False)
         layout.addWidget(self.rt_pause_btn, 5, 2)
 
         # Add button to stop analysis
         self.rt_stop_btn = QPushButton('Stop')
         self.rt_stop_btn.clicked.connect(partial(self.stop))
         self.rt_stop_btn.setFixedSize(90, 25)
+        self.rt_stop_btn.setEnabled(False)
         layout.addWidget(self.rt_stop_btn, 5, 3)
 
 # =============================================================================
@@ -266,7 +286,8 @@ class MainWindow(QMainWindow):
 
         # Add button to begin analysis
         self.start_btn = QPushButton('Begin!')
-        self.start_btn.clicked.connect(partial(self.begin))
+        self.start_btn.clicked.connect(partial(self.begin_analysis,
+                                               'post_analyse'))
         self.start_btn.setFixedSize(90, 25)
         layout.addWidget(self.start_btn, 4, 1)
 
@@ -274,12 +295,14 @@ class MainWindow(QMainWindow):
         self.pause_btn = QPushButton('Pause')
         self.pause_btn.clicked.connect(partial(self.pause))
         self.pause_btn.setFixedSize(90, 25)
+        self.pause_btn.setEnabled(False)
         layout.addWidget(self.pause_btn, 4, 2)
 
         # Add button to stop analysis
         self.stop_btn = QPushButton('Stop')
         self.stop_btn.clicked.connect(partial(self.stop))
         self.stop_btn.setFixedSize(90, 25)
+        self.stop_btn.setEnabled(False)
         layout.addWidget(self.stop_btn, 4, 3)
 
 # =============================================================================
@@ -324,15 +347,17 @@ class MainWindow(QMainWindow):
         # Generate tabs for the graphs and settings
         tab1 = QWidget()
         tab2 = QWidget()
+        tab3 = QWidget()
 
         # Form the tab widget
         tabwidget = QTabWidget()
-        tabwidget.addTab(tab1, 'Graphs')
+        tabwidget.addTab(tab1, 'Analysis')
+        tabwidget.addTab(tab3, 'Scope')
         tabwidget.addTab(tab2, 'Settings')
         layout.addWidget(tabwidget, 0, 0)
 
 # =============================================================================
-#       Set up the graphs
+#       Set up the analysis graphs
 # =============================================================================
 
         graphwin = pg.GraphicsWindow(show=True)
@@ -409,6 +434,20 @@ class MainWindow(QMainWindow):
 
         vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
         glayout.addItem(vspacer, 1, 6, 1, -1)
+
+# =============================================================================
+#      Set up the scope plot
+# =============================================================================
+
+        scopewin = pg.GraphicsWindow(show=True)
+        glayout = QGridLayout(tab3)
+
+        # Make the graphs
+        ax = scopewin.addPlot(row=0, col=0)
+        self.scope_line = ax.plot([], [], pen=p0)
+
+        # Add the graphs to the layout
+        glayout.addWidget(scopewin, 0, 0)
 
 # =============================================================================
 #       Create settings
@@ -819,19 +858,8 @@ class MainWindow(QMainWindow):
         return config
 
 # =============================================================================
-#   Analysis Loop Setup
+#   Global Slots
 # =============================================================================
-
-    def thread_complete(self):
-        """Slot to run once the worker is finished"""
-        # Renable the start button
-        self.start_btn.setEnabled(True)
-
-        # Stop the plotting timer
-        self.plot_timer.stop()
-
-        # Set the status bar
-        self.statusBar().showMessage('Ready')
 
     def update_progress(self, prog):
         """Slot to update the progress bar"""
@@ -840,6 +868,23 @@ class MainWindow(QMainWindow):
     def update_status(self, status):
         """Update the status"""
         self.statusBar().showMessage(status)
+
+# =============================================================================
+#   Analysis Loop Setup
+# =============================================================================
+
+    def analysis_complete(self):
+        """Slot to run once the analysis worker is finished"""
+        # Renable the start button
+        self.start_btn.setEnabled(True)
+        self.pause_btn.setEnabled(False)
+        self.stop_btn.setEnabled(False)
+
+        # Stop the plotting timer
+        self.plot_timer.stop()
+
+        # Set the status bar
+        self.statusBar().showMessage('Ready')
 
     def get_plot_data(self, plot_info):
         """Catches plot info emitted by the analysis loop"""
@@ -905,7 +950,7 @@ class MainWindow(QMainWindow):
 
                 self.update_graph_flag = False
 
-    def begin(self):
+    def begin_analysis(self, analysis_mode):
         """Function to set up and start the analysis worker"""
 
         # Pull the plotting data from the GUI
@@ -918,15 +963,17 @@ class MainWindow(QMainWindow):
             widgetData[label] = self.widgets.get(label)
 
         # Initialise the analysis worker
-        self.worker = Worker(analysis_loop, widgetData)
-        self.worker.signals.finished.connect(self.thread_complete)
+        self.worker = Worker(analysis_loop, analysis_mode, widgetData)
+        self.worker.signals.finished.connect(self.analysis_complete)
         self.worker.signals.progress.connect(self.update_progress)
         self.worker.signals.status.connect(self.update_status)
         self.worker.signals.plotter.connect(self.get_plot_data)
         self.threadpool.start(self.worker)
 
-        # Disable the start button
+        # Disable the start button and enable the pause/stop buttons
         self.start_btn.setEnabled(False)
+        self.pause_btn.setEnabled(True)
+        self.stop_btn.setEnabled(True)
 
         # Set plot x limits where known
         self.autoscale_flag = True
@@ -937,14 +984,99 @@ class MainWindow(QMainWindow):
         self.plot_timer.setInterval(100)
         self.plot_timer.timeout.connect(self.update_plots)
 
+# =============================================================================
+#   Acquisition Loop Setup
+# =============================================================================
+
+    def acquisition_complete(self):
+        """Slot to run once the acquisition worker is finished"""
+        # Renable the start button
+        self.rt_start_btn.setEnabled(True)
+        self.rt_pause_btn.setEnabled(False)
+        self.rt_stop_btn.setEnabled(False)
+
+        # Set the status bar
+        self.statusBar().showMessage('Ready')
+
+    def catch_spectrum(self, spec_data):
+        """Slot to catch the spectra acquired by the acquisition loop"""
+        self.last_spectrum, self.last_info, plot_flag = spec_data
+
+        self.scope_line.setData(*self.last_spectrum)
+
+        try:
+            self.worker.set_spectrum(self.last_info['fname'])
+        except AttributeError:
+            pass
+
+    def begin_acquisition(self, acquisition_mode):
+        """Function to set up and start the acquisition worker"""
+
+        # Pull the plotting data from the GUI
+        widgetData = {'gas_params':    self.gas_table.getData(),
+                      'bgpoly_params': self.bgpoly_table.getData(),
+                      'offset_params': self.offset_table.getData(),
+                      'shift_params':  self.shift_table.getData()}
+
+        for label in self.widgets:
+            widgetData[label] = self.widgets.get(label)
+
+        # Initialise the acquisition worker
+        self.acq_worker = Worker(acquire_spectra, acquisition_mode, self.spec,
+                                 widgetData)
+        self.acq_worker.signals.finished.connect(self.acquisition_complete)
+        self.acq_worker.signals.spectrum.connect(self.catch_spectrum)
+        self.acq_worker.signals.progress.connect(self.update_progress)
+        self.acq_worker.signals.status.connect(self.update_status)
+        self.threadpool.start(self.acq_worker)
+
+        # Disable the start button and enable the pause/stop buttons
+        self.rt_start_btn.setEnabled(False)
+        self.rt_pause_btn.setEnabled(True)
+        self.rt_stop_btn.setEnabled(True)
+
+        # If running real time, launch the analyser loop
+        if acquisition_mode == 'acquire_cont' and self.rt_fitting_flag:
+            self.begin_analysis('rt_analyse')
+
+        # Set plot x limits where known
+        self.autoscale_flag = True
+
+    def toggle_fitting(self):
+        """Toggle sreal time fitting on and off"""
+        if self.rt_fitting_flag:
+            self.rt_fitting_flag = False
+            self.rt_flag_btn.setStyleSheet("background-color: red")
+            self.rt_flag_btn.setText('Fitting OFF')
+
+        else:
+            self.rt_fitting_flag = True
+            self.rt_flag_btn.setStyleSheet("background-color: green")
+            self.rt_flag_btn.setText('Fitting ON')
+
     def pause(self):
         """Pauses the worker loop"""
-        self.worker.pause()
+        try:
+            self.worker.pause()
+        except AttributeError:
+            pass
+        try:
+            self.acq_worker.pause()
+        except AttributeError:
+            pass
 
     def stop(self):
         """Kills the worker loop"""
-        self.worker.kill()
-        logging.info('Analysis aborted')
+        try:
+            self.worker.kill()
+            logging.info('Analysis stopped')
+        except AttributeError:
+            pass
+        try:
+            self.acq_worker.kill()
+            logging.info('Acquisition stopped')
+        except AttributeError:
+            pass
 
 
 class QHLine(QFrame):
@@ -979,11 +1111,13 @@ def main():
     palette.setColor(QPalette.ToolTipText, Qt.white)
     palette.setColor(QPalette.Text, Qt.white)
     palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    palette.setColor(QPalette.Active, QPalette.Button, QColor(53, 53, 53))
     palette.setColor(QPalette.ButtonText, Qt.white)
     palette.setColor(QPalette.BrightText, Qt.red)
     palette.setColor(QPalette.Link, QColor(42, 130, 218))
     palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
     palette.setColor(QPalette.HighlightedText, Qt.black)
+    palette.setColor(QPalette.Disabled, QPalette.ButtonText, Qt.darkGray)
     app.setPalette(palette)
 
     # Show the GUI

@@ -5,6 +5,7 @@ Spectrometer
 config
 spectrum*
 *log*
+temp*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

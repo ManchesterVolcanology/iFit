@@ -1,11 +1,8 @@
 import os
-import sys
 import time
 import logging
-import traceback
 import numpy as np
 import pandas as pd
-from datetime import datetime
 from functools import partial
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QObject, QRunnable, pyqtSignal, pyqtSlot
@@ -68,11 +65,10 @@ class WorkerSignals(QObject):
         `int` indicating % progress
     """
     finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    result = pyqtSignal(object)
     progress = pyqtSignal(int)
     plotter = pyqtSignal(list)
     status = pyqtSignal(str)
+    spectrum = pyqtSignal(tuple)
 
 
 # Create a worker to handle QThreads
@@ -90,11 +86,12 @@ class Worker(QRunnable):
 
     """
 
-    def __init__(self, fn, *args, **kwargs):
+    def __init__(self, fn, mode, *args, **kwargs):
         super(Worker, self).__init__()
 
         # Store constructor arguments (re-used for processing)
         self.fn = fn
+        self.mode = mode
         self.args = args
         self.kwargs = kwargs
         self.signals = WorkerSignals()
@@ -103,30 +100,29 @@ class Worker(QRunnable):
         self.is_paused = False
         self.is_killed = False
 
-        # Add the callback to our kwargs
-        self.kwargs['progress_callback'] = self.signals.progress
-        self.kwargs['status_callback'] = self.signals.status
-        self.kwargs['plot_callback'] = self.signals.plotter
+        # Create a holder for the spectrum filepath
+        self.spec_fname = None
+
+        # Add the callbacks to our kwargs
+        if 'analyse' in mode:
+            self.kwargs['progress_callback'] = self.signals.progress
+            self.kwargs['status_callback'] = self.signals.status
+            self.kwargs['plot_callback'] = self.signals.plotter
+
+        if 'acquire' in mode:
+            self.kwargs['spectrum_callback'] = self.signals.spectrum
+            self.kwargs['progress_callback'] = self.signals.progress
+            self.kwargs['status_callback'] = self.signals.status
 
     @pyqtSlot()
     def run(self):
         """Initialise the runner function with passed args, kwargs"""
 
         # Retrieve args/kwargs here; and fire processing using them
-        try:
-            result = self.fn(self, *self.args, **self.kwargs)
-        except Exception:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
-
-        # Return the result of the processing
-        else:
-            self.signals.result.emit(result)
+        self.fn(self, self.mode, *self.args, **self.kwargs)
 
         # Done
-        finally:
-            self.signals.finished.emit()
+        self.signals.finished.emit()
 
     def pause(self):
         if self.is_paused:
@@ -142,19 +138,17 @@ class Worker(QRunnable):
             self.is_paused = False
         self.is_killed = True
 
+    def set_spectrum(self, spec_fname):
+        """Set the spectrum file to be analysed in real time analysis"""
+        self.spec_fname = spec_fname
+
 
 # =============================================================================
-# Spectra analysis loop
+# Generate analyser
 # =============================================================================
 
-def analysis_loop(worker, widgetData, progress_callback, plot_callback,
-                  status_callback):
-
-    # Create a loop counter
-    loop = 0
-
-    # Generate the anlyser
-    status_callback.emit('Loading')
+def generate_analyser(widgetData):
+    """Generates the iFit analyser"""
 
     # Pull the parameters from the parameter table
     params = Parameters()
@@ -202,16 +196,24 @@ def analysis_loop(worker, widgetData, progress_callback, plot_callback,
     # Report fitting parameters
     logging.info(params.pretty_print(cols=['name', 'value', 'vary']))
 
-    # Make a list of column names
-    cols = ['File', 'Number', 'Time']
-    for par in analyser.params:
-        cols += [par, f'{par}_err']
-    cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
+    return analyser
 
-    # Pull the spectra type and file paths
-    spec_fnames = widgetData['spec_fnames'].split('\n')
-    dark_fnames = widgetData['dark_fnames'].split('\n')
-    spec_type = widgetData['spec_type']
+
+# =============================================================================
+# Spectra analysis loop
+# =============================================================================
+
+def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
+                  plot_callback, status_callback):
+
+    # Create a loop counter
+    loop = 0
+
+    # Update the status
+    status_callback.emit('Loading')
+
+    # Generate the anlyser
+    analyser = generate_analyser(widgetData)
 
     # Pull processing settings
     update_flag = widgetData['update_flag']
@@ -222,28 +224,61 @@ def analysis_loop(worker, widgetData, progress_callback, plot_callback,
     graph_p = [r[0] for r in widgetData['gas_params']]
     interp_meth = widgetData['interp_method']
 
-    # Make a dataframe to hold the fit results
-    df = pd.DataFrame(index=np.arange(len(spec_fnames)), columns=cols)
+    # Make a list of the fit parameters to form the columns in the buffer
+    buffer_cols = ['Number']
+    for par in analyser.params:
+        buffer_cols += [par, f'{par}_err']
 
-    # Make the results file
-    save_path = widgetData['save_path']
+    # Set mode dependant settings
+    if analysis_mode == 'post_analyse':
 
-    # Read in the dark spectra
-    if widgetData['dark_flag']:
-        logging.info('Reading dark spectra')
-        x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
+        # Pull the spectra type and file paths
+        spec_fnames = widgetData['spec_fnames'].split('\n')
+        dark_fnames = widgetData['dark_fnames'].split('\n')
+        spec_type = widgetData['spec_type']
+        buffer = Buffer(len(spec_fnames), buffer_cols)
+        save_path = widgetData['save_path']
+        worker.signals.status.emit('Analysing')
+
+        # Read in the dark spectra
+        if widgetData['dark_flag']:
+            logging.info('Reading dark spectra')
+            x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
+
+    elif analysis_mode == 'rt_analyse':
+        spec_type = 'iFit'
+        buffer = Buffer(2000, buffer_cols)
+        save_path = widgetData['rt_save_path'] + 'iFit_rt_output.csv'
+        worker.signals.status.emit('Acquiring')
+
+        # Set the dark spectrum
+        if widgetData['dark_flag']:
+            analyser.dark_spec = np.loadtxt('bin/temp_dark.txt')
+
+        # Check that the output file doesn't already exist
+        i = 0
+        tmpstr = save_path
+        while os.path.isfile(save_path):
+            i += 1
+            save_path = f'{tmpstr.split(".")[-2]}({i}).csv'
 
     # Set status
     logging.info('Beginning analysis loop')
-    worker.signals.status.emit('Analysing')
-    times = np.zeros(len(spec_fnames))
+
     # Open the output file
     with open(save_path, 'w') as w:
+
+        # Make a list of column names
+        cols = ['File', 'Number', 'Time']
+        for par in analyser.params:
+            cols += [par, f'{par}_err']
+        cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
+
+        # Write the header
         w.write(cols[0])
         for c in cols[1:]:
             w.write(f',{c}')
         w.write('\n')
-        t0 = datetime.now()
 
         # Begin the analysis loop
         while not worker.is_killed:
@@ -253,12 +288,17 @@ def analysis_loop(worker, widgetData, progress_callback, plot_callback,
                 time.sleep(0.01)
 
             # Get the spectrum filename
-            fname = spec_fnames[loop]
+            if analysis_mode == 'post_analyse':
+                fname = spec_fnames[loop]
+            elif analysis_mode == 'rt_analyse':
+                fname = worker.spec_fname
+                while fname is None:
+                    fname = worker.spec_fname
+                worker.spec_fname = None
 
             # Read in the spectrum
             x, y, info, read_err = read_spectrum(fname, spec_type)
 
-            lt0 = datetime.now()
             # Fit the spectrum
             fit_result = analyser.fit_spectrum(spectrum=[x, y],
                                                update_params=update_flag,
@@ -267,59 +307,149 @@ def analysis_loop(worker, widgetData, progress_callback, plot_callback,
                                                int_limit=int_limit,
                                                calc_od=graph_p,
                                                interp_method=interp_meth)
-            lt1 = datetime.now()
-            times[loop] = (lt1-lt0).total_seconds()
 
-            # Add results to the dataframe
-            row = [fname, info["spec_no"], info["time"]]
+            # Add results to the buffer dataframe
+            row = [info["spec_no"]]
             for par in fit_result.params.values():
                 row += [par.fit_val, par.fit_err]
-            row += [fit_result.nerr, fit_result.int_lo, fit_result.int_hi,
-                    fit_result.int_av]
-            df.loc[loop] = row
+            buffer.update(row)
 
             # Write the results to file
-            w.write(f'{row[0]}')
-            for i in row[1:]:
+            w.write(f'{fname},{info["spec_no"]},{info["time"]}')
+            for i in row:
                 w.write(f',{i}')
+            w.write(f'{fit_result.nerr}, {fit_result.int_lo},'
+                    + f'{fit_result.int_hi},fit_result.int_av')
             w.write('\n')
 
             # Emit the progress
-            progress_callback.emit(((loop+1)/len(spec_fnames))*100)
+            if analysis_mode == 'post_analyse':
+                progress_callback.emit(((loop+1)/len(spec_fnames))*100)
 
             # Emit graph data
-            plot_callback.emit([fit_result, [x, y], df])
+            plot_callback.emit([fit_result, [x, y], buffer.df])
 
             # Check if analysis is finished
-            if loop == len(spec_fnames)-1:
+            if analysis_mode == 'post_analyse' and loop == len(spec_fnames)-1:
                 logging.info('Analysis finished!')
                 worker.kill()
 
             # Update loop counter
             loop += 1
 
-    t1 = datetime.now()
-    print(t1-t0)
-    print(times)
-    print(np.average(times))
-
 
 # =============================================================================
 # Acquisition loop
 # =============================================================================
-
-def acquire_spectra(worker, spectrometer, mode):
+from datetime import datetime
+def acquire_spectra(worker, acquisition_mode, spectrometer, widgetData,
+                    spectrum_callback, progress_callback, status_callback):
     """Loop to handle spectra acquisition"""
 
     # Read single spectrum
-    if mode == 'single':
+    if acquisition_mode == 'acquire_single':
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         spectrometer.fpath = 'Masaya_Traverse/spectrum_00000.txt'
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+        # Update the status
+        status_callback.emit('Acquiring')
+
         # Read the spectrum
-        # try:
         spectrum, info = spectrometer.get_spectrum()
+
+        spectrum_callback.emit((spectrum, info, True))
+
+    # Read dark spectra
+    if acquisition_mode == 'acquire_darks':
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+        spectrometer.fpath = 'Masaya_Traverse/dark.txt'
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+        # Update the status
+        status_callback.emit('Acquiring')
+
+        ndarks = widgetData['ndarks']
+        logging.info(f'Reading {ndarks} dark spectra')
+
+        # Set the save location for the dark spectra
+        save_path = widgetData['rt_save_path'] + 'dark/'
+
+        # Check the output folder exists and generate it if not
+        if not os.path.isdir(save_path):
+            os.makedirs(save_path)
+
+        # If it exists, create a new folder to avoid overwriting the old one
+        else:
+            n = 0
+            while os.path.isdir(save_path):
+                n += 1
+                if n == 1:
+                    save_path = save_path[:-1] + f'({n})/'
+                else:
+                    save_path = save_path[:-4] + f'({n})/'
+            os.makedirs(save_path)
+
+        # Create an empty array to hold the dark spectra
+        dark_arr = np.zeros([ndarks, spectrometer.pixels])
+
+        for i in range(ndarks):
+            fname = f'{save_path}spectrum{i:05d}.txt'
+            spectrum, info = spectrometer.get_spectrum(fname=fname)
+            dark_arr[i] = spectrum[1]
+
+            # Display the spectrum
+            spectrum_callback.emit((spectrum, info, True))
+
+            # Update the progress bar
+            progress_callback.emit(((i+1)/ndarks)*100)
+
+            # Get if the worker is killed
+            if worker.is_killed:
+                logging.info('Dark spectra acquisition interupted')
+
+        dark_spec = np.average(dark_arr, axis=0)
+        np.savetxt('bin/temp_dark.txt', dark_spec)
+
+    if acquisition_mode == 'acquire_cont':
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+        spectrometer.fpath = 'Masaya_Traverse/spectrum_00366.txt'
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+        # Set the save location for the dark spectra
+        save_path = widgetData['rt_save_path'] + 'spectra/'
+
+        # Check the output folder exists and generate it if not
+        if not os.path.isdir(save_path):
+            os.makedirs(save_path)
+
+        logging.info('Beginning spectra acquisition')
+
+        # Create a spectrum number parameter
+        nspec = 0
+
+        while not worker.is_killed:
+            t0 = datetime.now()
+            # Check if the loop is paused
+            while worker.is_paused:
+                time.sleep(0.01)
+
+            # Generate the spectrum filename
+            spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
+
+            # Check the file doesn't already exist
+            while os.path.isfile(spec_fname):
+                nspec += 1
+                spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
+
+            # Measure the spectrum
+            spectrum, info = spectrometer.get_spectrum(fname=spec_fname)
+
+            # Display the spectrum
+            spectrum_callback.emit((spectrum, info, True))
+            t1 = datetime.now()
+            print(t1-t0)
+
 
 # =============================================================================
 # Connect to spectrometer
@@ -355,89 +485,27 @@ def connect_spectrometer(gui):
 
 
 # =============================================================================
-# Test Spectrum
+# Data Buffer
 # =============================================================================
 
-def test_spectrum(gui):
-    """Measure a test spectrum and display"""
+class Buffer:
+    """A buffer to hold the analysis results for plotting"""
 
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    gui.spec.fpath = 'Masaya_Traverse/spectrum_00000.txt'
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    def __init__(self, size, columns):
 
-    # Read the spectrum
-    # try:
-    spectrum, info = gui.spec.get_spectrum()
+        self.df = pd.DataFrame(index=np.arange(size), columns=columns)
+        self.fill = 0
+        self.size = size
 
-    # Plot the spectrum
-    gui.plot_lines[2].setData(*spectrum)
+    def update(self, data):
+        if self.fill < self.size:
+            self.df.iloc[self.fill] = data
+            self.fill += 1
 
-
-# =============================================================================
-# Read Darks
-# =============================================================================
-
-def read_darks(gui):
-    """Read in the dark spectra"""
-
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    gui.spec.fpath = 'Masaya_Traverse/dark.txt'
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-    # Update the status
-    gui.status.set('Acquiring')
-    gui.progress.config(length=300, mode='determinate')
-
-    # Get the number of darks
-    ndarks = gui.widgets["ndarks"].get()
-    logging.info(f'Reading {ndarks} dark spectra')
-
-    # Generate the save location for the dark spectra
-    dark_path = gui.widgets["rt_save_path"].get() + 'dark/'
-
-    # Generate the output folder, generating a new one if it already exists
-    if not os.path.isdir(dark_path):
-        os.makedirs(dark_path)
-
-    else:
-        n = 0
-        while os.path.isdir(dark_path):
-            n += 1
-            dark_path = gui.widgets["rt_save_path"].get() + f'dark({n})/'
-        os.makedirs(dark_path)
-
-    try:
-        # Create a holder for the averaged dark spectrum
-        npixels = gui.spec.pixels
-        dark_arr = np.zeros([ndarks, npixels])
-
-        # Read the dark spectra
-        for i in range(ndarks):
-            fname = f'{dark_path}spectrum_{i:05d}.txt'
-            [x, y], info = gui.spec.get_spectrum(fname=fname)
-            dark_arr[i] = y
-
-            # Update the progress bar
-            gui.progress['value'] = (i+1)/ndarks * 100
-
-            # Make GUI show updates
-            gui.update()
-
-        # Average the spectra
-        gui.dark_spectrum = np.average(dark_arr, axis=0)
-
-        # Plot the spectrum
-        data = [[[], []], [[], []], [x, gui.dark_spectrum], [[], []], [[], []],
-                [[], []], [[], []]]
-        gui.figure.update_plots(data)
-
-        gui.canvas.draw()
-        gui.update()
-
-    except AttributeError:
-        logging.warning('No spectrometer connected!')
-
-    gui.status.set('Standby')
+        else:
+            for key in self.df:
+                self.df[key] = np.roll(self.df[key], -1)
+            self.df.iloc[self.fill-1] = data
 
 
 # =============================================================================
