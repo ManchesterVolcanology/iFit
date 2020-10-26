@@ -6,8 +6,7 @@ from datetime import datetime
 try:
     import seabreeze.spectrometers as sb
 except ImportError:
-    msg = 'Seabreaze library not found, spectra acquisition unavailable'
-    logging.warning(msg)
+    pass
 
 
 class Spectrometer():
