@@ -346,14 +346,14 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
                     spectrum_callback, progress_callback, status_callback):
     """Loop to handle spectra acquisition"""
 
+    # Update the status
+    status_callback.emit('Acquiring')
+
     # Read single spectrum
     if acquisition_mode == 'acquire_single':
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         spectrometer.fpath = 'Masaya_Traverse/spectrum_00000.txt'
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-        # Update the status
-        status_callback.emit('Acquiring')
 
         # Read the spectrum
         spectrum, info = spectrometer.get_spectrum()
@@ -365,9 +365,6 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         spectrometer.fpath = 'Masaya_Traverse/dark.txt'
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-        # Update the status
-        status_callback.emit('Acquiring')
 
         ndarks = widgetData['ndarks']
         logging.info(f'Reading {ndarks} dark spectra')

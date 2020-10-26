@@ -162,9 +162,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.connect_btn, 0, 2)
 
         # Create a button to acquire a test spectrum
-        btn = QPushButton('Test Spectrum')
-        btn.clicked.connect(partial(self.begin_acquisition, 'acquire_single'))
-        layout.addWidget(btn, 0, 3)
+        self.acquire_test_btn = QPushButton('Test Spectrum')
+        self.acquire_test_btn.clicked.connect(partial(self.begin_acquisition,
+                                              'acquire_single'))
+        layout.addWidget(self.acquire_test_btn, 0, 3)
 
         # Create a control for the spectrometer integration time
         layout.addWidget(QLabel('Integration\nTime (ms):'), 1, 0)
@@ -172,9 +173,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['int_time'], 1, 1)
 
         # Create a button to update the integration time
-        btn = QPushButton('Update')
-        btn.clicked.connect(partial(self.begin_acquisition, 'acquire_darks'))
-        layout.addWidget(btn, 1, 2)
+        self.update_inttime_btn = QPushButton('Update')
+        self.update_inttime_btn.clicked.connect(self.update_int_time)
+        layout.addWidget(self.update_inttime_btn, 1, 2)
 
         # Create a button to toggle real-time analysis
         self.rt_fitting_flag = False
@@ -189,9 +190,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['coadds'], 2, 1)
 
         # Create a button to update the coadds
-        btn = QPushButton('Update')
-        btn.clicked.connect(partial(self.begin_acquisition, 'acquire_darks'))
-        layout.addWidget(btn, 2, 2)
+        self.update_coadds_btn = QPushButton('Update')
+        self.update_coadds_btn.clicked.connect(self.update_coadds)
+        layout.addWidget(self.update_coadds_btn, 2, 2)
 
         # Create a control for the number of dark spectra
         layout.addWidget(QLabel('No. Dark\nSpectra:'), 3, 0)
@@ -199,9 +200,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['ndarks'], 3, 1)
 
         # Create a button to acquire the dark spectra
-        btn = QPushButton('Acquire')
-        btn.clicked.connect(partial(self.begin_acquisition, 'acquire_darks'))
-        layout.addWidget(btn, 3, 2)
+        self.acquire_darks_btn = QPushButton('Acquire')
+        self.acquire_darks_btn.clicked.connect(partial(self.begin_acquisition,
+                                               'acquire_darks'))
+        layout.addWidget(self.acquire_darks_btn, 3, 2)
 
         # Add an input for the save selection
         layout.addWidget(QLabel('Save:'), 4, 0)
@@ -994,6 +996,11 @@ class MainWindow(QMainWindow):
         self.rt_start_btn.setEnabled(True)
         self.rt_pause_btn.setEnabled(False)
         self.rt_stop_btn.setEnabled(False)
+        self.connect_btn.setEnabled(True)
+        self.acquire_test_btn.setEnabled(True)
+        self.acquire_darks_btn.setEnabled(True)
+        self.update_inttime_btn.setEnabled(True)
+        self.update_coadds_btn.setEnabled(True)
 
         # Set the status bar
         self.statusBar().showMessage('Ready')
@@ -1022,18 +1029,24 @@ class MainWindow(QMainWindow):
             widgetData[label] = self.widgets.get(label)
 
         # Initialise the acquisition worker
-        self.acq_worker = Worker(acquire_spectra, acquisition_mode, self.spec,
-                                 widgetData)
+        self.acq_worker = Worker(acquire_spectra, acquisition_mode, widgetData,
+                                 self.spectrometer)
         self.acq_worker.signals.finished.connect(self.acquisition_complete)
         self.acq_worker.signals.spectrum.connect(self.catch_spectrum)
         self.acq_worker.signals.progress.connect(self.update_progress)
         self.acq_worker.signals.status.connect(self.update_status)
         self.threadpool.start(self.acq_worker)
 
-        # Disable the start button and enable the pause/stop buttons
+        # Disable the start/acquisition buttons and enable the pause/stop
+        # buttons
         self.rt_start_btn.setEnabled(False)
         self.rt_pause_btn.setEnabled(True)
         self.rt_stop_btn.setEnabled(True)
+        self.connect_btn.setEnabled(False)
+        self.acquire_test_btn.setEnabled(False)
+        self.acquire_darks_btn.setEnabled(False)
+        self.update_inttime_btn.setEnabled(False)
+        self.update_coadds_btn.setEnabled(False)
 
         # If running real time, launch the analyser loop
         if acquisition_mode == 'acquire_cont' and self.rt_fitting_flag:
@@ -1042,17 +1055,27 @@ class MainWindow(QMainWindow):
         # Set plot x limits where known
         self.autoscale_flag = True
 
+    def update_int_time(self):
+        """Update the spectrometer integration time"""
+        self.spectrometer.update_integration_time(self.widgets.get('int_time'))
+
+    def update_coadds(self):
+        """Update the spectrometer coadds"""
+        self.spectrometer.update_coadds(self.widgets.get('coadds'))
+
     def toggle_fitting(self):
         """Toggle sreal time fitting on and off"""
         if self.rt_fitting_flag:
             self.rt_fitting_flag = False
             self.rt_flag_btn.setStyleSheet("background-color: red")
             self.rt_flag_btn.setText('Fitting OFF')
+            logging.info('Fitting turned off')
 
         else:
             self.rt_fitting_flag = True
             self.rt_flag_btn.setStyleSheet("background-color: green")
             self.rt_flag_btn.setText('Fitting ON')
+            logging.info('Fitting turned on')
 
     def pause(self):
         """Pauses the worker loop"""
