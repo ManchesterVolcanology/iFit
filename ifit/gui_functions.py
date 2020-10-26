@@ -341,7 +341,7 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
 # =============================================================================
 # Acquisition loop
 # =============================================================================
-from datetime import datetime
+
 def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
                     spectrum_callback, progress_callback, status_callback):
     """Loop to handle spectra acquisition"""
@@ -429,7 +429,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
         nspec = 0
 
         while not worker.is_killed:
-            t0 = datetime.now()
+
             # Check if the loop is paused
             while worker.is_paused:
                 time.sleep(0.01)
@@ -447,8 +447,6 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
 
             # Display the spectrum
             spectrum_callback.emit((spectrum, info, True))
-            t1 = datetime.now()
-            print(t1-t0)
 
 
 # =============================================================================
