@@ -342,7 +342,7 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
 # Acquisition loop
 # =============================================================================
 from datetime import datetime
-def acquire_spectra(worker, acquisition_mode, spectrometer, widgetData,
+def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
                     spectrum_callback, progress_callback, status_callback):
     """Loop to handle spectra acquisition"""
 
@@ -461,21 +461,22 @@ def connect_spectrometer(gui):
     if not gui.connected_flag:
 
         # Connect to the spectrometer
-        gui.spec = VSpectrometer(integration_time=gui.widgets.get("int_time"),
-                                 coadds=gui.widgets.get("coadds"))
+        spec = VSpectrometer(integration_time=gui.widgets.get("int_time"),
+                             coadds=gui.widgets.get("coadds"))
+        gui.spectrometer = spec
 
         # Update the GUI
-        gui.spec_id.setText(gui.spec.serial_number)
+        gui.spec_id.setText(gui.spectrometer.serial_number)
         gui.connect_btn.setText('Disconnect')
 
         # Create a holder for the dark spectra
-        gui.dark_spectrum = np.zeros(gui.spec.pixels)
+        gui.dark_spectrum = np.zeros(gui.spectrometer.pixels)
 
         gui.connected_flag = True
 
     else:
         # Disconnect the spectrometer
-        gui.spec.close()
+        gui.spectrometer.close()
 
         # Update the GUI
         gui.spec_id.setText('Not connected')
