@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
 from ifit.gui_functions import (analysis_loop, acquire_spectra, Widgets,
                                 SpinBox, DSpinBox, Table, Worker,
                                 QTextEditLogger, connect_spectrometer)
+from ifit.gui_tools import ILSWindow, FLATWindow
 
 __version__ = '3.3'
 __author__ = 'Ben Esse'
@@ -87,11 +88,20 @@ class MainWindow(QMainWindow):
         loadAct = QAction('&Load', self)
         loadAct.triggered.connect(partial(self.load_config, None))
 
+        # Add tools menubar
+        ilsAct = QAction('&Measure ILS', self)
+        ilsAct.triggered.connect(self.open_ils_window)
+        flatAct = QAction('&Measure\nFlat Field', self)
+        flatAct.triggered.connect(self.open_flat_window)
+
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(saveAct)
         fileMenu.addAction(saveasAct)
         fileMenu.addAction(loadAct)
+        toolMenu = menubar.addMenu('&Tools')
+        toolMenu.addAction(ilsAct)
+        toolMenu.addAction(flatAct)
 
         # Create a frame to hold program controls
         self.controlFrame = QFrame(self)
@@ -211,7 +221,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['rt_save_path'], 4, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(self.browse, self.widgets['rt_save_path'],
+        btn.clicked.connect(partial(browse, self, self.widgets['rt_save_path'],
                                     'folder'))
         layout.addWidget(btn, 4, 4)
 
@@ -249,9 +259,7 @@ class MainWindow(QMainWindow):
         self.widgets['spec_type'] = QComboBox()
         self.widgets['spec_type'].addItems(['iFit',
                                             'Master.Scope',
-                                            'Spectrasuite',
-                                            'OpenSO2',
-                                            'FLAME',
+                                            'Spectrasuite'
                                             'Basic'])
         self.widgets['spec_type'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['spec_type'], 0, 1)
@@ -262,7 +270,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['spec_fnames'], 1, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(self.browse, self.widgets['spec_fnames'],
+        btn.clicked.connect(partial(browse, self, self.widgets['spec_fnames'],
                                     'multi'))
         layout.addWidget(btn, 1, 4)
 
@@ -272,7 +280,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['dark_fnames'], 2, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(self.browse, self.widgets['dark_fnames'],
+        btn.clicked.connect(partial(browse, self, self.widgets['dark_fnames'],
                                     'multi'))
         layout.addWidget(btn, 2, 4)
 
@@ -282,7 +290,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['save_path'], 3, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(self.browse, self.widgets['save_path'],
+        btn.clicked.connect(partial(browse, self, self.widgets['save_path'],
                                     'save', "Comma Separated (*.csv)"))
         layout.addWidget(btn, 3, 4)
 
@@ -394,13 +402,13 @@ class MainWindow(QMainWindow):
         # Initialise the lines
         p0 = pg.mkPen(color='#1f77b4', width=1.0)
         p1 = pg.mkPen(color='#ff7f0e', width=1.0)
-        l0 = ax0.plot([], [], pen=p0, name='Spectrum')
-        l1 = ax0.plot([], [], pen=p1, name='Fit')
-        l2 = ax1.plot([], [], pen=p0)
-        l3 = ax2.plot([], [], pen=p0)
-        l4 = ax3.plot([], [], pen=p0)
-        l5 = ax3.plot([], [], pen=p1)
-        l6 = ax4.plot([], [], pen=p0)
+        l0 = ax0.plot(pen=p0, name='Spectrum')
+        l1 = ax0.plot(pen=p1, name='Fit')
+        l2 = ax1.plot(pen=p0)
+        l3 = ax2.plot(pen=p0)
+        l4 = ax3.plot(pen=p0)
+        l5 = ax3.plot(pen=p1)
+        l6 = ax4.plot(pen=p0)
 
         ax0.addLegend()
 
@@ -444,8 +452,12 @@ class MainWindow(QMainWindow):
         scopewin = pg.GraphicsWindow(show=True)
         glayout = QGridLayout(tab3)
 
-        # Make the graphs
+        # Make the graph
         ax = scopewin.addPlot(row=0, col=0)
+        ax.setDownsampling(mode='peak')
+        ax.setClipToView(True)
+        ax.showGrid(x=True, y=True)
+
         self.scope_line = ax.plot([], [], pen=p0)
 
         # Add the graphs to the layout
@@ -616,7 +628,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['ils_path'], nrow, ncol+1, 1, 2)
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
-        btn.clicked.connect(partial(self.browse, self.widgets['ils_path'],
+        btn.clicked.connect(partial(browse, self, self.widgets['ils_path'],
                                     'single'))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
@@ -628,7 +640,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['flat_path'], nrow, ncol+1, 1, 2)
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
-        btn.clicked.connect(partial(self.browse, self.widgets['flat_path'],
+        btn.clicked.connect(partial(browse, self, self.widgets['flat_path'],
                                     'single'))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
@@ -640,7 +652,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['wl_calib'], nrow, ncol+1, 1, 2)
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
-        btn.clicked.connect(partial(self.browse, self.widgets['wl_calib'],
+        btn.clicked.connect(partial(browse, self, self.widgets['wl_calib'],
                                     'single'))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
@@ -704,7 +716,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['frs_path'], nrow, ncol+1)
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
-        btn.clicked.connect(partial(self.browse, self.widgets['frs_path'],
+        btn.clicked.connect(partial(browse, self, self.widgets['frs_path'],
                                     'single'))
         layout.addWidget(btn, nrow, ncol+2)
         nrow += 1
@@ -737,6 +749,18 @@ class MainWindow(QMainWindow):
 
         # Link the parameter table to the plot parameter combobox
         self.gas_table.cellChanged.connect(self.update_plot_params)
+
+# =============================================================================
+# Tool Windows
+# =============================================================================
+
+    def open_ils_window(self):
+        win = ILSWindow(self)
+        win.show()
+
+    def open_flat_window(self):
+        win = FLATWindow(self)
+        win.show()
 
 # =============================================================================
 # Browse
@@ -943,12 +967,11 @@ class MainWindow(QMainWindow):
                                            self.fit_result.synth_od[self.key])
                 self.plot_lines[6].setData(plotx, ploty)
 
-                # Check of the graphs need autoscaling
+                # Turn off autoscaling the x axis after the first plot
                 if self.autoscale_flag:
                     self.autoscale_flag = False
                     for i in [0, 1, 2, 3]:
-                        xlims = self.plot_axes[i].getAxis('bottom').range
-                        self.plot_axes[i].setXRange(*xlims, 0)
+                        self.plot_axes[i].enableAutoRange('x', False)
 
                 self.update_graph_flag = False
 
@@ -1001,6 +1024,11 @@ class MainWindow(QMainWindow):
         self.acquire_darks_btn.setEnabled(True)
         self.update_inttime_btn.setEnabled(True)
         self.update_coadds_btn.setEnabled(True)
+        self.rt_flag_btn.setEnabled(True)
+
+        # Rest the range on the progress bar
+        self.progress.setRange(0, 100)
+        # self.progress.setValue(0)
 
         # Set the status bar
         self.statusBar().showMessage('Ready')
@@ -1018,6 +1046,10 @@ class MainWindow(QMainWindow):
 
     def begin_acquisition(self, acquisition_mode):
         """Function to set up and start the acquisition worker"""
+
+        # Set the progress bar to busy
+        if acquisition_mode != 'acquire_darks':
+            self.progress.setRange(0, 0)
 
         # Pull the plotting data from the GUI
         widgetData = {'gas_params':    self.gas_table.getData(),
@@ -1047,6 +1079,7 @@ class MainWindow(QMainWindow):
         self.acquire_darks_btn.setEnabled(False)
         self.update_inttime_btn.setEnabled(False)
         self.update_coadds_btn.setEnabled(False)
+        self.rt_flag_btn.setEnabled(False)
 
         # If running real time, launch the analyser loop
         if acquisition_mode == 'acquire_cont' and self.rt_fitting_flag:
@@ -1100,6 +1133,36 @@ class MainWindow(QMainWindow):
             logging.info('Acquisition stopped')
         except AttributeError:
             pass
+
+
+def browse(gui, widget, mode='single', filter=False):
+
+    if not filter:
+        filter = None
+    else:
+        filter = filter + ';;All Files (*)'
+
+    if mode == 'single':
+        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '',
+                                               filter)
+        if fname != '':
+            widget.setText(fname)
+
+    elif mode == 'multi':
+        fnames, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
+                                                 filter)
+        if fnames != []:
+            widget.setText('\n'.join(fnames))
+
+    elif mode == 'save':
+        fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
+        if fname != '':
+            widget.setText(fname)
+
+    elif mode == 'folder':
+        fname = QFileDialog.getExistingDirectory(gui, 'Select Foler')
+        if fname != '':
+            widget.setText(fname + '/')
 
 
 class QHLine(QFrame):
