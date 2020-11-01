@@ -316,10 +316,10 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
 
             # Write the results to file
             w.write(f'{fname},{info["spec_no"]},{info["time"]}')
-            for i in row:
+            for i in row[1:]:
                 w.write(f',{i}')
-            w.write(f'{fit_result.nerr}, {fit_result.int_lo},'
-                    + f'{fit_result.int_hi},fit_result.int_av')
+            w.write(f',{fit_result.nerr},{fit_result.int_lo},'
+                    + f'{fit_result.int_hi},{fit_result.int_av}')
             w.write('\n')
 
             # Emit the progress
@@ -384,7 +384,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
                 if n == 1:
                     save_path = save_path[:-1] + f'({n})/'
                 else:
-                    save_path = save_path[:-4] + f'({n})/'
+                    save_path = save_path.split('(')[0] + f'({n})/'
             os.makedirs(save_path)
 
         # Create an empty array to hold the dark spectra

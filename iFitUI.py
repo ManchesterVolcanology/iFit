@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
 from ifit.gui_functions import (analysis_loop, acquire_spectra, Widgets,
                                 SpinBox, DSpinBox, Table, Worker,
                                 QTextEditLogger, connect_spectrometer)
-from ifit.gui_tools import ILSWindow, FLATWindow
+from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux
 
 __version__ = '3.3'
 __author__ = 'Ben Esse'
@@ -93,6 +93,8 @@ class MainWindow(QMainWindow):
         ilsAct.triggered.connect(self.open_ils_window)
         flatAct = QAction('&Measure\nFlat Field', self)
         flatAct.triggered.connect(self.open_flat_window)
+        fluxAct = QAction('&Calculate flux', self)
+        fluxAct.triggered.connect(self.open_flux_window)
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
@@ -102,6 +104,7 @@ class MainWindow(QMainWindow):
         toolMenu = menubar.addMenu('&Tools')
         toolMenu.addAction(ilsAct)
         toolMenu.addAction(flatAct)
+        toolMenu.addAction(fluxAct)
 
         # Create a frame to hold program controls
         self.controlFrame = QFrame(self)
@@ -259,7 +262,7 @@ class MainWindow(QMainWindow):
         self.widgets['spec_type'] = QComboBox()
         self.widgets['spec_type'].addItems(['iFit',
                                             'Master.Scope',
-                                            'Spectrasuite'
+                                            'Spectrasuite',
                                             'Basic'])
         self.widgets['spec_type'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['spec_type'], 0, 1)
@@ -760,6 +763,10 @@ class MainWindow(QMainWindow):
 
     def open_flat_window(self):
         win = FLATWindow(self)
+        win.show()
+
+    def open_flux_window(self):
+        win = CalcFlux(self)
         win.show()
 
 # =============================================================================
