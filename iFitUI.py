@@ -178,6 +178,7 @@ class MainWindow(QMainWindow):
         self.acquire_test_btn = QPushButton('Test Spectrum')
         self.acquire_test_btn.clicked.connect(partial(self.begin_acquisition,
                                               'acquire_single'))
+        self.acquire_test_btn.setEnabled(False)
         layout.addWidget(self.acquire_test_btn, 0, 3)
 
         # Create a control for the spectrometer integration time
@@ -188,12 +189,14 @@ class MainWindow(QMainWindow):
         # Create a button to update the integration time
         self.update_inttime_btn = QPushButton('Update')
         self.update_inttime_btn.clicked.connect(self.update_int_time)
+        self.update_inttime_btn.setEnabled(False)
         layout.addWidget(self.update_inttime_btn, 1, 2)
 
         # Create a button to toggle real-time analysis
         self.rt_fitting_flag = False
         self.rt_flag_btn = QPushButton('Fitting OFF')
         self.rt_flag_btn.clicked.connect(self.toggle_fitting)
+        self.rt_flag_btn.setEnabled(False)
         self.rt_flag_btn.setStyleSheet("background-color: red")
         layout.addWidget(self.rt_flag_btn, 0, 4)
 
@@ -205,6 +208,7 @@ class MainWindow(QMainWindow):
         # Create a button to update the coadds
         self.update_coadds_btn = QPushButton('Update')
         self.update_coadds_btn.clicked.connect(self.update_coadds)
+        self.update_coadds_btn.setEnabled(False)
         layout.addWidget(self.update_coadds_btn, 2, 2)
 
         # Create a control for the number of dark spectra
@@ -216,6 +220,7 @@ class MainWindow(QMainWindow):
         self.acquire_darks_btn = QPushButton('Acquire')
         self.acquire_darks_btn.clicked.connect(partial(self.begin_acquisition,
                                                'acquire_darks'))
+        self.acquire_darks_btn.setEnabled(False)
         layout.addWidget(self.acquire_darks_btn, 3, 2)
 
         # Add an input for the save selection
@@ -233,6 +238,7 @@ class MainWindow(QMainWindow):
         self.rt_start_btn.clicked.connect(partial(self.begin_acquisition,
                                                   'acquire_cont'))
         self.rt_start_btn.setFixedSize(90, 25)
+        self.rt_start_btn.setEnabled(False)
         layout.addWidget(self.rt_start_btn, 5, 1)
 
         # Add button to pause analysis
@@ -902,6 +908,11 @@ class MainWindow(QMainWindow):
         """Update the status"""
         self.statusBar().showMessage(status)
 
+    def update_error(self, error):
+        """Slot to update error messages from the worker"""
+        exctype, value, trace = error
+        logging.warning(f'Uncaught exception!\n{trace}')
+
 # =============================================================================
 #   Analysis Loop Setup
 # =============================================================================
@@ -1000,6 +1011,7 @@ class MainWindow(QMainWindow):
         self.worker.signals.progress.connect(self.update_progress)
         self.worker.signals.status.connect(self.update_status)
         self.worker.signals.plotter.connect(self.get_plot_data)
+        self.worker.signals.error.connect(self.update_error)
         self.threadpool.start(self.worker)
 
         # Disable the start button and enable the pause/stop buttons
@@ -1074,6 +1086,7 @@ class MainWindow(QMainWindow):
         self.acq_worker.signals.spectrum.connect(self.catch_spectrum)
         self.acq_worker.signals.progress.connect(self.update_progress)
         self.acq_worker.signals.status.connect(self.update_status)
+        self.acq_worker.signals.error.connect(self.update_error)
         self.threadpool.start(self.acq_worker)
 
         # Disable the start/acquisition buttons and enable the pause/stop

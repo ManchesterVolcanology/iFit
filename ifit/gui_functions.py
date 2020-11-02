@@ -1,6 +1,8 @@
 import os
+import sys
 import time
 import logging
+import traceback
 import numpy as np
 import pandas as pd
 from functools import partial
@@ -14,7 +16,7 @@ from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
 from .parameters import Parameters
 from .spectral_analysis import Analyser
 from .load_spectra import read_spectrum, average_spectra
-from .spectrometers import VSpectrometer
+from .spectrometers import Spectrometer
 
 
 class LogSignals(QObject):
@@ -67,6 +69,7 @@ class WorkerSignals(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
     plotter = pyqtSignal(list)
+    error = pyqtSignal(tuple)
     status = pyqtSignal(str)
     spectrum = pyqtSignal(tuple)
 
@@ -119,7 +122,12 @@ class Worker(QRunnable):
         """Initialise the runner function with passed args, kwargs"""
 
         # Retrieve args/kwargs here; and fire processing using them
-        self.fn(self, self.mode, *self.args, **self.kwargs)
+        try:
+            self.fn(self, self.mode, *self.args, **self.kwargs)
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
 
         # Done
         self.signals.finished.emit()
@@ -351,9 +359,6 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
 
     # Read single spectrum
     if acquisition_mode == 'acquire_single':
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        spectrometer.fpath = 'Masaya_Traverse/spectrum_00000.txt'
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
         # Read the spectrum
         spectrum, info = spectrometer.get_spectrum()
@@ -362,9 +367,6 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
 
     # Read dark spectra
     if acquisition_mode == 'acquire_darks':
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        spectrometer.fpath = 'Masaya_Traverse/dark.txt'
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
         ndarks = widgetData['ndarks']
         logging.info(f'Reading {ndarks} dark spectra')
@@ -409,9 +411,6 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
         np.savetxt('bin/temp_dark.txt', dark_spec)
 
     if acquisition_mode == 'acquire_cont':
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        spectrometer.fpath = 'Masaya_Traverse/spectrum_00366.txt'
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
         # Set the save location for the dark spectra
         save_path = widgetData['rt_save_path'] + 'spectra/'
@@ -456,18 +455,30 @@ def connect_spectrometer(gui):
     if not gui.connected_flag:
 
         # Connect to the spectrometer
-        spec = VSpectrometer(integration_time=gui.widgets.get("int_time"),
-                             coadds=gui.widgets.get("coadds"))
-        gui.spectrometer = spec
+        spec = Spectrometer(integration_time=gui.widgets.get("int_time"),
+                            coadds=gui.widgets.get("coadds"))
 
-        # Update the GUI
-        gui.spec_id.setText(gui.spectrometer.serial_number)
-        gui.connect_btn.setText('Disconnect')
+        # Check if connection was successful
+        if spec.serial_number is not None:
 
-        # Create a holder for the dark spectra
-        gui.dark_spectrum = np.zeros(gui.spectrometer.pixels)
+            # Add the spectrometer to the parent GUI
+            gui.spectrometer = spec
 
-        gui.connected_flag = True
+            # Update the GUI
+            gui.spec_id.setText(gui.spectrometer.serial_number)
+            gui.connect_btn.setText('Disconnect')
+
+            # Create a holder for the dark spectra
+            gui.dark_spectrum = np.zeros(gui.spectrometer.pixels)
+
+            # Update GUI features
+            gui.connected_flag = True
+            gui.acquire_test_btn.setEnabled(True)
+            gui.update_inttime_btn.setEnabled(True)
+            gui.rt_flag_btn.setEnabled(True)
+            gui.update_coadds_btn.setEnabled(True)
+            gui.acquire_darks_btn.setEnabled(True)
+            gui.rt_start_btn.setEnabled(True)
 
     else:
         # Disconnect the spectrometer
@@ -477,7 +488,14 @@ def connect_spectrometer(gui):
         gui.spec_id.setText('Not connected')
         gui.connect_btn.setText('Connect')
 
+        # Update GUI features
         gui.connected_flag = False
+        gui.acquire_test_btn.setEnabled(False)
+        gui.update_inttime_btn.setEnabled(False)
+        gui.rt_flag_btn.setEnabled(False)
+        gui.update_coadds_btn.setEnabled(False)
+        gui.acquire_darks_btn.setEnabled(False)
+        gui.rt_start_btn.setEnabled(False)
 
 
 # =============================================================================

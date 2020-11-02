@@ -5,6 +5,7 @@ from datetime import datetime
 
 try:
     import seabreeze.spectrometers as sb
+    from seabreeze.spectrometers import SeaBreezeError
 except ImportError:
     pass
 
@@ -36,22 +37,27 @@ class Spectrometer():
             Turns on nonlinearity correction if available. Default is True
         '''
 
-        # Connect to the spectrometer:
-        self.spectro = sb.Spectrometer.from_serial_number(serial=serial)
+        # Connect to the spectrometer
+        try:
+            self.spectro = sb.Spectrometer.from_serial_number(serial=serial)
 
-        # Populate the serial numer and pixel number
-        self.serial_number = self.spectro.serial_number
-        self.pixels = self.spectro.pixels
+            # Populate the serial number and pixel number
+            self.serial_number = self.spectro.serial_number
+            self.pixels = self.spectro.pixels
 
-        logging.info(f'Spectrometer {self.spectro.serial_number} connected')
+            logging.info(f'Spectrometer {self.serial_number} connected')
 
-        # Set the initial integration time and coadds
-        self.update_coadds(coadds)
-        self.update_integration_time(integration_time)
+            # Set the initial integration time and coadds
+            self.update_coadds(coadds)
+            self.update_integration_time(integration_time)
 
-        # Add the correction flags
-        self.correct_dark_counts = correct_dark_counts
-        self.correct_nonlinearity = correct_nonlinearity
+            # Add the correction flags
+            self.correct_dark_counts = correct_dark_counts
+            self.correct_nonlinearity = correct_nonlinearity
+
+        except SeaBreezeError:
+            logging.warning('No spectrometer found')
+            self.serial_number = None
 
     def update_integration_time(self, integration_time):
         '''Update the spectrometer integrations time (ms)'''
