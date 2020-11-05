@@ -46,7 +46,7 @@ def read_spectrum(fname, spec_type='iFit'):
             grid, spec = np.loadtxt(fname, unpack=True)
 
             # Extract date and time string
-            date_time = linecache.getline(fname, 5)[27:].strip()
+            date_time = linecache.getline(fname, 5).strip().split(': ')[-1]
 
             # Unpack date_time string
             try:

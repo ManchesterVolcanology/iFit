@@ -406,9 +406,9 @@ class Analyser():
                             including absorbing gases and Ring. Each "gas" is
                             converted to transmittance through:
                                       gas_T = exp(-xsec . amt)
-                For polynomial parameters n represents ascending intergers
-                starting from 0 which correspond to the decreasing power of
-                that coefficient
+            For polynomial parameters n represents ascending intergers
+            starting from 0 which correspond to the decreasing power of
+            that coefficient
 
         Returns
         -------

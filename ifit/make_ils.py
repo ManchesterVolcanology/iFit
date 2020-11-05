@@ -1,5 +1,42 @@
 import numpy as np
 from scipy.special import gamma
+from scipy.interpolate import griddata
+
+
+# =============================================================================
+# Super Gaussian
+# =============================================================================
+
+def super_gaussian(grid, w, k, a_w, a_k, shift=0, amp=1, offset=0):
+    """Returns a super gaussin line function"""
+
+    # Make model grid
+    mod_grid = np.linspace(grid[0]-2, grid[-1]+2, 100)
+
+    # Compute A
+    A = k / (2 * w * gamma(1/k))
+
+    # Form empty array
+    ils = np.zeros(len(mod_grid))
+
+    # Iterate over x grid. If negative do one thing, if positive do the other
+    for n, x in enumerate(mod_grid):
+
+        if x <= 0:
+            ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w - a_w)),
+                                                     k - a_k)))
+
+        else:
+            ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w + a_w)),
+                                                     k + a_k)))
+
+    # Shift the lineshape
+    mod_grid = mod_grid + shift
+
+    # Interpolate onto the measurement grid
+    ils = griddata(mod_grid, ils, grid, method='cubic')
+
+    return ils * amp + offset
 
 
 # =============================================================================
@@ -46,23 +83,8 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
     # Calculate w as half of the FWEM
     w = 0.5 * FWEM
 
-    # Calculate A
-    A = k / (FWEM * gamma(1/k))
-
-    # Split the x grid into =ve and -ve arrays
-    neg_idx = np.where(grid <= 0)
-    pos_idx = np.where(grid > 0)
-    neg_grid = grid[neg_idx]
-    pos_grid = grid[pos_idx]
-
-    # Calculate the asymetric supergaussian function
-    neg_g = np.multiply(A, np.exp(-np.power(np.abs((neg_grid) / (w - a_w)),
-                                            k - a_k)))
-    pos_g = np.multiply(A, np.exp(-np.power(np.abs((pos_grid) / (w + a_w)),
-                                            k + a_k)))
-
-    # Combine
-    ils = np.append(neg_g, pos_g)
+    # Make the line shape
+    ils = super_gaussian(grid, w, k, a_w, a_k)
 
     ils = np.divide(ils, sum(ils))
 

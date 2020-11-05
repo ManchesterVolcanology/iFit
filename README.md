@@ -6,10 +6,10 @@ iFit is a program designed to retrieve SO<sub>2</sub> column densities from scat
 
 iFit is written to work with basic python libraries contained in scientific distributions (e.g. Anaconda). Simply clone iFit and run with Python! Work is underway on producing an executable for windows (as well other operating systems if required).
 
-The basic iFit library requires Python version 3.6 or later with `numpy`, `scipy` and `matplotlib` beyond the Python standard library. The iFit GUI also requires `tkinter`, `pyyaml` and `pandas` for post analysis, as well as [`python-seabreeze`](https://github.com/ap--/python-seabreeze) for real-time analysis.
+The basic iFit library requires Python version 3.6 or later with `numpy`, `scipy` and `matplotlib` beyond the Python standard library. The iFit GUI also requires `PyQT5`, `pyqtgraph`, `pyyaml` and `pandas` for post-analysis, as well as [`python-seabreeze`](https://github.com/ap--/python-seabreeze) for real-time analysis.
 
 ## Using iFit
-An example script is given in iFit.py, but more details are given here. iFit retrieves SO<sub>2</sub> slant column densities by fitting measured scattered sunlight UV spectra that contain absorption features after passing through a volcanic plume. The basic principal works on the Beer-Lambert law, using the following equation:
+iFit retrieves SO<sub>2</sub> slant column densities by fitting measured scattered sunlight UV spectra that contain absorption features after passing through a volcanic plume. The basic principal works on the Beer-Lambert law, using the following equation:
 
 <img src="https://www.codecogs.com/eqnedit.php?latex=I(\lambda)&space;=&space;G(x)&space;\otimes&space;\left(&space;I_0(\lambda)&space;\cdot&space;P'(\lambda)&space;\cdot&space;\exp&space;\left(&space;\Sigma_i&space;\left[&space;-\sigma_i(\lambda)&space;\cdot&space;a_i&space;\right&space;]&space;\right&space;)\right&space;)&space;&plus;&space;I_{offset}(\lambda)" target="_blank"><img src="https://latex.codecogs.com/svg.latex?I(\lambda)&space;=&space;G(x)&space;\otimes&space;\left(&space;I_0(\lambda)&space;\cdot&space;P'(\lambda)&space;\cdot&space;\exp&space;\left(&space;\Sigma_i&space;\left[&space;-\sigma_i(\lambda)&space;\cdot&space;a_i&space;\right&space;]&space;\right&space;)\right&space;)&space;&plus;&space;I_{offset}(\lambda)" title="I(\lambda) = G(x) \otimes \left( I_0(\lambda) \cdot P'(\lambda) \cdot \exp \left( \Sigma_i \left[ -\sigma_i(\lambda) \cdot a_i \right ] \right )\right ) + I_{offset}(\lambda)" />
 
@@ -52,7 +52,7 @@ params.add('shift0', value=0.0, vary=True)
 params.add('shift1', value=0.1, vary=True)
 ```
 
-This defines three gas `Parameter`s for SO<sub>2</sub>, O<sub>3</sub> and Ring, as well as the polynomial coefficients for the background polynomial, intensity offset and wavelength shift. Once the `Parameters` is defined the `Analyser` can be generated.
+This defines three gas `Parameter`s for SO<sub>2</sub>, O<sub>3</sub> and Ring, as well as the polynomial coefficients for the background polynomial, a constant intensity offset and a wavelength shift and squeeze. Not that the naming convention for the polynomial parameters (`bg_poly{n}`, `offset{n}` and `shift{n}`) is fixed. Once the `Parameters` is defined the `Analyser` can be generated.
 
 ### Analyser
 The `Analyser` handles the actual analysis of the spectra. It must be generated first, defining certain settings for the analysis, as well as the `Parameters` already defined:
@@ -84,6 +84,3 @@ The `FitResult` object contains a copy of the `Parameters` object that was passe
 - `spec` the measured spectrum (after pre-processing) in the fit window
 - `fit` the optimised model spectrum
 - `resid` the residual between the measurement and the model
-
-## In Progress
-This is version 3.0 and is still in progress. Currently only post analysis is coded, but real time analysis with Ocean Optics spectrometer control is being added.
