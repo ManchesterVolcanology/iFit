@@ -1,4 +1,4 @@
-import os
+import glob
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -14,29 +14,25 @@ from ifit.load_spectra import read_spectrum, average_spectra
 # =============================================================================
 
 # Main file path to spectra
-mpath = 'C:/Users/mqbpwbe2/Documents/UV_spectra/Etna/2007_01_02_Etna/070102_etna.'
-
-# Set locations of dark and measurement spectra
-dark_path = mpath
-meas_path = mpath
+fpath = 'Example/'
 
 # Set the location to save the spectra blocks
-save_path = 'iFit_out.csv'
+save_path = 'iFit_output.csv'
 
 # Set the spectra type
-spec_type = 'Master.Scope'
+spec_type = 'iFit'
 
 # Set the dark, reference and measurement sectra numbers
-dark_num = np.arange(6, 30)
-meas_num = np.arange(50, 1000)
+dark_fnames = glob.glob(f'{fpath}dark*')
+meas_fnames = glob.glob(f'{fpath}spectrum_*')
 
-# Build the spectra filenames
-print('Building file paths...')
-dark_fnames = [f'{dark_path}{n:05d}.Master.Scope' for n in dark_num
-               if os.path.isfile(f'{dark_path}{n:05d}.Master.Scope')]
-meas_fnames = [f'{meas_path}{n:05d}.Master.Scope' for n in meas_num
-               if os.path.isfile(f'{meas_path}{n:05d}.Master.Scope')]
-print('Done!\n')
+# Sort the files
+dark_fnames.sort()
+meas_fnames.sort()
+
+# Set backslashes to forward slashes (if using windows)
+dark_fnames = [f.replace('\\', '/') for f in dark_fnames]
+meas_fnames = [f.replace('\\', '/') for f in meas_fnames]
 
 # Control whether plotting is turned on or off
 plotting_flag = True
@@ -51,7 +47,7 @@ params = Parameters()
 # Add the gases
 params.add('SO2',  value=1.0e16, vary=True, xpath='Ref/SO2_295K.txt')
 params.add('O3',   value=1.0e19, vary=True, xpath='Ref/O3_243K.txt')
-params.add('Ring', value=0.1,    vary=True, xpath='Ref/Ring_DOASIS.txt')
+params.add('Ring', value=0.1,    vary=True, xpath='Ref/Ring.txt')
 
 # Add background polynomial parameters
 params.add('bg_poly0', value=0.0, vary=True)
@@ -67,10 +63,10 @@ params.add('shift0', value=0.0, vary=True)
 params.add('shift1', value=0.1, vary=True)
 
 # Add ILS parameters
-params.add('fwem', value=1.4, vary=True)
+params.add('fwem', value=0.6, vary=True)
 params.add('k',    value=2.0, vary=True)
-params.add('a_w',  value=0.0, vary=False)
-params.add('a_k',  value=0.0, vary=False)
+params.add('a_w',  value=0.0, vary=True)
+params.add('a_k',  value=0.0, vary=True)
 
 # Generate the analyser
 analyser = Analyser(params,
@@ -131,7 +127,7 @@ cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 # Make a dataframe to hold the fit results
 df = pd.DataFrame(index=np.arange(len(meas_fnames)), columns=cols)
 
-for n, fname in tqdm(enumerate(meas_fnames)):
+for n, fname in enumerate(tqdm(meas_fnames)):
 
     x, y, spec_info, read_err = read_spectrum(fname, spec_type)
 
