@@ -66,7 +66,6 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
             - k < 2 -> sharp point and wide tails
             - k = 2 -> normal Gaussian
             - k > 2 -> flat top, approaches boxcar at k -> inf
-        Default is 2
     a_w and a_k : float, optional
         Controls the asymetry of the lineshape. Defaults are 0
 
