@@ -49,7 +49,7 @@ So a ``Parameters`` object could be generated like this:
   params.add('shift1', value=0.1, vary=True)
 
 
-This defines three gas ``Parameter``s for SO2, O3 and Ring, as well as the polynomial coefficients for the background polynomial, a constant intensity offset and a wavelength shift and squeeze. Not that the naming convention for the polynomial parameters (``bg_poly{n}``, ``offset{n}`` and ``shift{n}``) is fixed. Once the ``Parameters`` is defined the ``Analyser`` can be generated.
+This defines three gas ``Parameter`` objects for SO2, O3 and Ring, as well as the polynomial coefficients for the background polynomial, a constant intensity offset and a wavelength shift and squeeze. Not that the naming convention for the polynomial parameters (``bg_poly{n}``, ``offset{n}`` and ``shift{n}``) is fixed. Once the ``Parameters`` is defined the ``Analyser`` can be generated.
 
 Analyser
 ---------
@@ -78,7 +78,7 @@ Measured spectra can then be analysed by using ``analyser.fit_spectrum``:
 
 In this case x and y are the measured spectum wavelengths and intensities respectively. This returns a ``FitResult`` object which holds the fit data and useful information.
 
-The ``FitResult`` object contains a copy of the ``Parameters`` object that was passed to the ``Analyser`` with the ``fit_val`` and ``fit_err`` values populated with the optimised value and associated error for each :class:`~../ifit/parameters/Parameters`. It also contains:
+The ``FitResult`` object contains a copy of the ``Parameters`` object that was passed to the ``Analyser`` with the ``fit_val`` and ``fit_err`` values populated with the optimised value and associated error for each :class:`~../ifit/parameters/Parameter`. It also contains:
 
 * ``grid`` the wavelength grid of the fit window
 

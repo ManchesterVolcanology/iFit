@@ -13,6 +13,7 @@ Welcome to iFit's documentation!
    usage/intro
    usage/theory
    usage/software
+   modules
 
 
 Contents

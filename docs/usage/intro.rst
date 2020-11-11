@@ -15,7 +15,7 @@ More details on iFit can be found in following paper: `Esse et al. (2020) <https
 Installation
 =============
 
-To install iFit simply clone this repository. iFit is written in Python and requires version 3.6 or higher, with numpy, scipy and matplotlib. An example script if given in `iFit.py`.
+To install iFit simply clone this repository. iFit is written in Python and requires version 3.6 or higher, with :mod:`numpy`, scipy and matplotlib. An example script if given in `iFit.py`.
 
 There is also a Graphical User Interface (GUI) written using PyQT. This requires PyQT5, pyqtgraph, pyyaml and pandas.
 
