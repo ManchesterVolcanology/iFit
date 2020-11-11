@@ -10,24 +10,24 @@ def haversine(start_coords, end_coords, radius=6371000):
     """Function to calculate the distance and initial bearing between two
     points
 
-    INPUTS
-    ------
-    start_coords, tuple
+    Parameters
+    ----------
+    start_coords : tuple
         Start coordinates (lat, lon) in decimal degrees (+ve = north/east)
 
-    end_coords, tuple
+    end_coords : tuple
         End coordinates (lat, lon) in decimal degrees (+ve = north/east)
 
-    radius, float
+    radius : float
         Radius of the body in meters. Default is set to the Earth radius
         (6731km)
 
-    OUTPUTS
+    Returns
     -------
-    distance, float
+    distance : float
         The linear distance between the two points in meters
 
-    bearing, float
+    bearing : float
         The initial bearing between the two points (radians)
     """
 
@@ -66,22 +66,22 @@ def calc_end_point(start_coords, dist, bearing, radius=6371000):
     """Function to calculate the final coordinates given a starting position
     and vector of travel.
 
-    INPUTS
-    ------
-    start_coords, tuple
+    Parameters
+    ----------
+    start_coords : tuple
         Starting coordinates (lat, lon) in decimal degrees (+ve = north/east)
 
-    dist, float
+    dist : float
         The distance moved in meters
 
-    bearing, float
+    bearing : float
         The bearing of travel in degrees clockwise from north
 
-    radius, float
+    radius : float
         Radius of the body in meters. Default is set to the Earth radius
         (6731km)
 
-    OUTPUTS
+    Returns
     -------
     end_coords, tuple
         The final coordinates (lat, lon) in decimal degrees (+ve = north/east)

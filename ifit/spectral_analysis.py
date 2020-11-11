@@ -4,7 +4,7 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
 from scipy.signal import savgol_filter
 
-from .make_ils import make_ils
+from ifit.make_ils import make_ils
 
 
 # =============================================================================
@@ -19,9 +19,73 @@ class Analyser():
 
     Parameters
     ----------
-    common : dict
-        Common dictionary of parameters and variables passed from the main
-        program to subroutines
+    params : Parameters object
+        The model parameters to include in the fit
+    fit_window : tuple
+        The lower and upper wavelength limits of the fit window (nm)
+    frs_path : str
+        Path to the Fraunhofer Reference Spectrum. This is read in using
+        numpy.loadtxt and must consist of two columns [wavelength, intensity]
+    model_padding : float, optional
+        The padding in nm around the fit window to account for wavelength
+        shifts and edge effects from the ils convolution. The default is
+        1.0.
+    model_spacing : float, optional
+        The wavelength spacing of the model grid (nm). The default is 0.01.
+    flat_flag : bool, optional
+        If True then a flat correction is applied. The default is False.
+    flat_path : str, optional
+        Path to the flat spectrum used if flat_flag is True. The default is
+        None.
+    stray_flag : bool, optional
+        If True then a stray correction is applied. The default is True.
+    stray_window : tuple, optional
+        The lower and upper wavelength limits of the stray light window.
+        The default is [280, 290].
+    dark_flag : bool, optional
+        If True then a dark correction is applied. The default is True.
+    ils_type : str, optional
+        Controls how the ILS is generated. The default is "Manual"
+            - 'File': Import a measured ils which is interpolated onto
+                      the model grid
+            - 'Params': Read in the ILS parameters from a file
+            - 'Manual': Define the ILS parameters manually
+    ils_path : str, optional
+        Path to the ILS file, either a measured ILS is ils_type is set to
+        "File", or the ILS parameters if ils_type is set to "Params".
+        The default is None.
+    despike_flag : bool, optional
+        Controls whether bad pixels are removed. Requires spike_limit to be
+        defined. The default is False
+    spike_limit : int, optional
+        The limit of the spike size to remove. Defined as the difference
+        between the raw spectrum and a savgol filtered spectrum. The
+        default is None
+
+    Attributes
+    ----------
+    params : Parameters object
+        A copy of the Parameters object supplied
+    p0 : list
+        The first guess fit parameters
+    model_grid : numpy array
+        The wavelength grid on which the calculations take place
+    flat : numpy array
+        The flat field spectrum
+    flat_flag : bool
+        Controls whether the flat spectrum is corrected in pre-processing
+    ils : numpy array
+        The ILS to use to smooth the model spectrum to the instrument
+        resolution
+    generate_ils : bool
+        Controls whether the stored ILS is used (self.ils) or if the ILS is
+        calculated at each model iteration (such as when being fit)
+    frs : numpy array
+        The Fraunhofer Reference Spectrum to be used by the forward model,
+        interpolated onto the model grid
+    xsecs : dict
+        The cross-sections to use in the forward model, interpolated onto the
+        model grid
     """
 
     def __init__(self, params, fit_window, frs_path, model_padding=1.0,
@@ -29,60 +93,7 @@ class Analyser():
                  stray_flag=False, stray_window=[280, 290], dark_flag=False,
                  ils_type='Manual', ils_path=None, despike_flag=False,
                  spike_limit=None):
-        """Initialise the model for the analyser
-
-        Parameters
-        ----------
-        params : Parameters object
-            The model parameters to include in the fit.
-        fit_window : tuple
-            The lower and upper wavelength limits of the fit window (nm).
-        frs_path : str
-            Path to the Fraunhofer Reference Spectrum. This is read in using
-            numpy.loadtxt and must consist of two columns:
-            [wavelength, intensity]
-        model_padding : float, optional
-            The padding in nm around the fit window to account for wavelength
-            shifts and edge effects from the ils convolution. The default is
-            1.0.
-        model_spacing : float, optional
-            The wavelength spacing of the model grid (nm). The default is 0.01.
-        flat_flag : bool, optional
-            If True then a flat correction is applied. The default is False.
-        flat_path : str, optional
-            Path to the flat spectrum used if flat_flag is True. The default is
-            None.
-        stray_flag : bool, optional
-            If True then a stray correction is applied. The default is True.
-        stray_window : tuple, optional
-            The lower and upper wavelength limits of the stray light window.
-            The default is [280, 290].
-        dark_flag : bool, optional
-            If True then a dark correction is applied. The default is True.
-        ils_type : str, optional
-            Controls how the ILS is generated:
-                - "File"   : Import a measured ils which is interpolated onto
-                             the model grid
-                - "Params" : Read in the ILS parameters from a file
-                - "Manual" : Define the ILS parameters manually.
-            The default is 'Manual'.
-        ils_path : str, optional
-            Path to the ILS file, either a measured ILS is ils_type is set to
-            "File", or the ILS parameters if ils_type is set to "Params".
-            The default is None.
-        despike_flag : bool, optional
-            Controls whether bad pixels are removed. Requires spike_limit to be
-            defined. The default is False
-        spike_limit : int, optional
-            The limit of the spike size to remove. Defined as the difference
-            between the raw spectrum and a savgol filtered spectrum. The
-            default is None
-
-        Returns
-        -------
-        None.
-
-        """
+        """Initialise the model for the analyser"""
 
         # Set the initial estimate for the fit parameters
         self.params = params.make_copy()
@@ -299,7 +310,7 @@ class Analyser():
 
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
                      resid_type='Percentage', int_limit=None, calc_od=[],
-                     pre_process=True, interp_method='cubic', queue=None):
+                     pre_process=True, interp_method='cubic'):
         """Fit the supplied spectrum using a non-linear least squares
         minimisation
 
@@ -330,8 +341,6 @@ class Analyser():
             Controls whether the interpolation at the end of the forward model
             is cubic or linear. Must be either "cubic", "linear" or "nearest".
             See scipy.interpolate.griddata for details.
-        queue : Queue object
-            The queue in which to place the fit results if running as a Process
 
         Returns
         -------
@@ -377,21 +386,14 @@ class Analyser():
             logging.info('Resetting initial guess parameters')
             self.p0 = self.params.fittedvalueslist()
 
-        if queue is None:
-            return fit_result
-        else:
-            queue.put(('fit_result', fit_result))
+        return fit_result
 
 # =============================================================================
 #   Forward Model
 # =============================================================================
 
     def fwd_model(self, x, *p0):
-        """iFit forward model to fit measured UV sky spectra:
-
-        I(w) = ILS *conv* {I_off(w) + I*(w) x P(w) x exp( SUM[-xsec(w) . amt])}
-
-        where w is the wavelength.
+        """iFit forward model to fit measured UV sky spectra.
 
         Parameters
         ----------
@@ -405,7 +407,8 @@ class Analyser():
                 - gases:    Any variable with an associated cross section,
                             including absorbing gases and Ring. Each "gas" is
                             converted to transmittance through:
-                                      gas_T = exp(-xsec . amt)
+                            gas_T = exp(-xsec . amt)
+
             For polynomial parameters n represents ascending intergers
             starting from 0 which correspond to the decreasing power of
             that coefficient
@@ -492,18 +495,7 @@ class Analyser():
 # =============================================================================
 
 class FitResult():
-    """Contains the fit results including:
-        - params:    the Parameters object with the fitted values
-        - grid:      the cut wavelength window
-        - spec:      the cut intensity spectrum
-        - popt:      the optimised fit results (as a list)
-        - perr:      the fit errors (as a list)
-        - nerr:      the error code of the fit. 1 if successful, 0 if failed
-        - fwd_model: the forward model used to complete the fit
-        - meas_od:   dictionary of the measured optical depths
-        - synth_od:  dictionary of the synthetic optical depths
-        - fit:       the final fitted spectrum
-        - resid:     the fit residual
+    """Contains the fit results
 
     Parameters
     ----------
@@ -531,6 +523,34 @@ class FitResult():
         Limit on the spectrum intensity for a good fit
     calc_od : list of strings
         The parameters to calculate the optical depth spectrum for
+
+    Attributes
+    ----------
+    params : Parameters object
+        The Parameters object with the fitted values
+    grid : numpy array
+        The selected wavelength window
+    spec : numpy array
+        The selected intensity spectrum
+    popt : numpy array
+        The optimised fit results
+    perr : numpy array
+        The fit errors
+    nerr : int
+        The error code of the fit. 0 if the fit failed, 1 if the fit was
+        successful and 2 if the fit was sucessful but failed a quality check
+    fwd_model : function
+        The forward model used to complete the fit
+    meas_od : dict
+        Dictionary of the measured optical depths
+    synth_od : dict
+        Dictionary of the synthetic optical depths
+    int_lo, int_av, int_hi : float
+        The min, average and max intensity in the fit window
+    fit : numpy array
+        The final fitted spectrum
+    resid : numpy array
+        The fit residual
     """
 
     def __init__(self, analyser, spectrum, popt, perr, nerr, fwd_model,
@@ -615,7 +635,24 @@ class FitResult():
 # =============================================================================
 
     def calc_od(self, par_name, analyser):
-        """Calculates the optical depth for the given parameter"""
+        """Calculates the optical depth for the given parameter
+
+        Parameters
+        ----------
+        par_name : str
+            The key of the parameter to calculate optical depth for
+        analyser : Analyser object
+            The Analyser used to create the results
+
+        Returns
+        -------
+        mead_od : numpy array
+            The measured optical depth, calculated by removing the fitted gas
+            from the measured spectrum
+        synth_od : numpy array
+            The synthetic optical depth, calculated by multiplying the
+            parameter cross-section by the fitted amount
+        """
 
         # Make a copy of the parameters to use in the OD calculation
         params = self.params.make_copy()
@@ -672,3 +709,5 @@ class FitResult():
         # Add to self
         self.meas_od[par_name] = -np.log(np.divide(self.spec-offset, fit))
         self.synth_od[par_name] = par_od
+
+        return self.meas_od[par_name], self.synth_od[par_name]

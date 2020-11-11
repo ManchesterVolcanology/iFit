@@ -11,31 +11,46 @@ except ImportError:
 
 
 class Spectrometer():
+    """Wrapper around the python-seabreeze library for controlling Ocean
+    Optics spectrometers. For more information see:
+    https://github.com/ap--/python-seabreeze
+
+    Parameters
+    ----------
+    serial : string, optional
+        The serial number of the spectrometer to use. If None connects to the
+        first available device. Default is None
+    integration_time : int, optional
+        The integration time of the spectrometer in milliseconds. Default is
+        100
+    coadds : int, optional
+        The number of individual spectra to average for each measurement.
+        Default is 10
+    correct_dark_counts : bool, optional
+        Turns on electronic dark correction if available. Default is True
+    correct_nonlinearity : bool, optional
+        Turns on nonlinearity correction if available. Default is True
+
+    Attributes
+    ----------
+    spectro : seabreeze.Spectrometer
+        The spectrometer object
+    serial_number : str
+        The serial number of the spectrometer
+    pixels : int
+        The number of pixels in the sensor
+    integration_time : int
+        The integration time of the spectrometer in ms
+    coadds : int
+        The number of individual spectra to average for each measurement
+    correct_dark_counts : bool
+        Controls electronic dark correction onboard the spectrometer
+    correct_nonlinearity : bool
+        Controls nonlinearity correction onboard the spectrometer
+    """
 
     def __init__(self, serial=None, integration_time=100, coadds=10,
                  correct_dark_counts=True, correct_nonlinearity=True):
-        '''
-        Wrapper around the python-seabreeze library for controlling Ocean
-        Optics spectrometers. For more information see:
-        https://github.com/ap--/python-seabreeze
-
-        Parameters
-        ----------
-        serial : string, optional
-            The serial number of the spectrometer to use. If None connects to
-            the first available device. If "virtual" generates a virtual
-            spectrometer using the seateeze library. Default is None
-        integration_time : int, optional
-            The integration time of the spectrometer in milliseconds. Default
-            is 100
-        coadds : int, optional
-            The number of individual spectra to average for each measurement.
-            Default is 10
-        correct_dark_counts : bool, optional
-            Turns on electronic dark correction if available. Default is True
-        correct_nonlinearity : bool, optional
-            Turns on nonlinearity correction if available. Default is True
-        '''
 
         # Connect to the spectrometer
         try:
@@ -60,20 +75,34 @@ class Spectrometer():
             self.serial_number = None
 
     def update_integration_time(self, integration_time):
-        '''Update the spectrometer integrations time (ms)'''
+        """Update the spectrometer integrations time (ms)"""
 
         self.integration_time = integration_time
         self.spectro.integration_time_micros(integration_time*1000)
         logging.info(f'Updated integration time to {integration_time} ms')
 
     def update_coadds(self, coadds):
-        '''Update the number of coadds to average each spectrum over'''
+        """Update the number of coadds to average each spectrum over"""
 
         self.coadds = coadds
         logging.info(f'Updated coadds to {coadds}')
 
-    def get_spectrum(self, fname=None, queue=None):
-        '''Read a spectrum from the spectrometer'''
+    def get_spectrum(self, fname=None):
+        """Read a spectrum from the spectrometer
+
+        Parameters
+        ----------
+        fname : str, optional
+            File name to save the measured spectrum to. If None the spectrum is
+            not saved
+
+        Returns
+        -------
+        spectrum : numpy array
+            2D array holding the spectrum wavelengths and intensities
+        info : dict
+            Contains the metadata for the spectrum
+        """
 
         # Get the wavelengths
         x = self.spectro.wavelengths()
@@ -113,11 +142,8 @@ class Spectrometer():
             # Save the spectrum
             np.savetxt(fname, np.column_stack([x, y]), header=h)
 
-        # Return the measured spectrum or add to the queue
-        if queue is None:
-            return [np.row_stack([x, y]), info]
-        else:
-            queue.put(('spectrum', [np.row_stack([x, y]), info]))
+        # Return the measured spectrum
+        return [np.row_stack([x, y]), info]
 
     def close(self):
         """Close the connection to the spectrometer"""
@@ -151,19 +177,19 @@ class VSpectrometer():
         self.fpath = ''
 
     def update_integration_time(self, integration_time):
-        '''Update the spectrometer integrations time (ms)'''
+        """Update the spectrometer integrations time (ms"""
 
         self.integration_time = integration_time
         logging.info(f'Updated integration time to {integration_time} ms')
 
     def update_coadds(self, coadds):
-        '''Update the number of coadds to average each spectrum over'''
+        """Update the number of coadds to average each spectrum over"""
 
         self.coadds = coadds
         logging.info(f'Updated coadds to {coadds}')
 
-    def get_spectrum(self, fname=None, queue=None):
-        '''Read a spectrum from the spectrometer'''
+    def get_spectrum(self, fname=None):
+        """Read a spectrum from the spectrometer"""
 
         # Calculate the time to simulate reading in s
         t = self.coadds * self.integration_time / 1000
@@ -202,11 +228,8 @@ class VSpectrometer():
             # Save the spectrum
             np.savetxt(fname, np.column_stack([x, y]), header=h)
 
-        # Return the measured spectrum or add to the queue
-        if queue is None:
-            return [np.row_stack([x, y]), info]
-        else:
-            queue.put(('spectrum', [np.row_stack([x, y]), info]))
+        # Return the measured spectrum
+        return [np.row_stack([x, y]), info]
 
     def close(self):
         """Close the connection to the spectrometer"""

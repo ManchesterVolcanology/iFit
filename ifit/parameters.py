@@ -11,6 +11,14 @@ class Parameters(OrderedDict):
     """An ordered dictionary of all the Paramter objects that will be included
     in the forward model. Each Parameter has a single entry with a string
     label, value and boolian control on whether it is varied in the fit.
+
+    Parameters
+    ----------
+    None
+
+    Attributes
+    ----------
+    None
     """
 
     def __init__(self, *args, **kwargs):
@@ -213,6 +221,13 @@ class Parameter(object):
     hi_bound : float, optional
         The higher bound of the allowed variation of the Parameter. Default
         is +inf
+
+    Attributes
+    ----------
+    fit_val : float
+        The fitted parameter value
+    fit_err : float
+        The fitted parameter error
     """
 
     def __init__(self, name, value, vary=True, xpath=None, lo_bound=-np.inf,
@@ -229,7 +244,7 @@ class Parameter(object):
 
     def set(self, value=None, vary=None, xpath=None, lo_bound=None,
             hi_bound=None, fit_val=None, fit_err=None):
-        """Update the properties of a Parameter. All are None by default"""
+        """Update the attributes of a Parameter. All are None by default"""
 
         if value is not None:
             self.value = value

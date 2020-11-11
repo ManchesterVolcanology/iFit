@@ -8,7 +8,7 @@ from scipy.interpolate import griddata
 # =============================================================================
 
 def super_gaussian(grid, w, k, a_w, a_k, shift=0, amp=1, offset=0):
-    """Returns a super gaussin line function"""
+    """Returns a super-Gaussian line shape"""
 
     # Make model grid
     mod_grid = np.linspace(grid[0]-2, grid[-1]+2, 100)
@@ -47,9 +47,9 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
     """Function to generate a synthetic instrument line shape based on a super
     Gaussian function:
 
-                     { exp(-| x / (w-a_w) | ^ (k-a_k)) for x <= 0
+    .                { exp(-| x / (w-a_w) | ^ (k-a_k)) for x <= 0
     G(x) = A(w, k) * {
-                     { exp(-| x / (w+a_w) | ^ (k+a_k)) for x > 0
+    .                { exp(-| x / (w+a_w) | ^ (k+a_k)) for x > 0
 
     where A(w, k) = k / (2 * w * Gamma(1/k)).
 
@@ -68,7 +68,7 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
             - k > 2 -> flat top, approaches boxcar at k -> inf
         Default is 2
     a_w and a_k : float, optional
-        Controls the asymetry of the lineshape. Default is 0
+        Controls the asymetry of the lineshape. Defaults are 0
 
     Returns
     ----------

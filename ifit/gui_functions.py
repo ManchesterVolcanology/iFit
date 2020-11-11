@@ -13,29 +13,14 @@ from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QTableWidgetItem, QMenu, QTableWidget,
                              QPlainTextEdit)
 
-from .parameters import Parameters
-from .spectral_analysis import Analyser
-from .load_spectra import read_spectrum, average_spectra
-from .spectrometers import Spectrometer
-
-
-class LogSignals(QObject):
-    """Defines signals for the ThreadLogger"""
-    signal = pyqtSignal(str)
-
-
-class ThreadLogger(logging.Handler):
-
-    def __init__(self):
-        super().__init__()
-        self.log = LogSignals()
-
-    def emit(self, record):
-        msg = self.format(record)
-        self.log.signal.emit(msg)
+from ifit.parameters import Parameters
+from ifit.spectral_analysis import Analyser
+from ifit.load_spectra import read_spectrum, average_spectra
+from ifit.spectrometers import Spectrometer
 
 
 class QTextEditLogger(logging.Handler, QObject):
+    """Records logs to the GUI"""
     appendPlainText = pyqtSignal(str)
 
     def __init__(self, parent):
@@ -59,12 +44,16 @@ class WorkerSignals(QObject):
 
     finished
         No data
-    error
-        `tuple` (exctype, value, traceback.format_exc() )
-    result
-        `object` data returned from processing, anything
     progress
         `int` indicating % progress
+    plotter
+        `list` data to be plotted on the analysis graphs
+    error
+        `tuple` (exctype, value, traceback.format_exc() )
+    status
+        'str' status message for the GUI
+    spectrum
+        `tuple` spectrum to be displayed on the scope graph
     """
     finished = pyqtSignal()
     progress = pyqtSignal(int)
@@ -80,13 +69,28 @@ class Worker(QRunnable):
 
     Inherits from QRunnable to handler worker thread setup, signals and wrap-up
 
-    :param callback: The function callback to run on this worker thread.
-                     Supplied args and kwargs will be passed through to the
-                     runner.
-    :type callback: function
-    :param args: Arguments to pass to the callback function
-    :param kwargs: Keywords to pass to the callback function
+    Parameters
+    ----------
+    fn : function
+        The function to run on the worker thread
+    mode : str
+        Flags which signals to use. Must be one of 'analyse' or 'acquire', for
+        a spectral analysis or acquisition thread respectively
 
+    Attributes
+    ----------
+    args : list
+        Arguments to  pass to the function
+    kwargs : dict
+        Keyword arguments to pass to the function
+    signals : WorkerSignals object
+        The worker signals
+    is_paused : bool
+        State to show if the worker has been paused
+    is_killed : bool
+        State to show if the worker has been killed
+    spec_fname : str
+        File path to the last measured spectrum
     """
 
     def __init__(self, fn, mode, *args, **kwargs):
@@ -133,15 +137,18 @@ class Worker(QRunnable):
         self.signals.finished.emit()
 
     def pause(self):
+        """Pauses the analysis/acquisition"""
         if self.is_paused:
             self.is_paused = False
         else:
             self.is_paused = True
 
     def resume(self):
+        """Resumes the analysis/acquisition"""
         self.is_paused = False
 
     def kill(self):
+        """Terminates the analysis/acquisition"""
         if self.is_paused:
             self.is_paused = False
         self.is_killed = True
@@ -156,7 +163,18 @@ class Worker(QRunnable):
 # =============================================================================
 
 def generate_analyser(widgetData):
-    """Generates the iFit analyser"""
+    """Generates the iFit analyser
+
+    Parameters
+    ----------
+    widgetData : dict
+        Contains the program settings from the GUI
+
+    Returns
+    -------
+    analyser : Analyser
+        Returns the constructed iFit analyser
+    """
 
     # Pull the parameters from the parameter table
     params = Parameters()
@@ -213,6 +231,28 @@ def generate_analyser(widgetData):
 
 def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
                   plot_callback, status_callback):
+    """Controll loop for spectral analysis
+
+    Parameters
+    ----------
+    worker : Worker
+        The worker running the thread
+    analysis_mode : str
+        Controls how the analysis is handled based on whether performing real
+        time or post-analysis. Must be either 'post_analyse' or rt_analyse
+    widgetData : dict
+        Contains the program settings from the GUI
+    progrss_callback : Signal
+        Reports progress to the progress bar
+    plot_callback : Signal
+        Reports the data to display on the analysis plots
+    status_callback : Signal
+        Reports the status of the program
+
+    Returns
+    -------
+    None
+    """
 
     # Create a loop counter
     loop = 0
@@ -352,7 +392,30 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
 
 def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
                     spectrum_callback, progress_callback, status_callback):
-    """Loop to handle spectra acquisition"""
+    """Loop to handle spectra acquisition
+
+    Parameters
+    ----------
+    worker : Worker
+        The worker running the thread
+    aquisition_mode : str
+        How spectra acquisition is run:
+            - acquire_single: measure a single test spectrum
+            - acquire_darks: measure dark spectra
+            - acquire_cont: continuous acquisition
+    widgetData : dict
+        Contains the program settings from the GUI
+    spectrum_callback : Signal
+        Reports the measured spectrum to plot on the scope plot
+    progrss_callback : Signal
+        Reports progress to the progress bar
+    status_callback : Signal
+        Reports the status of the program
+
+    Returns
+    -------
+    None
+    """
 
     # Update the status
     status_callback.emit('Acquiring')
@@ -503,7 +566,22 @@ def connect_spectrometer(gui):
 # =============================================================================
 
 class Buffer:
-    """A buffer to hold the analysis results for plotting"""
+    """A buffer to hold the analysis results for plotting
+
+    Parameters
+    ----------
+    size : int
+        Size of the buffer (number of rows)
+    columns : list
+        Column names to use
+
+    Attributes
+    ----------
+    df : Pandas DataFrame
+        Holds the data
+    fill : int
+        Current fill level of the buffer
+    """
 
     def __init__(self, size, columns):
 
@@ -512,6 +590,18 @@ class Buffer:
         self.size = size
 
     def update(self, data):
+        """Adds a row to the buffer. If full then the oldest row is removed
+
+        Parameters
+        ----------
+        data : list
+            The data to add to the buffer. Must have same length and order as
+            columns
+
+        Returns
+        -------
+        None
+        """
         if self.fill < self.size:
             self.df.iloc[self.fill] = data
             self.fill += 1
@@ -603,6 +693,7 @@ class Table(QTableWidget):
             self._poly_table()
 
     def _param_table(self):
+        """Create a parameter table"""
         self.setFixedWidth(self._width)
         self.setColumnCount(5)
         self.setRowCount(0)
@@ -610,6 +701,7 @@ class Table(QTableWidget):
                                         ''])
 
     def _poly_table(self):
+        """Create a polynomial table"""
         self.setFixedWidth(self._width)
         self.setColumnCount(2)
         self.setRowCount(0)

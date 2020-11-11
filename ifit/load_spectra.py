@@ -31,7 +31,6 @@ def read_spectrum(fname, spec_type='iFit'):
         (bool, str), where bool=False for no error and True if an error occurs.
         The string is 'No error' for no error, and the error message if an
         error occurs.
-
     """
 
     try:
