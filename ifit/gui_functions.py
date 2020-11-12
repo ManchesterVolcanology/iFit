@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt, QObject, QRunnable, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QSpinBox, QCheckBox, QFileDialog, QPushButton,
                              QTableWidgetItem, QMenu, QTableWidget,
-                             QPlainTextEdit)
+                             QPlainTextEdit, QHeaderView)
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
@@ -679,10 +679,11 @@ class SpinBox(QSpinBox):
 class Table(QTableWidget):
     """Object to build parameter tables"""
 
-    def __init__(self, parent, type, width, pname=None):
+    def __init__(self, parent, type, width, height, pname=None):
         super().__init__(parent)
 
         self._width = width
+        self._height = height
         self._type = type
         self._pname = pname
 
@@ -695,6 +696,7 @@ class Table(QTableWidget):
     def _param_table(self):
         """Create a parameter table"""
         self.setFixedWidth(self._width)
+        self.setFixedHeight(self._height)
         self.setColumnCount(5)
         self.setRowCount(0)
         self.setHorizontalHeaderLabels(['Name', 'Value', 'Vary?', 'Xsec Path',
@@ -703,6 +705,7 @@ class Table(QTableWidget):
     def _poly_table(self):
         """Create a polynomial table"""
         self.setFixedWidth(self._width)
+        self.setFixedHeight(self._height)
         self.setColumnCount(2)
         self.setRowCount(0)
         self.setHorizontalHeaderLabels(['Value', 'Vary?'])
@@ -714,6 +717,7 @@ class Table(QTableWidget):
 
         if self._type == 'param':
             cb = QCheckBox()
+            cb.setChecked(True)
             self.setCellWidget(n, 2, cb)
             b = QPushButton('Browse')
             self.setItem(n, 1, QTableWidgetItem('0.0'))
@@ -722,6 +726,8 @@ class Table(QTableWidget):
 
         if self._type == 'poly':
             cb = QCheckBox()
+            cb.setChecked(True)
+            self.setItem(n, 0, QTableWidgetItem('0.0'))
             self.setCellWidget(n, 1, cb)
 
     def rem_row(self):

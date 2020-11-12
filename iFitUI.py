@@ -751,10 +751,10 @@ class MainWindow(QMainWindow):
         layout.addItem(hspacer, 0, 5, -1, 1)
 
         # Create the absorber and polynomial tables
-        self.gas_table = Table(ptab1, 'param', 550)
-        self.bgpoly_table = Table(ptab2, 'poly', 250, 'bg_poly')
-        self.offset_table = Table(ptab3, 'poly', 250, 'offset')
-        self.shift_table = Table(ptab4, 'poly', 250, 'shift')
+        self.gas_table = Table(ptab1, 'param', 550, 400)
+        self.bgpoly_table = Table(ptab2, 'poly', 250, 400, 'bg_poly')
+        self.offset_table = Table(ptab3, 'poly', 250, 400, 'offset')
+        self.shift_table = Table(ptab4, 'poly', 250, 400, 'shift')
 
         # Link the parameter table to the plot parameter combobox
         self.gas_table.cellChanged.connect(self.update_plot_params)
