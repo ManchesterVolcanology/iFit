@@ -1,91 +1,179 @@
-Using iFit
-###########
+.. _gui:
 
-There are two main ways in which to use iFit. The first is to write your own program using ``Python`` by importing the relevant libraries. The second is to use the Graphical User Interface, either by running ``iFitUI.py`` with Python or by using the executable from the latest release. If you require a more up-to-date executable or one on a different operating system, please get in touch and we will try to help.
+iFit User Interface
+###################
 
-Writing a Python Script
-========================
+To avoid the need to write a script for every use a Graphical User Interface (GUI) was developed for iFit. This also helps to facilitate spectra acquistion and real-time analysis. This section will outline the setup and use of the GUI for both real-time and post analysis. This will apply for running the GUI with Python or from an executeable file.
 
-iFit operates using two main python objects: ``Parameters`` and ``Analyser``.
+GUI Overview
+============
+
+When the GUI is launched the user is presented with the screen shown in Fig. 1.
+
+This has three main sections:
+  #. Program Controls
+  #. Program Outputs
+  #. Graphs and Settings
+
+.. figure:: ../figures/program.png
+  :alt: screenshot of GUI main interface
+
+  Figure 1: The main GUI interface
+
+Program Controls
+================
+
+The program controls are slit into two tabs, Real-Time and Post-Analysis (Fig. 2). As suggested by the names, the Real-Time tab handles spectra acquisition and real-time analysis, while the Post-Analysis allows the processing of already acquired data.
+
+.. figure:: ../figures/controls.png
+  :alt: screenshot of GUI controls
+
+  Figure 2: GUI controls
+
+Real-Time Controls
+------------------
+
+.. list-table::
+  :widths: 30, 120
+  :header-rows: 1
+
+  * - **Item**
+    - **Description**
+  * - Spectrometer
+    - Displays the serial number of the connected spectrometer. Connect/Disconnect to the spectrometer by clicking ``Connect``
+  * - Test Spectrum
+    - Reads a single spectrum to test the connection and acquisition settings. This spectrum is not saved but displayed on the ``Scope`` plot
+  * - Fitting ON/OFF
+    - Toggles real time analysis of spectra as they are recorded
+  * - Integration Time (ms)
+    - The instegration time of eash individual spectrum in ms. Use the ``Update`` button to push to the spectrometer
+  * - Coadds
+    - Number of individual spectra to average to form a measurement. Note that averaging is done in software not onboard the spectrometer. Use the ``Update`` button to push to the spectrometer
+  * - No. Dark Spectra
+    - The number of dark spectra to record. Begin acquisition of dark spectra by clicking the ``Acquire`` button. Dark spectra are saved to a subdirectory in the save folder called ``Dark``. Note that each read creates a new folder (numbered sequentially)
+  * - Save
+    - Path to the folder to contain the measurement results. This includes measurement spectra (stored under ``/save/path/spectra/)``, dark spectra (stored under ``/save/path/spectra/dark``) and analysis outputs
+  * - Begin!
+    - Launches continuous spectra acquisition (and simultaneous analysis if ``Fitting ON``)
+  * - Pause
+    - Paused the acquisition/analysis
+  * - Stop
+    - Ends the acquisition/analysis
+
+Post-Analysis
+-------------
+
+.. list-table::
+  :widths: 30, 120
+  :header-rows: 1
+
+  * - **Item**
+    - **Description**
+  * - Format
+    - Format of the spectra files to read
+  * - Spectra
+    - Measurement spectra files. Can be selected using a File Dialouge with ``Browse``
+  * - Darks
+    - Dark spectra files. Can be selected using a File Dialouge with ``Browse``
+  * - Save
+    - Location to save the output ``.csv`` file to
+  * - Begin!
+    - Launches spectra analysis
+  * - Pause
+    - Paused the analysis
+  * - Stop
+    - Ends the analysis
+
+Program Outputs
+===============
+
+This frame contains a progress bar and text box to display program progress and any info or error messages.
+
+Graphical Display
+=================
+
+This frame contains the graphical output of the program. The ``Analysis`` tab shows the results of spectral fits, while the ``Scope`` tab shows the acquired spectra.
+
+.. figure:: ../figures/graphs.png
+  :alt: screenshot of GUI graphs
+
+  Figure 3: GUI graphical outputs
+
+Program Settings
+================
+
+The final tab contains the program settings. These include the fit window and quality controls, any spectral pre-processing steps required and the parameters to include in the fit.
+
+.. figure:: ../figures/settings.png
+  :alt: screenshot of GUI settings
+
+  Figure 4: GUI settings
+
+The settings are split into three tabs:
+
+Model
+-----
+
+.. list-table::
+  :widths: 30, 120
+  :header-rows: 1
+
+  * - **Item**
+    - **Description**
+  * - Fit Window
+    - The wavelength window in which o perform the fit
+  * - Model Grid Padding
+    - The amount to pad the model grid in order to avoid edge effects from the ILS convolution
+  * - Model Grid Spacing
+    - The spacing on which the model grid is formed
+  * - Interpolation method
+    - The method to use in each iteration of the model fit to interpolate the model spectrum onto the spectrometer wavelength grid. ``cubic`` is more accurate but ``linear`` is faster and more stable
+  * - Correct Dark Spectrum?
+    - Controls whether the dark spectrum is subtracted from the measured spectrum during the spectrum pre-processing step
+  * - Correct Flat Spectrum?
+    - Controls whether the flat-field spectrum is removed from the measured spectrum during the spectrum pre-processing step
+  * - Stray Light Window
+    - The wavelength window over which to average the stray-light intensity. This is subtracted from the measured spectrum in the pre-processing step if the ``Remove`` checkbox is selected
+  * - Spike Limit
+    - Sets the limit at which to remove hot or dead pixels. Defined as the intensity change between neighbouring pixels
+  * - Residual Display
+    - Controls how to display the residual, either as a percentage of the measured signal or in absolute intensity units
+  * - Auto-Update Fit Parameters
+    - Controls whether the first guess fit parameters used are updated with the previous fit's optimised parameters. This speeds up analysis, but can lead to the fit getting stuck in a local minimum, especially for poor quality data
+  * - Residual Limit
+    - Sets the maximum value the residual can be to be classed as a good fit. Bad fits also reset the first guess parameters if Auto-Update Fit Parameters is on. Note this value should be changed if switching between Percentage and Absolute residual display
+  * - Intensity Limit
+    - Sets the limits on intensity in the fit window for which the fit can be considered good. Bad fits also reset the first guess parameters if Auto-Update Fit Parameters is on.
+
+Spectrometer
+------------
+
+.. list-table::
+  :widths: 30, 120
+  :header-rows: 1
+
+  * - **Item**
+    - **Description**
+  * - Generate ILS
+    - Controls how the instrument line shape is handelled. ``Params`` uses fixed parameters read from a text file defined at ``ILS Parameters``. These should be the FWEM, k, a\ :sub:`w` and a\ :sub:`k` values respectively, each on a new line. ``File`` uses a directly measured lineshape read from ``ILS Parameters``. ``Manual`` uses the parameters given in this tab, with the option to fit them if desired.
+  * - ILS Parameters
+    - File the contains either the ILS super-Gaussian parameters or the directly measured lineshape to use
+  * - Flat Spectrum
+    - Path to the flat spectrum to use. Should be a file with two columns delimetered with a tab. THe first is intensity and the second is the flat-field response.
+  * - Wavelength Calibration
+    - The wavelength calibration to use if none are given in the specal files.
+  * - FWEM, k, a\ :sub:`w`, a\ :sub:`k`
+    - The super-Gaussian parameters to use if ``Generate ILS`` is set to ``Manual``. These parameters can also be fitted if desired.
+
+.. note:: Currently no spectral file format requires ``wavelength calibration`` but this is kept for future use.
 
 Parameters
------------
+----------
 
-A ``parameters`` object contains all the information on the fit parameters used to analyse a spectrum. Each ``Parameter`` in the ``Parameters`` object has the following values:
+This tab sets up the fit :class:`~parameters.Parameters` through a series of tables. For each table rows can be added or removed by right-clicking on the table.
 
-* ``name`` identifies the ``Parameter`` (and so must be unique)
+.. note:: The remove option removes the last row, not the currently selected row. This is planned to be changed in the future to be more intuitive
 
-* ``value`` gives the initial guess for that ``Parameter`` in the fit
+The ``Absorbers`` table controls the absorbing species included in the fit, such as gases and Ring. Each absorber :class:`~parameters.Parameter` has a ``name`` (which must be unique), a ``value``, a control on whether it is fitted or fixed and a file from which to read the cross-section. The cross-section file should have two columns, one for the wavelength and one for the cross-section efficiency.
 
-* ``vary`` controls whether that ``Parameter`` is allowed to be varied by the model
-
-Additionally for gas cross-sections the ``xpath`` value is used to set the file path to the cross-section file.
-
-So a ``Parameters`` object could be generated like this:
-
-.. code-block:: python
-
-  from ifit.parameters import Parameters
-
-  # Create parameter dictionary
-  params = Parameters()
-
-  # Add the gases
-  params.add('SO2',  value=1.0e16, vary=True, xpath='Ref/SO2.txt')
-  params.add('O3',   value=1.0e19, vary=True, xpath='Ref/O3.txt')
-  params.add('Ring', value=0.1,    vary=True, xpath='Ref/Ring.txt')
-
-  # Add background polynomial parameters
-  params.add('bg_poly0', value=0.0, vary=True)
-  params.add('bg_poly1', value=0.0, vary=True)
-  params.add('bg_poly2', value=0.0, vary=True)
-  params.add('bg_poly3', value=1.0, vary=True)
-
-  # Add intensity offset parameters
-  params.add('offset0', value=0.0, vary=True)
-
-  # Add wavelength shift parameters
-  params.add('shift0', value=0.0, vary=True)
-  params.add('shift1', value=0.1, vary=True)
-
-
-This defines three gas ``Parameter`` objects for SO2, O3 and Ring, as well as the polynomial coefficients for the background polynomial, a constant intensity offset and a wavelength shift and squeeze. Not that the naming convention for the polynomial parameters (``bg_poly{n}``, ``offset{n}`` and ``shift{n}``) is fixed. Once the ``Parameters`` is defined the ``Analyser`` can be generated.
-
-Analyser
----------
-
-The ``Analyser`` handles the actual analysis of the spectra. It must be generated first, defining certain settings for the analysis, as well as the ``Parameters`` already defined:
-
-.. code-block:: python
-
-  from ifit.spectral_analysis import Analyser
-
-  # Generate the analyser
-  analyser = Analyser(params=params,
-                      fit_window=[310, 320],
-                      frs_path='Ref/sao2010.txt',
-                      stray_flag=True,
-                      stray_window=[280, 290])
-
-
-This will generate an analyser that will fit the emasured spectra between 310 - 320 nm, performing a stray light correction using the measured intensities between 280 - 290 nm.
-
-Measured spectra can then be analysed by using ``analyser.fit_spectrum``:
-
-.. code-block:: python
-
-  fit = analyser.fit_spectrum([x, y])
-
-In this case x and y are the measured spectum wavelengths and intensities respectively. This returns a ``FitResult`` object which holds the fit data and useful information.
-
-The ``FitResult`` object contains a copy of the ``Parameters`` object that was passed to the ``Analyser`` with the ``fit_val`` and ``fit_err`` values populated with the optimised value and associated error for each :class:`~../ifit/parameters/Parameter`. It also contains:
-
-* ``grid`` the wavelength grid of the fit window
-
-* ``spec`` the measured spectrum (after pre-processing) in the fit window
-
-* ``fit`` the optimised model spectrum
-
-* ``resid`` the residual between the measurement and the model
-
-An example script is given in ``iFit.py``.
+The ``Polynomial``, ``Offset`` and ``Shift`` tables control the polynomial parameters for the fitted background polynomial, intensity offset and wavelength shift/stretch included in the fit.
