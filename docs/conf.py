@@ -28,12 +28,21 @@ release = '3.3'
 
 # -- Integration with GitHub -------------------------------------------------
 
+html_static_path = ['_static']
+
+html_context = {
+    'css_files': [
+        '_static/theme_overrides.css',  # overrides for wide tables in RTD theme
+        ],
+    }
+
 html_context = {
     "display_github": True,         # Integrate GitHub
     "github_user": "benjaminesse",  # Username
     "github_repo": "iFit",          # Repo name
     "github_version": "master",     # Version
     "conf_py_path": "./",           # Path in the checkout to the docs root
+    "css_files": ["_static/theme_overrides.css"],  # Overrides wide tables
 }
 
 
@@ -46,6 +55,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.napoleon'
               ]
 
+# Napolean Setup
 napoleon_google_docstring = False
 napoleon_use_param = False
 napoleon_use_ivar = True
