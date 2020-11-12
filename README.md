@@ -2,7 +2,7 @@
 
 iFit is a program designed to retrieve SO<sub>2</sub> column densities from scattered UV sunlight spectra, with the focus of measuring the SO<sub>2</sub> flux from volcanoes. It also allows control of Ocean Optics USB series spectrometers, with simultaneous fitting.
 
-iFit's documentation can be found [`here`](https://ifit.readthedocs.io/en/latest/)
+iFit's documentation can be found here: https://ifit.readthedocs.io/en/latest/
 
 ## Install
 
