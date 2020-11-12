@@ -686,7 +686,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['k_fit'], nrow, ncol+2)
         nrow += 1
 
-        layout.addWidget(QLabel('a_w:'), nrow, ncol)
+        layout.addWidget(QLabel('a<sub>w</sub>:'), nrow, ncol)
         self.widgets['a_w'] = QLineEdit()
         self.widgets['a_w'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['a_w'], nrow, ncol+1)
@@ -694,7 +694,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['a_w_fit'], nrow, ncol+2)
         nrow += 1
 
-        layout.addWidget(QLabel('a_k:'), nrow, ncol)
+        layout.addWidget(QLabel('a<sub>k</sub>:'), nrow, ncol)
         self.widgets['a_k'] = QLineEdit()
         self.widgets['a_k'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['a_k'], nrow, ncol+1)
