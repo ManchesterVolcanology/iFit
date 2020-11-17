@@ -172,8 +172,6 @@ Parameters
 
 This tab sets up the fit :class:`~parameters.Parameters` through a series of tables. For each table rows can be added or removed by right-clicking on the table.
 
-.. note:: The remove option removes the last row, not the currently selected row. This is planned to be changed in the future to be more intuitive
-
 The ``Absorbers`` table controls the absorbing species included in the fit, such as gases and Ring. Each absorber :class:`~parameters.Parameter` has a ``name`` (which must be unique), a ``value``, a control on whether it is fitted or fixed and a file from which to read the cross-section. The cross-section file should have two columns, one for the wavelength and one for the cross-section efficiency.
 
 The ``Polynomial``, ``Offset`` and ``Shift`` tables control the polynomial parameters for the fitted background polynomial, intensity offset and wavelength shift/stretch included in the fit.
