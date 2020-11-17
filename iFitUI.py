@@ -1127,44 +1127,43 @@ class MainWindow(QMainWindow):
 
 
 def browse(gui, widget, mode='single', filter=None):
-
-    # Get current working directory
-    cwd = os.getcwd() + '/'
-    cwd = cwd.replace("\\", "/")
+    """Opens native file dialogue and sets a widget with the selected
+    file/folder"""
 
     # Check if specified file extensions
     if filter is not None:
         filter = filter + ';;All Files (*)'
 
+    # Pick a single file to read
     if mode == 'single':
         fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '', filter)
-        if fname != '':
-            if cwd in fname:
-                fname = fname[len(cwd):]
-            widget.setText(fname)
 
     elif mode == 'multi':
-        fnames, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
-                                                 filter)
-        if fnames != []:
-            for i, fname in enumerate(fnames):
-                if cwd in fname:
-                    fnames[i] = fname[len(cwd):]
-            widget.setText('\n'.join(fnames))
+        fname, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
+                                                filter)
 
     elif mode == 'save':
         fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
-        if fname != '':
-            if cwd in fname:
-                fname = fname[len(cwd):]
-            widget.setText(fname)
 
     elif mode == 'folder':
         fname = QFileDialog.getExistingDirectory(gui, 'Select Foler')
-        if fname != '':
-            if cwd in fname:
-                fname = fname[len(cwd):]
-            widget.setText(fname + '/')
+
+    # Get current working directory
+    cwd = os.getcwd() + '/'
+    cwd = cwd.replace("\\", "/")
+
+    # Update the relavant widget for a single file
+    if type(fname) == str and fname != '':
+        if cwd in fname:
+            fname = fname[len(cwd):]
+        widget.setText(fname)
+
+    # And for multiple files
+    elif type(fname) == list and fname != []:
+        for i, f in enumerate(fname):
+            if cwd in f:
+                fname[i] = f[len(cwd):]
+        widget.setText('\n'.join(fname))
 
 
 class QHLine(QFrame):

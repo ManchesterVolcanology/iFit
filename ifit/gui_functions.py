@@ -296,7 +296,7 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
     elif analysis_mode == 'rt_analyse':
         spec_type = 'iFit'
         buffer = Buffer(2000, buffer_cols)
-        save_path = widgetData['rt_save_path'] + 'iFit_rt_output.csv'
+        save_path = widgetData['rt_save_path'] + '/iFit_rt_output.csv'
         worker.signals.status.emit('Acquiring')
 
         # Set the dark spectrum
@@ -435,7 +435,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
         logging.info(f'Reading {ndarks} dark spectra')
 
         # Set the save location for the dark spectra
-        save_path = widgetData['rt_save_path'] + 'dark/'
+        save_path = widgetData['rt_save_path'] + '/dark/'
 
         # Check the output folder exists and generate it if not
         if not os.path.isdir(save_path):
@@ -476,7 +476,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
     if acquisition_mode == 'acquire_cont':
 
         # Set the save location for the dark spectra
-        save_path = widgetData['rt_save_path'] + 'spectra/'
+        save_path = widgetData['rt_save_path'] + '/spectra/'
 
         # Check the output folder exists and generate it if not
         if not os.path.isdir(save_path):
