@@ -873,15 +873,19 @@ class MainWindow(QMainWindow):
             for label in config:
 
                 if label == 'gas_params':
+                    self.gas_table.setRowCount(0)
                     self.gas_table.setData(config['gas_params'])
 
                 elif label == 'bgpoly_params':
+                    self.bgpoly_table.setRowCount(0)
                     self.bgpoly_table.setData(config['bgpoly_params'])
 
                 elif label == 'offset_params':
+                    self.offset_table.setRowCount(0)
                     self.offset_table.setData(config['offset_params'])
 
                 elif label == 'shift_params':
+                    self.shift_table.setRowCount(0)
                     self.shift_table.setData(config['shift_params'])
 
                 else:
