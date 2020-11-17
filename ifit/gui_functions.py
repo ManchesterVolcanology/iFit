@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt, QObject, QRunnable, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QSpinBox, QCheckBox, QFileDialog, QPushButton,
                              QTableWidgetItem, QMenu, QTableWidget,
-                             QPlainTextEdit, QHeaderView)
+                             QPlainTextEdit)
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
@@ -732,8 +732,9 @@ class Table(QTableWidget):
 
     def rem_row(self):
         """Remove the last row from the table"""
-        n = self.rowCount()
-        self.setRowCount(n-1)
+        rows = [i.row() for i in self.selectedIndexes()]
+        for row in sorted(rows, reverse=True):
+            self.removeRow(row)
 
     def contextMenuEvent(self, event):
         """Set up right click to add/remove rows"""
