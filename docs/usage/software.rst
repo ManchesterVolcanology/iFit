@@ -51,7 +51,7 @@ Real-Time Controls
     - Number of individual spectra to average to form a measurement. Note that averaging is done in software not onboard the spectrometer. Use the ``Update`` button to push to the spectrometer
   * - No. Dark Spectra
     - The number of dark spectra to record. Begin acquisition of dark spectra by clicking the ``Acquire`` button. Dark spectra are saved to a subdirectory in the save folder called ``Dark``. Note that each read creates a new folder (numbered sequentially)
-  * - Save
+  * - Output Folder
     - Path to the folder to contain the measurement results. This includes measurement spectra (stored under ``/save/path/spectra/)``, dark spectra (stored under ``/save/path/spectra/dark``) and analysis outputs
   * - Begin!
     - Launches continuous spectra acquisition (and simultaneous analysis if ``Fitting ON``)
@@ -75,7 +75,7 @@ Post-Analysis
     - Measurement spectra files. Can be selected using a File Dialogue with ``Browse``
   * - Darks
     - Dark spectra files. Can be selected using a File Dialogue with ``Browse``
-  * - Save
+  * - Output File
     - Location to save the output ``.csv`` file to
   * - Begin!
     - Launches spectra analysis

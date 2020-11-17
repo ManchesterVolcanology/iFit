@@ -224,7 +224,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.acquire_darks_btn, 3, 2)
 
         # Add an input for the save selection
-        layout.addWidget(QLabel('Save:'), 4, 0)
+        layout.addWidget(QLabel('Output\nFolder:'), 4, 0)
         self.widgets['rt_save_path'] = QLineEdit()
         layout.addWidget(self.widgets['rt_save_path'], 4, 1, 1, 3)
         btn = QPushButton('Browse')
@@ -294,7 +294,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(btn, 2, 4)
 
         # Add an input for the save selection
-        layout.addWidget(QLabel('Save:'), 3, 0)
+        layout.addWidget(QLabel('Output\nFile:'), 3, 0)
         self.widgets['save_path'] = QLineEdit()
         layout.addWidget(self.widgets['save_path'], 3, 1, 1, 3)
         btn = QPushButton('Browse')
