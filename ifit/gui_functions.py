@@ -748,8 +748,12 @@ class Table(QTableWidget):
 
     def set_xsec(self, n):
         """Command to set the cross-section in the table"""
-        fname = QFileDialog.getOpenFileName()
-        self.setItem(n, 3, QTableWidgetItem(fname[0]))
+        cwd = os.getcwd() + '/'
+        cwd = cwd.replace("\\", "/")
+        fname, _ = QFileDialog.getOpenFileName()
+        if cwd in fname:
+            fname = fname[len(cwd):]
+        self.setItem(n, 3, QTableWidgetItem(fname))
 
     def setData(self, data):
         """Method to populate the table using saved config"""
