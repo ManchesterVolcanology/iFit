@@ -194,11 +194,11 @@ def generate_analyser(widgetData):
     if widgetData['ils_mode'] == 'Manual':
         params.add('fwem', value=float(widgetData['fwem']),
                    vary=widgetData['fwem_fit'])
-        params.add('k', value=widgetData['k'],
+        params.add('k', value=float(widgetData['k']),
                    vary=widgetData['k_fit'])
-        params.add('a_w', value=widgetData['a_w'],
+        params.add('a_w', value=float(widgetData['a_w']),
                    vary=widgetData['a_w_fit'])
-        params.add('a_k', value=widgetData['a_k'],
+        params.add('a_k', value=float(widgetData['a_k']),
                    vary=widgetData['a_k_fit'])
 
     # Generate the analyser
