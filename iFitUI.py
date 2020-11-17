@@ -752,9 +752,9 @@ class MainWindow(QMainWindow):
 
         # Create the absorber and polynomial tables
         self.gas_table = Table(ptab1, 'param', 550, 400)
-        self.bgpoly_table = Table(ptab2, 'poly', 250, 400, 'bg_poly')
-        self.offset_table = Table(ptab3, 'poly', 250, 400, 'offset')
-        self.shift_table = Table(ptab4, 'poly', 250, 400, 'shift')
+        self.bgpoly_table = Table(ptab2, 'poly', 550, 400, 'bg_poly')
+        self.offset_table = Table(ptab3, 'poly', 550, 400, 'offset')
+        self.shift_table = Table(ptab4, 'poly', 550, 400, 'shift')
 
         # Link the parameter table to the plot parameter combobox
         self.gas_table.cellChanged.connect(self.update_plot_params)
@@ -1157,6 +1157,9 @@ class MainWindow(QMainWindow):
 
 def browse(gui, widget, mode='single', filter=False):
 
+    # Get current working directory
+    cwd = os.getcwd() + '/'
+    cwd = cwd.replace("\\", "/")
     if not filter:
         filter = None
     else:
@@ -1166,22 +1169,31 @@ def browse(gui, widget, mode='single', filter=False):
         fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '',
                                                filter)
         if fname != '':
+            if cwd in fname:
+                fname = fname[len(cwd):]
             widget.setText(fname)
 
     elif mode == 'multi':
         fnames, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
                                                  filter)
         if fnames != []:
+            for i, fname in enumerate(fnames):
+                if cwd in fname:
+                    fnames[i] = fname[len(cwd):]
             widget.setText('\n'.join(fnames))
 
     elif mode == 'save':
         fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
         if fname != '':
+            if cwd in fname:
+                fname = fname[len(cwd):]
             widget.setText(fname)
 
     elif mode == 'folder':
         fname = QFileDialog.getExistingDirectory(gui, 'Select Foler')
         if fname != '':
+            if cwd in fname:
+                fname = fname[len(cwd):]
             widget.setText(fname + '/')
 
 
