@@ -46,7 +46,7 @@ Real-Time Controls
   * - Fitting ON/OFF
     - Toggles real time analysis of spectra as they are recorded
   * - Integration Time (ms)
-    - The instegration time of eash individual spectrum in ms. Use the ``Update`` button to push to the spectrometer
+    - The integration time of each individual spectrum in ms. Use the ``Update`` button to push to the spectrometer
   * - Coadds
     - Number of individual spectra to average to form a measurement. Note that averaging is done in software not onboard the spectrometer. Use the ``Update`` button to push to the spectrometer
   * - No. Dark Spectra
@@ -72,9 +72,9 @@ Post-Analysis
   * - Format
     - Format of the spectra files to read
   * - Spectra
-    - Measurement spectra files. Can be selected using a File Dialouge with ``Browse``
+    - Measurement spectra files. Can be selected using a File Dialogue with ``Browse``
   * - Darks
-    - Dark spectra files. Can be selected using a File Dialouge with ``Browse``
+    - Dark spectra files. Can be selected using a File Dialogue with ``Browse``
   * - Save
     - Location to save the output ``.csv`` file to
   * - Begin!
@@ -155,13 +155,13 @@ Spectrometer
   * - **Item**
     - **Description**
   * - Generate ILS
-    - Controls how the instrument line shape is handelled. ``Params`` uses fixed parameters read from a text file defined at ``ILS Parameters``. These should be the FWEM, k, a\ :sub:`w` and a\ :sub:`k` values respectively, each on a new line. ``File`` uses a directly measured lineshape read from ``ILS Parameters``. ``Manual`` uses the parameters given in this tab, with the option to fit them if desired.
+    - Controls how the instrument line shape is handled. ``Params`` uses fixed parameters read from a text file defined at ``ILS Parameters``. These should be the FWEM, k, a\ :sub:`w` and a\ :sub:`k` values respectively, each on a new line. ``File`` uses a directly measured lineshape read from ``ILS Parameters``. ``Manual`` uses the parameters given in this tab, with the option to fit them if desired.
   * - ILS Parameters
     - File the contains either the ILS super-Gaussian parameters or the directly measured lineshape to use
   * - Flat Spectrum
-    - Path to the flat spectrum to use. Should be a file with two columns delimetered with a tab. THe first is intensity and the second is the flat-field response.
+    - Path to the flat spectrum to use. Should be a file with two columns delimeted with a tab. The first is intensity and the second is the flat-field response.
   * - Wavelength Calibration
-    - The wavelength calibration to use if none are given in the specal files.
+    - The wavelength calibration to use if none are given in the spectra files.
   * - FWEM, k, a\ :sub:`w`, a\ :sub:`k`
     - The super-Gaussian parameters to use if ``Generate ILS`` is set to ``Manual``. These parameters can also be fitted if desired.
 

@@ -27,7 +27,7 @@ The easiest way to install is using Anaconda. First create a new environment:
 
   conda create -n myenv python=3.6 numpy scipy matplotlib pyqt pyqtgraph pyyaml pandas
 
-Setting myenv to whatever name you want to use for the environment. Then activate the environemnt once it is created:
+Setting myenv to whatever name you want to use for the environment. Then activate the environment once it is created:
 
 .. code-block:: bash
 

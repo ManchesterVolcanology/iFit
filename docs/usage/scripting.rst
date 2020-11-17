@@ -1,7 +1,7 @@
 Using iFit
 ###########
 
-There are two main ways in which to use iFit. The first is to write your own program using ``Python`` by importing the relevant libraries. This is the most flexible method and allows for coustomisable analysis with minimal reliance on additional libraries.
+There are two main ways in which to use iFit. The first is to write your own program using ``Python`` by importing the relevant libraries. This is the most flexible method and allows for customisable analysis with minimal reliance on additional libraries.
 
 The second is to use the Graphical User Interface, either by running ``iFitUI.py`` with Python or by using the executable from the latest release. More details on this can be found in the :ref:`gui` section.
 
@@ -70,7 +70,7 @@ The :class:`~spectral_analysis.Analyser` handles the actual analysis of the spec
                       stray_window=[280, 290])
 
 
-This will generate an analyser that will fit the emasured spectra between 310 - 320 nm, performing a stray light correction using the measured intensities between 280 - 290 nm.
+This will generate an analyser that will fit the measured spectra between 310 - 320 nm, performing a stray light correction using the measured intensities between 280 - 290 nm.
 
 Measured spectra can then be analysed by using :meth:`~spectral_analysis.Analyser.fit_spectrum`:
 
@@ -78,7 +78,7 @@ Measured spectra can then be analysed by using :meth:`~spectral_analysis.Analyse
 
   fit = analyser.fit_spectrum([x, y])
 
-In this case x and y are the measured spectum wavelengths and intensities respectively. This returns a :class:`~spectral_analysis.FitResult` object which holds the fit data and useful information.
+In this case x and y are the measured spectrum wavelengths and intensities respectively. This returns a :class:`~spectral_analysis.FitResult` object which holds the fit data and useful information.
 
 The :class:`~spectral_analysis.FitResult` object contains a copy of the :class:`~parameters.Parameters` object that was passed to the :class:`~spectral_analysis.Analyser` with the ``fit_val`` and ``fit_err`` values populated with the optimised value and associated error for each :class:`~parameters.Parameter`. It also contains:
 
