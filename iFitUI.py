@@ -230,7 +230,7 @@ class MainWindow(QMainWindow):
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(partial(browse, self, self.widgets['rt_save_path'],
-                                    'folder'))
+                                    'folder', None))
         layout.addWidget(btn, 4, 4)
 
         # Add button to begin analysis
@@ -280,7 +280,7 @@ class MainWindow(QMainWindow):
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(partial(browse, self, self.widgets['spec_fnames'],
-                                    'multi'))
+                                    'multi', None))
         layout.addWidget(btn, 1, 4)
 
         # Add an input for the dark selection
@@ -290,7 +290,7 @@ class MainWindow(QMainWindow):
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(partial(browse, self, self.widgets['dark_fnames'],
-                                    'multi'))
+                                    'multi', None))
         layout.addWidget(btn, 2, 4)
 
         # Add an input for the save selection
@@ -590,7 +590,7 @@ class MainWindow(QMainWindow):
 
         # Add spinbox for the residual limit
         layout.addWidget(QLabel('Residual Limit:'), nrow, ncol)
-        self.widgets['resid_limit'] = DSpinBox(1.0, [0, 10000])
+        self.widgets['resid_limit'] = DSpinBox(10.0, [0, 10000])
         self.widgets['resid_limit'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['resid_limit'], nrow, ncol+1)
         nrow += 1
@@ -638,7 +638,7 @@ class MainWindow(QMainWindow):
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
         btn.clicked.connect(partial(browse, self, self.widgets['ils_path'],
-                                    'single'))
+                                    'single', None))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
 
@@ -650,7 +650,7 @@ class MainWindow(QMainWindow):
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
         btn.clicked.connect(partial(browse, self, self.widgets['flat_path'],
-                                    'single'))
+                                    'single', None))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
 
@@ -662,7 +662,7 @@ class MainWindow(QMainWindow):
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
         btn.clicked.connect(partial(browse, self, self.widgets['wl_calib'],
-                                    'single'))
+                                    'single', None))
         layout.addWidget(btn, nrow, ncol+3)
         nrow += 1
 
@@ -726,7 +726,7 @@ class MainWindow(QMainWindow):
         btn = QPushButton('Browse')
         btn.setFixedSize(100, 25)
         btn.clicked.connect(partial(browse, self, self.widgets['frs_path'],
-                                    'single'))
+                                    'single', None))
         layout.addWidget(btn, nrow, ncol+2)
         nrow += 1
 
@@ -774,39 +774,6 @@ class MainWindow(QMainWindow):
     def open_flux_window(self):
         win = CalcFlux(self)
         win.show()
-
-# =============================================================================
-# Browse
-# =============================================================================
-
-    def browse(self, widget, mode='single', filter=False):
-
-        if not filter:
-            filter = None
-        else:
-            filter = filter + ';;All Files (*)'
-
-        if mode == 'single':
-            fname, _ = QFileDialog.getOpenFileName(self, 'Select File', '',
-                                                   filter)
-            if fname != '':
-                widget.setText(fname)
-
-        elif mode == 'multi':
-            fnames, _ = QFileDialog.getOpenFileNames(self, 'Select Files', '',
-                                                     filter)
-            if fnames != []:
-                widget.setText('\n'.join(fnames))
-
-        elif mode == 'save':
-            fname, _ = QFileDialog.getSaveFileName(self, 'Save As', '', filter)
-            if fname != '':
-                widget.setText(fname)
-
-        elif mode == 'folder':
-            fname = QFileDialog.getExistingDirectory(self, 'Select Foler')
-            if fname != '':
-                widget.setText(fname + '/')
 
     def update_plot_params(self):
         """Updates plot parameter options"""
@@ -1159,19 +1126,18 @@ class MainWindow(QMainWindow):
             pass
 
 
-def browse(gui, widget, mode='single', filter=False):
+def browse(gui, widget, mode='single', filter=None):
 
     # Get current working directory
     cwd = os.getcwd() + '/'
     cwd = cwd.replace("\\", "/")
-    if not filter:
-        filter = None
-    else:
+
+    # Check if specified file extensions
+    if filter is not None:
         filter = filter + ';;All Files (*)'
 
     if mode == 'single':
-        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '',
-                                               filter)
+        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '', filter)
         if fname != '':
             if cwd in fname:
                 fname = fname[len(cwd):]
