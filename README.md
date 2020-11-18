@@ -20,3 +20,7 @@ seabreeze_os_setup
 ```
 
 To install `python-seabreeze` and install the relevant drivers. See the [`python-seabreeze docs`](https://python-seabreeze.readthedocs.io/en/latest/) for more details.
+
+## Icons
+
+Some icons by [Yusuke Kamiyamane](https://p.yusukekamiyamane.com/). Licensed under a [Creative Commons Attribution 3.0 License](https://creativecommons.org/licenses/by/3.0/).
