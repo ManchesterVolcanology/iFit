@@ -12,7 +12,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QComboBox, QTextEdit,
                              QLineEdit, QPushButton, QProgressBar, QFrame,
                              QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
-                             QTabWidget, QAction, QFileDialog, QScrollArea)
+                             QTabWidget, QAction, QFileDialog, QScrollArea,
+                             QToolBar)
 
 from ifit.gui_functions import (analysis_loop, acquire_spectra, Widgets,
                                 SpinBox, DSpinBox, Table, Worker,
@@ -43,7 +44,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f'iFit {__version__}')
         self.statusBar().showMessage('Ready')
         self.setGeometry(40, 40, 1200, 600)
-        self.setWindowIcon(QIcon('bin/icon.ico'))
+        self.setWindowIcon(QIcon('bin/icons/main.ico'))
 
         # Set the window layout
         self.generalLayout = QGridLayout()
@@ -79,13 +80,14 @@ class MainWindow(QMainWindow):
         """Handles building the main GUI"""
 
         # Add file menubar
-        saveAct = QAction('&Save', self)
+        saveAct = QAction(QIcon('bin/icons/disk.png'), '&Save', self)
         saveAct.setShortcut('Ctrl+S')
         saveAct.triggered.connect(partial(self.save_config, False))
-        saveasAct = QAction('&Save As', self)
+        saveasAct = QAction(QIcon('bin/icons/disk--pencil.png'), '&Save As',
+                            self)
         saveasAct.setShortcut('Ctrl+Shift+S')
         saveasAct.triggered.connect(partial(self.save_config, True))
-        loadAct = QAction('&Load', self)
+        loadAct = QAction(QIcon('bin/icons/folder.png'), '&Load', self)
         loadAct.triggered.connect(partial(self.load_config, None))
 
         # Add tools menubar
@@ -105,6 +107,12 @@ class MainWindow(QMainWindow):
         toolMenu.addAction(ilsAct)
         toolMenu.addAction(flatAct)
         toolMenu.addAction(fluxAct)
+
+        # Create a toolbar
+        toolbar = QToolBar("Main toolbar")
+        self.addToolBar(toolbar)
+        toolbar.addAction(saveAct)
+        toolbar.addAction(loadAct)
 
         # Create a frame to hold program controls
         self.controlFrame = QFrame(self)
