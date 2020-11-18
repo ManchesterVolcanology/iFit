@@ -226,6 +226,41 @@ def generate_analyser(widgetData):
 
 
 # =============================================================================
+# Analysis setup
+# =============================================================================
+
+def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
+    """Set up the mode dependant analysis settings"""
+
+    if analysis_mode == 'post_analyse':
+
+        spec_fnames = widgetData['spec_fnames'].split('\n')
+        dark_fnames = widgetData['dark_fnames'].split('\n')
+        spec_type = widgetData['spec_type']
+        buffer = Buffer(len(spec_fnames), buffer_cols)
+        save_path = widgetData['save_path']
+        worker.signals.status.emit('Analysing')
+
+    elif analysis_mode == 'rt_analyse':
+
+        spec_fnames = None
+        dark_fnames = ['bin/temp_dark.txt']
+        spec_type = 'iFit'
+        buffer = Buffer(2000, buffer_cols)
+        save_path = widgetData['rt_save_path'] + '/iFit_rt_output.csv'
+        worker.signals.status.emit('Acquiring')
+
+        # Check that the output file doesn't already exist
+        i = 0
+        tmpstr = save_path
+        while os.path.isfile(save_path):
+            i += 1
+            save_path = f'{tmpstr.split(".")[-2]}({i}).csv'
+
+    return spec_fnames, dark_fnames, spec_type, buffer, save_path
+
+
+# =============================================================================
 # Spectra analysis loop
 # =============================================================================
 
@@ -277,38 +312,12 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
     for par in analyser.params:
         buffer_cols += [par, f'{par}_err']
 
-    # Set mode dependant settings
-    if analysis_mode == 'post_analyse':
+    # Set mode dependent settings
+    settings = analysis_setup(worker, analysis_mode, widgetData, buffer_cols)
+    spec_fnames, dark_fnames, spec_type, buffer, save_path = settings
 
-        # Pull the spectra type and file paths
-        spec_fnames = widgetData['spec_fnames'].split('\n')
-        dark_fnames = widgetData['dark_fnames'].split('\n')
-        spec_type = widgetData['spec_type']
-        buffer = Buffer(len(spec_fnames), buffer_cols)
-        save_path = widgetData['save_path']
-        worker.signals.status.emit('Analysing')
-
-        # Read in the dark spectra
-        if widgetData['dark_flag']:
-            logging.info('Reading dark spectra')
-            x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
-
-    elif analysis_mode == 'rt_analyse':
-        spec_type = 'iFit'
-        buffer = Buffer(2000, buffer_cols)
-        save_path = widgetData['rt_save_path'] + '/iFit_rt_output.csv'
-        worker.signals.status.emit('Acquiring')
-
-        # Set the dark spectrum
-        if widgetData['dark_flag']:
-            analyser.dark_spec = np.loadtxt('bin/temp_dark.txt')
-
-        # Check that the output file doesn't already exist
-        i = 0
-        tmpstr = save_path
-        while os.path.isfile(save_path):
-            i += 1
-            save_path = f'{tmpstr.split(".")[-2]}({i}).csv'
+    # Set the dark spectrum
+    x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
 
     # Set status
     logging.info('Beginning analysis loop')
@@ -356,23 +365,23 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
                                                calc_od=graph_p,
                                                interp_method=interp_meth)
 
-            # Add results to the buffer dataframe
+            # Write spectrum info to file
+            w.write(f'{fname},{info["spec_no"]},{info["time"]}')
+
+            # Add results to the buffer dataframe and write results to file
             row = [info["spec_no"]]
             for par in fit_result.params.values():
                 row += [par.fit_val, par.fit_err]
+                w.write(f',{par.fit_val},{par.fit_err}')
             buffer.update(row)
 
-            # Write the results to file
-            w.write(f'{fname},{info["spec_no"]},{info["time"]}')
-            for i in row[1:]:
-                w.write(f',{i}')
+            # Write fit quality info and start a new line
             w.write(f',{fit_result.nerr},{fit_result.int_lo},'
                     + f'{fit_result.int_hi},{fit_result.int_av}')
             w.write('\n')
 
             # Emit the progress
-            if analysis_mode == 'post_analyse':
-                progress_callback.emit(((loop+1)/len(spec_fnames))*100)
+            progress_callback.emit(((loop+1)/len(spec_fnames))*100)
 
             # Emit graph data
             plot_callback.emit([fit_result, [x, y], buffer.df])
