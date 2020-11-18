@@ -99,6 +99,21 @@ This frame contains the graphical output of the program. The ``Analysis`` tab sh
 
   Figure 3: GUI graphical outputs
 
+The bottom of the ``Analysis`` tab has a number of options for the graphs.
+
+.. list-table::
+  :widths: 30, 120
+  :header-rows: 1
+
+  * - **Item**
+    - **Description**
+  * - Show Graphs?
+    - Toggles whether graphs are plotted or not. Plotting graphs requires some computational resources so analysis can slow as a result. This impact is lessened if the limits of the graphs are fixed (this can be done by hand)
+  * - Parameter to graph
+    - Sets the parameter to display in the optical depth and parameter plots. These display the synthetic and measured optical depths, and the fitted parameter value respectively.
+  * - Scroll Graphs?
+    - Toggles whether the bottom graph scrolls or not. If not then all data points are show, which can significantly slow down the program if the number is large. Other wise the number of spectra to display is given in the ``No. Spectra To Display`` option
+
 Program Settings
 ================
 
@@ -175,3 +190,10 @@ This tab sets up the fit :class:`~parameters.Parameters` through a series of tab
 The ``Absorbers`` table controls the absorbing species included in the fit, such as gases and Ring. Each absorber :class:`~parameters.Parameter` has a ``name`` (which must be unique), a ``value``, a control on whether it is fitted or fixed and a file from which to read the cross-section. The cross-section file should have two columns, one for the wavelength and one for the cross-section efficiency.
 
 The ``Polynomial``, ``Offset`` and ``Shift`` tables control the polynomial parameters for the fitted background polynomial, intensity offset and wavelength shift/stretch included in the fit.
+
+GUI Tools
+=========
+
+iFit also includes a number of useful tools to help analyse spectra or calculate SO<sub>2<\sub> flux. These can be found under the ``Tools`` menu.
+
+.. note:: This section hasn't been completed yet.
