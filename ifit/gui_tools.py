@@ -50,9 +50,6 @@ class CalcFlux(QMainWindow):
 
         self._createApp()
 
-        self.so2_path.setText('Results/output.csv')
-        self.gps_path.setText('Results/gps-data.txt')
-
     def _createApp(self):
         """Create the app widgets"""
 
@@ -190,6 +187,7 @@ class CalcFlux(QMainWindow):
         layout.addWidget(QLabel('Wind\nSpeed:'), 1, 2)
         self.wind_speed = QDoubleSpinBox()
         self.wind_speed.setRange(0, 100)
+        self.wind_speed.setValue(1.0)
         layout.addWidget(self.wind_speed, 1, 3)
 
         # Create input for wind units
@@ -278,6 +276,10 @@ class CalcFlux(QMainWindow):
         self.mapax.setClipToView(True)
         self.mapax.showGrid(x=True, y=True)
         self.mapax.setAspectLocked(True)
+
+        # Add axis labels
+        self.mapax.setLabel('left', 'Latitude')
+        self.mapax.setLabel('bottom', 'Longitude')
 
         # Make pens for plotting
         self.p0 = pg.mkPen(color='#1f77b4', width=1.5)
