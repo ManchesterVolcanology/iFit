@@ -14,6 +14,7 @@ Welcome to iFit's documentation!
    usage/theory
    usage/scripting
    usage/software
+   usage/tools
    modules/modules
 
 

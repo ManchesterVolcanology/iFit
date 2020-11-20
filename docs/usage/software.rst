@@ -190,10 +190,3 @@ This tab sets up the fit :class:`~parameters.Parameters` through a series of tab
 The ``Absorbers`` table controls the absorbing species included in the fit, such as gases and Ring. Each absorber :class:`~parameters.Parameter` has a ``name`` (which must be unique), a ``value``, a control on whether it is fitted or fixed and a file from which to read the cross-section. The cross-section file should have two columns, one for the wavelength and one for the cross-section efficiency.
 
 The ``Polynomial``, ``Offset`` and ``Shift`` tables control the polynomial parameters for the fitted background polynomial, intensity offset and wavelength shift/stretch included in the fit.
-
-GUI Tools
-=========
-
-iFit also includes a number of useful tools to help analyse spectra or calculate SO<sub>2<\sub> flux. These can be found under the ``Tools`` menu.
-
-.. note:: This section hasn't been completed yet.
