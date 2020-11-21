@@ -488,14 +488,15 @@ class CalcFlux(QMainWindow):
         # Collate the output data
         self.fluxes.append(flux)
         self.errors.append(flux_err)
-        output_data = np.row_stack([so2_time[1:], so2_scd[1:], so2_err[1:],
-                                    lat[1:], lon[1:], trav_dist, trav_bearing,
-                                    corr_factor])
+        output_data = np.column_stack([so2_time[1:], so2_scd[1:], so2_err[1:],
+                                       lat[1:], lon[1:], trav_dist,
+                                       trav_bearing, corr_factor])
 
         # Write detailed output
         with open(out_path + 'flux_results.csv', 'a') as w:
             w.write(f'Traverse Number,{self.trav_no}\n')
             w.write(f'Flux ({flux_units}),{self.trav_no}\n')
+            w.write(f'Wind Speed (m/s), {wind_speed}\n')
             w.write(f'Volcano Lat/Lon,{vlat},{vlon}\n')
             w.write(f'Plume Center,{peak_loc[0]},{peak_loc[1]}\n')
             w.write('Time (Decimal hours),SO2 SCD,SO2 Err,Lat,Lon,Distance,'
