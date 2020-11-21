@@ -78,10 +78,44 @@ Here the user defines the iFit results file, GPS file and Output Folder to hold 
 
 .. note:: Currently calc_flux requires that the SO2 SCD parameter is called "SO2" in the iFIt output file.
 
-.. note:: The GPS data is assumed to be tab delimited and that it includes the following headings (case sensitive): "time", "latitude", "longitude". Other headings may be included in the file, but these are ignored.
+.. note:: The GPS data is assumed to be tab delimited and that it includes the following headings (case sensitive): "time", "latitude", "longitude" and "altitude (m)". Other headings may be included in the file, but these are ignored.
 
 Volcano and Wind Settings
 -------------------------
+
+This section sets up the volcano location and the wind speed used to calculate the flux. The volcano data can either be input manually or selected from pre-saved data stored in the ``bin/volcano_data.yaml`` file. New volcanoes can be added to this file using the YAML format. Each entry is just a list, for example:
+
+.. code-block::
+
+  Masaya:
+  - 11.984397
+  - -86.167980
+  - -6
+
+Where the entries are the volcano latitude, longitude and time diference respectively. The time difference is used as typically spectra are recorded using local time, whilst GPS coordinates are with UTC, so a correction must be applied to account for this. The program must be reloaded in order to make use of updates to the ``bin/volcano_data.yaml`` file.
+
+The wind speed can then be set by the user, with a choice of using m/s or knots. The wind error can also be set, either as a percentage or as an absolute value.
+
+Graphs and Flux Outputs
+-----------------------
+
+Here the traverse data are displayed for the user. After importing the |SO2| and GPS data, the |SO2| time series is displayed in the ``Traverse`` panel.
+
+.. figure:: ../figures/flux_import.png
+  :alt: screenshot of calc_flux window with imported data
+
+  Figure 6: The Calc Flux window with imported data
+
+The user can then use the graph interface to select the desired traverse form the time series and, once the volcano and wind settings are set, press ``Calculate FLux``. The calculated flux and error are then displayed in the output table, with the traverse GPS track shown in the ``Map`` panel.
+
+.. figure:: ../figures/flux_map.png
+  :alt: screenshot of calc_flux map window
+
+  Figure 7: The Calc Flux map window
+
+The map shows the full GPS track (blue line), the traverse (orange line), the volcano location (white dot) and the plume center of mass (green dot).
+
+The results are also saved to two files in the ``Output Folder`` directory. ``flux_results.csv`` contains the detailled results, including the flux, flux error, voclano location, plume center of mass and wind speed, followed by the GPS tagged |SO2| columns, |SO2| error, distance and direction moved and the calculated correction factor to take into account the plume direction. A summary of the fluxes is also given in the ``flux_summary.txt`` file, which contains each flux and error, as well as the average flux, standard deviation and weighted mean.
 
 .. Substitutions
 .. |SO2| replace:: SO\ :sub:`2`
