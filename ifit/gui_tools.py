@@ -495,7 +495,8 @@ class CalcFlux(QMainWindow):
         # Write detailed output
         with open(out_path + 'flux_results.csv', 'a') as w:
             w.write(f'Traverse Number,{self.trav_no}\n')
-            w.write(f'Flux ({flux_units}),{self.trav_no}\n')
+            w.write(f'Flux ({flux_units}),{flux}\n')
+            w.write(f'Error ({flux_units}),{flux_err}\n')
             w.write(f'Wind Speed (m/s), {wind_speed}\n')
             w.write(f'Volcano Lat/Lon,{vlat},{vlon}\n')
             w.write(f'Plume Center,{peak_loc[0]},{peak_loc[1]}\n')
