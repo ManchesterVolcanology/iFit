@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
         # Update widgets from loaded config file
         self.config_fname = None
         if os.path.isfile('bin/config'):
-            with open('bin/config', 'r') as r:
+            with open('bin/config.yml', 'r') as r:
                 self.config_fname = r.readline().strip()
             self.load_config(fname=self.config_fname)
 
