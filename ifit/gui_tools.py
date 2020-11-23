@@ -154,8 +154,8 @@ class CalcFlux(QMainWindow):
 
         # Load volcano data
         self.volcano_data = {}
-        if os.path.isfile('bin/volcano_data.yaml'):
-            with open('bin/volcano_data.yaml', 'r') as ymlfile:
+        if os.path.isfile('bin/volcano_data.yml'):
+            with open('bin/volcano_data.yml', 'r') as ymlfile:
                 self.volcano_data = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
         # Create the layout

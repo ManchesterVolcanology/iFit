@@ -1,7 +1,7 @@
 # iFit specific files
 Results
 Spectrometer
-*.yaml
+*.yml
 config
 *log*
 temp*
