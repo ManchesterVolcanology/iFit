@@ -3,7 +3,7 @@
 iFit User Interface
 ###################
 
-To avoid the need to write a script for every use a Graphical User Interface (GUI) was developed for iFit. This also helps to facilitate spectra acquistion and real-time analysis. This section will outline the setup and use of the GUI for both real-time and post analysis. This will apply for running the GUI with Python or from an executeable file.
+To avoid the need to write a script for every use a Graphical User Interface (GUI) was developed for iFit. This also helps to facilitate spectra acquisition and real-time analysis. This section will outline the setup and use of the GUI for both real-time and post analysis. This will apply for running the GUI with Python or from an executable file.
 
 GUI Overview
 ============
@@ -174,7 +174,7 @@ Spectrometer
   * - ILS Parameters
     - File the contains either the ILS super-Gaussian parameters or the directly measured lineshape to use
   * - Flat Spectrum
-    - Path to the flat spectrum to use. Should be a file with two columns delimeted with a tab. The first is intensity and the second is the flat-field response.
+    - Path to the flat spectrum to use. Should be a file with two columns delimited with a tab. The first is intensity and the second is the flat-field response.
   * - Wavelength Calibration
     - The wavelength calibration to use if none are given in the spectra files.
   * - FWEM, k, a\ :sub:`w`, a\ :sub:`k`
