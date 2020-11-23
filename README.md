@@ -19,7 +19,7 @@ conda install -c conda-forge python-seabreeze
 seabreeze_os_setup
 ```
 
-To install `python-seabreeze` and install the relevant drivers. See the [`python-seabreeze docs`](https://python-seabreeze.readthedocs.io/en/latest/) for more details.
+To install `python-seabreeze` and install the relevant drivers. See the [`python-seabreeze docs`](https://python-seabreeze.readthedocs.io/en/latest/) for more details. Massive thanks to Andreas Poehlmann for creating and maintaining python-seabreeze, without which I would have spent an inordinate amount of time trying (and likely failing) to talk to spectrometers.
 
 ## Icons
 
