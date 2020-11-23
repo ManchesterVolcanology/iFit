@@ -39,7 +39,7 @@ Finally, install python-seabreeze if required
 
   conda install -c conda-forge python-seabreeze
 
-Alternatively an executable is available. Currently this is only for Windows (64-bit), however if you require an alternative version please get in touch and I will try to help.
+Alternatively an executable is available. Currently this is only for Windows, however if you require an alternative version please get in touch and I will try to help.
 
 .. Substitutions
 .. |SO2| replace:: SO\ :sub:`2`
