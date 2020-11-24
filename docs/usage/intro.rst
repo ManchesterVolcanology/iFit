@@ -37,7 +37,7 @@ Finally, install python-seabreeze if required
 
 .. code-block:: bash
 
-  conda install -c conda-forge python-seabreeze
+  conda install -c conda-forge seabreeze
 
 Alternatively an executable is available. Currently this is only for Windows, however if you require an alternative version please get in touch and I will try to help.
 
