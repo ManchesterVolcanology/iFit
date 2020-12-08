@@ -71,8 +71,8 @@ class MainWindow(QMainWindow):
 
         # Update widgets from loaded config file
         self.config_fname = None
-        if os.path.isfile('bin/config'):
-            with open('bin/config.yml', 'r') as r:
+        if os.path.isfile('bin/.config'):
+            with open('bin/.config', 'r') as r:
                 self.config_fname = r.readline().strip()
             self.load_config(fname=self.config_fname)
 
@@ -827,7 +827,7 @@ class MainWindow(QMainWindow):
 
         logging.info('Config file saved')
 
-        with open('bin/config', 'w') as w:
+        with open('bin/.config', 'w') as w:
             w.write(self.config_fname)
 
 # =============================================================================
