@@ -317,7 +317,14 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
     spec_fnames, dark_fnames, spec_type, buffer, save_path = settings
 
     # Set the dark spectrum
-    x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
+    if analyser.dark_flag:
+        if len(dark_fnames) == 0:
+            logging.warning('No dark spectra selected, '
+                            + 'disabling dark correction')
+            analyser.dark_flag = False
+
+        else:
+            x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
 
     # Set status
     logging.info('Beginning analysis loop')
