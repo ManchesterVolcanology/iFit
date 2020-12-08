@@ -12,7 +12,13 @@ To get started with Anaconda create a new environment:
 
 ```conda create -n myenv python=3.6 numpy scipy matplotlib tqdm pandas pyqt pyqtgraph pyyaml```
 
-where `myenv` is the name of the environment. This should allow the use of the basic code as well as the GUI. If wanting to acquire spectra then also run:
+where `myenv` is the name of the environment. The environment can then be activated with:
+
+```
+conda activate myenv
+```
+
+This should allow the use of the basic code as well as the GUI. If wanting to acquire spectra then also run:
 
 ```
 conda install -c conda-forge seabreeze
