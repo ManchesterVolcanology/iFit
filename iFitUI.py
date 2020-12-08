@@ -870,7 +870,7 @@ class MainWindow(QMainWindow):
             self.config_fname = fname
 
         except FileNotFoundError:
-            logging.warn('Unable to load config file')
+            logging.warning('Unable to load config file')
             config = {}
 
         return config
