@@ -244,7 +244,7 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
     elif analysis_mode == 'rt_analyse':
 
         spec_fnames = None
-        dark_fnames = ['bin/temp_dark.txt']
+        dark_fnames = ['bin/.dark']
         spec_type = 'iFit'
         buffer = Buffer(2000, buffer_cols)
         save_path = widgetData['rt_save_path'] + '/iFit_rt_output.csv'
@@ -487,7 +487,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
                 logging.info('Dark spectra acquisition interupted')
 
         dark_spec = np.average(dark_arr, axis=0)
-        np.savetxt('bin/temp_dark.txt', dark_spec)
+        np.savetxt('bin/.dark', dark_spec)
 
     if acquisition_mode == 'acquire_cont':
 
