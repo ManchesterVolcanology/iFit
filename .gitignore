@@ -3,6 +3,7 @@ Results
 Spectrometer
 *.yml
 .config
+.dark
 *log*
 temp*
 *.exe
