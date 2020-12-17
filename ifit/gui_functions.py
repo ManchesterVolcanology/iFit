@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import read_spectrum, average_spectra
-from ifit.spectrometers import Spectrometer
+from ifit.spectrometers import VSpectrometer
 
 
 class QTextEditLogger(logging.Handler, QObject):
@@ -232,17 +232,33 @@ def generate_analyser(widgetData):
 def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
     """Set up the mode dependant analysis settings"""
 
+    # By default there is no dark spectrum
+    dark_spec = None
+
     if analysis_mode == 'post_analyse':
 
+        # Set acquisition parameters
         spec_fnames = widgetData['spec_fnames'].split('\n')
         dark_fnames = widgetData['dark_fnames'].split('\n')
         spec_type = widgetData['spec_type']
         buffer = Buffer(len(spec_fnames), buffer_cols)
         save_path = widgetData['save_path']
+        write_mode = 'w'
         worker.signals.status.emit('Analysing')
+
+        # Read the dark spectrum
+        if widgetData['dark_flag']:
+
+            if len(dark_fnames) == 0:
+                logging.warning('No dark spectra selected, '
+                                + 'disabling dark correction')
+
+            else:
+                x, dark_spec = average_spectra(dark_fnames, spec_type)
 
     elif analysis_mode == 'rt_analyse':
 
+        # Set acquisition parameters
         spec_fnames = None
         dark_fnames = ['bin/.dark']
         spec_type = 'iFit'
@@ -250,14 +266,22 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
         save_path = widgetData['rt_save_path'] + '/iFit_rt_output.csv'
         worker.signals.status.emit('Acquiring')
 
-        # Check that the output file doesn't already exist
-        i = 0
-        tmpstr = save_path
-        while os.path.isfile(save_path):
-            i += 1
-            save_path = f'{tmpstr.split(".")[-2]}({i}).csv'
+        # Read the dark spectrum
+        if widgetData['dark_flag']:
 
-    return spec_fnames, dark_fnames, spec_type, buffer, save_path
+            try:
+                dark_spec = np.loadtxt('bin/.dark')
+            except OSError:
+                logging.warning('No dark spectrum found, '
+                                + 'disabling dark correction')
+
+        # Set the output write format
+        if os.path.isfile(save_path):
+            write_mode = 'a'
+        else:
+            write_mode = 'w'
+
+    return spec_fnames, dark_spec, spec_type, buffer, save_path, write_mode
 
 
 # =============================================================================
@@ -314,40 +338,34 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
 
     # Set mode dependent settings
     settings = analysis_setup(worker, analysis_mode, widgetData, buffer_cols)
-    spec_fnames, dark_fnames, spec_type, buffer, save_path = settings
+    spec_fnames, dark_spec, spec_type, buffer, save_path, write_mode = settings
 
     # Set the dark spectrum
-    if analyser.dark_flag:
-        if len(dark_fnames) == 0:
-            logging.warning('No dark spectra selected, '
-                            + 'disabling dark correction')
-            analyser.dark_flag = False
-
-        else:
-            try:
-                x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
-            except ZeroDivisionError:
-                analyser.dark_flag = False
-                logging.warning('Failed to read dark spectra, '
-                                + 'Disabling dark correction')
+    if analyser.dark_flag and dark_spec is not None:
+        analyser.dark_spec = dark_spec
+    else:
+        analyser.dark_flag = False
 
     # Set status
     logging.info('Beginning analysis loop')
 
     # Open the output file
-    with open(save_path, 'w') as w:
+    with open(save_path, write_mode) as w:
 
-        # Make a list of column names
-        cols = ['File', 'Number', 'Time']
-        for par in analyser.params:
-            cols += [par, f'{par}_err']
-        cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
+        # If writing a new file, add the columns
+        if write_mode == 'w':
 
-        # Write the header
-        w.write(cols[0])
-        for c in cols[1:]:
-            w.write(f',{c}')
-        w.write('\n')
+            # Make a list of column names
+            cols = ['File', 'Number', 'Time']
+            for par in analyser.params:
+                cols += [par, f'{par}_err']
+            cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
+
+            # Write the header
+            w.write(cols[0])
+            for c in cols[1:]:
+                w.write(f',{c}')
+            w.write('\n')
 
         # Begin the analysis loop
         while not worker.is_killed:
@@ -393,7 +411,8 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
             w.write('\n')
 
             # Emit the progress
-            progress_callback.emit(((loop+1)/len(spec_fnames))*100)
+            if analysis_mode == 'post_analyse':
+                progress_callback.emit(((loop+1)/len(spec_fnames))*100)
 
             # Emit graph data
             plot_callback.emit([fit_result, [x, y], buffer.df])
@@ -539,8 +558,8 @@ def connect_spectrometer(gui):
     if not gui.connected_flag:
 
         # Connect to the spectrometer
-        spec = Spectrometer(integration_time=gui.widgets.get("int_time"),
-                            coadds=gui.widgets.get("coadds"))
+        spec = VSpectrometer(integration_time=gui.widgets.get("int_time"),
+                             coadds=gui.widgets.get("coadds"))
 
         # Check if connection was successful
         if spec.serial_number is not None:
