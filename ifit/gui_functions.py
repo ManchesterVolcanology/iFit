@@ -324,7 +324,12 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
             analyser.dark_flag = False
 
         else:
-            x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
+            try:
+                x, analyser.dark_spec = average_spectra(dark_fnames, spec_type)
+            except ZeroDivisionError:
+                analyser.dark_flag = False
+                logging.warning('Failed to read dark spectra, '
+                                + 'Disabling dark correction')
 
     # Set status
     logging.info('Beginning analysis loop')
