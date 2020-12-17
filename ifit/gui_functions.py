@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import read_spectrum, average_spectra
-from ifit.spectrometers import VSpectrometer
+from ifit.spectrometers import Spectrometer
 
 
 class QTextEditLogger(logging.Handler, QObject):
@@ -558,8 +558,8 @@ def connect_spectrometer(gui):
     if not gui.connected_flag:
 
         # Connect to the spectrometer
-        spec = VSpectrometer(integration_time=gui.widgets.get("int_time"),
-                             coadds=gui.widgets.get("coadds"))
+        spec = Spectrometer(integration_time=gui.widgets.get("int_time"),
+                            coadds=gui.widgets.get("coadds"))
 
         # Check if connection was successful
         if spec.serial_number is not None:

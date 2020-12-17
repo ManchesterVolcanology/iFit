@@ -1047,12 +1047,12 @@ class MainWindow(QMainWindow):
 
         # This section is for testing with a virtual spectrometer
         #######################################################################
-        if acquisition_mode == 'acquire_single':
-            self.spectrometer.fpath = 'Example/spectrum_00000.txt'
-        if acquisition_mode == 'acquire_darks':
-            self.spectrometer.fpath = 'Example/dark.txt'
-        if acquisition_mode == 'acquire_cont':
-            self.spectrometer.fpath = 'Example/spectrum_00366.txt'
+        # if acquisition_mode == 'acquire_single':
+        #     self.spectrometer.fpath = 'Example/spectrum_00000.txt'
+        # if acquisition_mode == 'acquire_darks':
+        #     self.spectrometer.fpath = 'Example/dark.txt'
+        # if acquisition_mode == 'acquire_cont':
+        #     self.spectrometer.fpath = 'Example/spectrum_00366.txt'
         #######################################################################
 
         # Set the progress bar to busy
