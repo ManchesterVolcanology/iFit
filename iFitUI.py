@@ -939,8 +939,10 @@ class MainWindow(QMainWindow):
             if self.widgets.get('graph_flag') and not self.worker.is_paused:
 
                 # Get the time sereis data
-                plotx = self.df['Number'].dropna().to_numpy()
-                ploty = self.df[self.key].dropna().to_numpy()
+                plotx = np.array(self.df['Number'].dropna().to_numpy(),
+                                 dtype=float)
+                ploty = np.array(self.df[self.key].dropna().to_numpy(),
+                                 dtype=float)
 
                 # Check for large number in the time series. This is due to a
                 # bug in pyqtgraph not displaying large numbers
