@@ -369,6 +369,7 @@ class MainWindow(QMainWindow):
 
     def _createGraphs(self):
         """Build the graphical display and program settings"""
+
         layout = QGridLayout(self.graphFrame)
 
         # Generate tabs for the graphs and settings
@@ -387,18 +388,18 @@ class MainWindow(QMainWindow):
 #       Set up the analysis graphs
 # =============================================================================
 
-        graphwin = pg.GraphicsWindow(show=True)
+        self.graphwin = pg.GraphicsLayoutWidget(show=True)
         pg.setConfigOptions(antialias=True)
         # pg.setConfigOptions(useOpenGL=True)
 
         glayout = QGridLayout(tab1)
 
         # Make the graphs
-        ax0 = graphwin.addPlot(row=0, col=0)
-        ax1 = graphwin.addPlot(row=0, col=1)
-        ax2 = graphwin.addPlot(row=1, col=0)
-        ax3 = graphwin.addPlot(row=1, col=1)
-        ax4 = graphwin.addPlot(row=2, col=0, colspan=2)
+        ax0 = self.graphwin.addPlot(row=0, col=0)
+        ax1 = self.graphwin.addPlot(row=0, col=1)
+        ax2 = self.graphwin.addPlot(row=1, col=0)
+        ax3 = self.graphwin.addPlot(row=1, col=1)
+        ax4 = self.graphwin.addPlot(row=2, col=0, colspan=2)
         self.plot_axes = [ax0, ax1, ax2, ax3, ax4]
 
         for ax in self.plot_axes:
@@ -432,7 +433,7 @@ class MainWindow(QMainWindow):
         self.plot_lines = [l0, l1, l2, l3, l4, l5, l6]
 
         # Add the graphs to the layout
-        glayout.addWidget(graphwin, 0, 0, 1, 7)
+        glayout.addWidget(self.graphwin, 0, 0, 1, 8)
 
 # =============================================================================
 #      Graph settings
@@ -459,26 +460,33 @@ class MainWindow(QMainWindow):
         # self.widgets['scroll_amt'].setFixedSize(70, 20)
         glayout.addWidget(self.widgets['scroll_amt'], 1, 5)
 
+        # Add combo box for the graphbackground color
+        glayout.addWidget(QLabel('Graph Background:'), 1, 6)
+        self.widgets['graph_bg'] = QComboBox()
+        self.widgets['graph_bg'].addItems(['Dark', 'Light'])
+        self.widgets['graph_bg'].currentTextChanged.connect(self.alt_graph_bg)
+        glayout.addWidget(self.widgets['graph_bg'], 1, 7)
+
         vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        glayout.addItem(vspacer, 1, 6, 1, -1)
+        glayout.addItem(vspacer, 1, 8, 1, -1)
 
 # =============================================================================
 #      Set up the scope plot
 # =============================================================================
 
-        scopewin = pg.GraphicsWindow(show=True)
+        self.scopewin = pg.GraphicsLayoutWidget(show=True)
         glayout = QGridLayout(tab3)
 
         # Make the graph
-        ax = scopewin.addPlot(row=0, col=0)
-        ax.setDownsampling(mode='peak')
-        ax.setClipToView(True)
-        ax.showGrid(x=True, y=True)
+        self.scope_ax = self.scopewin.addPlot(row=0, col=0)
+        self.scope_ax.setDownsampling(mode='peak')
+        self.scope_ax.setClipToView(True)
+        self.scope_ax.showGrid(x=True, y=True)
 
-        self.scope_line = ax.plot([], [], pen=p0)
+        self.scope_line = self.scope_ax.plot([], [], pen=p0)
 
         # Add the graphs to the layout
-        glayout.addWidget(scopewin, 0, 0)
+        glayout.addWidget(self.scopewin, 0, 0)
 
 # =============================================================================
 #       Create settings
@@ -789,6 +797,31 @@ class MainWindow(QMainWindow):
         params = [r[0] for r in rows]
         self.widgets['graph_param'].clear()
         self.widgets['graph_param'].addItems(params)
+
+    def alt_graph_bg(self):
+        """Change the graph background color"""
+        var = self.widgets.get('graph_bg')
+
+        if var == 'Light':
+            bgcolor = 'w'
+            fgcolor = 'k'
+        if var == 'Dark':
+            bgcolor = 'k'
+            fgcolor = 'w'
+
+        self.graphwin.setBackground(bgcolor)
+        self.scopewin.setBackground(bgcolor)
+        pen = pg.mkPen(fgcolor, width=1)
+
+        for ax in self.plot_axes:
+            ax.getAxis('left').setPen(pen)
+            ax.getAxis('right').setPen(pen)
+            ax.getAxis('top').setPen(pen)
+            ax.getAxis('bottom').setPen(pen)
+        self.scope_ax.getAxis('left').setPen(pen)
+        self.scope_ax.getAxis('right').setPen(pen)
+        self.scope_ax.getAxis('top').setPen(pen)
+        self.scope_ax.getAxis('bottom').setPen(pen)
 
     def closeEvent(self, event):
         """Handle GUI closure"""
