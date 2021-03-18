@@ -106,10 +106,8 @@ class Analyser():
         # Build model grid, a high res grid on which the forward model is build
         start = fit_window[0] - model_padding
         stop = fit_window[1] + model_padding + model_spacing
-        model_grid = np.arange(start, stop, step=model_spacing)
-
-        # Add the model grid to the common dict
-        self.model_grid = model_grid
+        self.init_grid = np.arange(start, stop, step=model_spacing)
+        self.model_grid = self.init_grid.copy()
 
         # ---------------------------------------------------------------------
         # Flat Spectrum
@@ -121,12 +119,8 @@ class Analyser():
             logging.info('Importing flat spectrum')
 
             try:
-                # Import flat spectrum and extract the fit window
-                flat_x, flat_y = np.loadtxt(flat_path, unpack=True)
-                f_idx = np.where(np.logical_and(flat_x >= fit_window[0],
-                                                flat_x <= fit_window[1]))
-                self.flat = flat_y[f_idx]
-
+                # Import the flat spectrum
+                self.flat = np.loadtxt(flat_path, unpack=True)
                 logging.info('Flat spectrum imported')
 
             except OSError:
@@ -184,7 +178,8 @@ class Analyser():
         sol_x, sol_y = np.loadtxt(frs_path, unpack=True)
 
         # Interpolate onto model_grid
-        self.frs = griddata(sol_x, sol_y, model_grid, method='cubic')
+        self.init_frs = griddata(sol_x, sol_y, self.model_grid, method='cubic')
+        self.frs =self.init_frs.copy()
 
         logging.info('Solar reference spectrum imported')
 
@@ -195,7 +190,7 @@ class Analyser():
         logging.info('Importing gas cross-sections...')
 
         # Create an empty dictionary to hold the gas cross-sections
-        self.xsecs = {}
+        self.init_xsecs = {}
 
         # Cycle through the parameters
         for name, param in self.params.items():
@@ -208,20 +203,25 @@ class Analyser():
                 x, xsec = np.loadtxt(param.xpath, unpack=True)
 
                 # Interpolate onto the model grid
-                self.xsecs[name] = griddata(x, xsec, model_grid,
-                                            method='cubic')
+                self.init_xsecs[name] = griddata(x, xsec, self.model_grid,
+                                                 method='cubic')
 
                 logging.info(f'{name} cross-section imported')
+
+        # Create a copy of the cross-sections
+        self.xsecs = self.init_xsecs.copy()
 
         # ---------------------------------------------------------------------
         # Other model settings
         # ---------------------------------------------------------------------
 
+        self.init_fit_window = fit_window
         self.fit_window = fit_window
         self.stray_window = stray_window
         self.stray_flag = stray_flag
         self.flat_flag = flat_flag
         self.dark_flag = dark_flag
+        self.model_padding = model_padding
         self.model_spacing = model_spacing
         self.despike_flag = despike_flag
         self.spike_limit = spike_limit
@@ -276,6 +276,7 @@ class Analyser():
 
         # Run de-spike
         if self.despike_flag:
+
             # Run a savgol filter on the spectrum
             sy = savgol_filter(y, 11, 3)
 
@@ -296,8 +297,16 @@ class Analyser():
 
         # Divide by flat spectrum
         if self.flat_flag:
+
+            # Unpack the flat spectrum and trim to the fit window
+            flat_x, flat_y = self.flat
+            flat_idx = np.where(np.logical_and(flat_x >= self.fit_window[0],
+                                               flat_x <= self.fit_window[1]))
+            flat = flat_y[f_idx]
+
+            # Divide the emasured spectrum by the flat spectrum
             try:
-                spec = np.divide(spec, self.flat)
+                spec = np.divide(spec, flat)
             except ValueError:
                 logging.exception('Error in flat correction. Is flat spectrum'
                                   + ' the same shape as the measurement?')
@@ -310,7 +319,7 @@ class Analyser():
 
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
                      resid_type='Percentage', int_limit=None, calc_od=[],
-                     pre_process=True, interp_method='cubic'):
+                     pre_process=True, interp_method='cubic', fit_window=None):
         """Fit the supplied spectrum using a non-linear least squares
         minimisation
 
@@ -341,12 +350,46 @@ class Analyser():
             Controls whether the interpolation at the end of the forward model
             is cubic or linear. Must be either "cubic", "linear" or "nearest".
             See scipy.interpolate.griddata for details.
+        fit_window : tuple, optional
+            Upper and lower limits of the fit window. This superceeds the main
+            fit_window of the Analyser but must be contained within the window
+            used to initialise the Analyser. Default is None.
 
         Returns
         -------
         fit_result : ifit.spectral_analysis.FitResult object
             An object that contains the fit results
         """
+
+        # If a new fit window is given, trim the cross-sections down
+        if fit_window is not None:
+
+            # Check the new window is within the old one
+            a = fit_window[0] < self.init_fit_window[0]
+            b = fit_window[1] > self.init_fit_window[1]
+            if a or b:
+                logging.error('New fit window must be within initial fit'
+                              + 'window!')
+                raise ValueError
+
+            # Pad the fit window
+            pad_window = [fit_window[0] - self.model_padding,
+                          fit_window[1] + self.model_padding]
+
+            # Trim the model grid to the new fit window
+            mod_idx = np.where(np.logical_and(self.init_grid >= pad_window[0],
+                                              self.init_grid <= pad_window[1]))
+            self.model_grid = self.init_grid[mod_idx]
+
+            # Trim the FRS to the new fit window
+            self.frs = self.init_frs[mod_idx]
+
+            # Trim the gas cross-sections to the new fit window
+            for key in self.init_xsecs.keys():
+                self.xsecs[key] = self.init_xsecs[key][mod_idx]
+
+            # Update the fit window attribute
+            self.fit_window = fit_window
 
         # Check is spectrum requires preprocessing
         if pre_process:
