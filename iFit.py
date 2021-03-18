@@ -58,7 +58,7 @@ params.add('bg_poly3', value=1.0, vary=True)
 # Add intensity offset parameters
 params.add('offset0', value=0.0, vary=True)
 
-# Add wavelength shift parameters
+# Add wavelength stretch and shift parameters
 params.add('shift0', value=0.0, vary=True)
 params.add('shift1', value=0.1, vary=True)
 
@@ -127,7 +127,7 @@ cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
 # Make a dataframe to hold the fit results
 df = pd.DataFrame(index=np.arange(len(meas_fnames)), columns=cols)
 
-for n, fname in enumerate(tqdm(meas_fnames)):
+for i, fname in enumerate(tqdm(meas_fnames)):
 
     x, y, spec_info, read_err = read_spectrum(fname, spec_type)
 
@@ -137,12 +137,12 @@ for n, fname in enumerate(tqdm(meas_fnames)):
                                 calc_od=['SO2'])
 
     # Add to the results dataframe
-    row = [n, spec_info['time']]
+    row = [i, spec_info['time']]
     for par in fit.params.values():
         row += [par.fit_val, par.fit_err]
     row += [fit.nerr, fit.int_lo, fit.int_hi,
             fit.int_av]
-    df.loc[n] = row
+    df.loc[i] = row
 
     if plotting_flag:
         # Update the plot
@@ -158,7 +158,7 @@ for n, fname in enumerate(tqdm(meas_fnames)):
             ax.autoscale_view()
 
         plt.pause(0.01)
-        if n == 0:
+        if i == 0:
             plt.tight_layout()
 
 if plotting_flag:
