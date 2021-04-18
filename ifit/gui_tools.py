@@ -424,7 +424,7 @@ class CalcFlux(QMainWindow):
 
         # Calculate the distance and bearing of each measurement vector
         vect = [haversine([lat[i-1], lon[i-1]], [lat[i], lon[i]])
-                for i in range(len(lat) - 1)]
+                for i in range(1, len(lat))]
 
         # Unpack the distance and bearing from the vectors
         trav_dist, trav_bearing = np.asarray(vect).T
