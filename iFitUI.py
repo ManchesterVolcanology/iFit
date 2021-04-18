@@ -979,8 +979,9 @@ class MainWindow(QMainWindow):
 
                 # Check for large number in the time series. This is due to a
                 # bug in pyqtgraph not displaying large numbers
-                if np.nanmax(ploty) > 1e6:
-                    order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
+                max_val = np.nanmax(np.abs(ploty))
+                if ~np.isnan(max_val) and max_val > 1e6:
+                    order = int(np.ceil(np.log10(max_val))) - 1
                     ploty = ploty / 10**order
                     self.plot_axes[4].setLabel('left',
                                                f'Fit value (1e{order})')
