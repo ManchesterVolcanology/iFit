@@ -302,7 +302,7 @@ class Analyser():
             flat_x, flat_y = self.flat
             flat_idx = np.where(np.logical_and(flat_x >= self.fit_window[0],
                                                flat_x <= self.fit_window[1]))
-            flat = flat_y[f_idx]
+            flat = flat_y[flat_idx]
 
             # Divide the emasured spectrum by the flat spectrum
             try:
