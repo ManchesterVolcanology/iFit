@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QLabel, QTextEdit, QLineEdit, QPushButton, QFrame,
                              QFileDialog, QScrollArea, QCheckBox, QSplitter,
                              QComboBox, QDoubleSpinBox, QTableWidget,
-                             QTableWidgetItem, QTabWidget)
+                             QTableWidgetItem, QTabWidget, QMessageBox)
 
 try:
     from .make_ils import super_gaussian
@@ -47,6 +47,8 @@ class CalcFlux(QMainWindow):
         # Scroll Area Properties
         self._centralWidget.setWidgetResizable(True)
         self._centralWidget.setWidget(self.widget)
+
+        self.save_flag = False
 
         self._createApp()
 
@@ -513,6 +515,8 @@ class CalcFlux(QMainWindow):
             self.trav_no -= 1
             self.flux_data.pop(f'trav{self.trav_no}')
             self.fluxTable.setRowCount(self.fluxTable.rowCount()-1)
+        if self.trav_no == 0:
+            self.save_flag = False
 
     def save_fluxes(self):
         """Output the flux results"""
@@ -559,6 +563,22 @@ class CalcFlux(QMainWindow):
                     + f' (+/- {w_mean_error:.02f}) {flux_units}')
 
         self.save_flag = False
+
+    def closeEvent(self, event):
+        """Handle GUI closure"""
+        if self.save_flag:
+            options = QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            reply = QMessageBox.question(self, 'Message',
+                                         "Would you like to save the fluxes?",
+                                         options, QMessageBox.Cancel)
+
+            if reply == QMessageBox.Yes:
+                self.save_fluxes()
+                event.accept()
+            elif reply == QMessageBox.No:
+                event.accept()
+            else:
+                event.ignore()
 
 
 # =============================================================================
