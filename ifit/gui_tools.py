@@ -217,10 +217,22 @@ class CalcFlux(QMainWindow):
         layout = QGridLayout(self.outputFrame)
 
         # Add a button to calculate the flux
-        btn = QPushButton('Calculate Flux')
-        btn.setFixedSize(90, 25)
-        btn.clicked.connect(self.calc_flux)
-        layout.addWidget(btn, 0, 0)
+        calc_btn = QPushButton('Calculate Flux')
+        calc_btn.setFixedSize(90, 25)
+        calc_btn.clicked.connect(self.calc_flux)
+        layout.addWidget(calc_btn, 0, 0)
+
+        # Add a button to remove the last flux
+        rem_btn = QPushButton('Remove Last')
+        rem_btn.setFixedSize(90, 25)
+        rem_btn.clicked.connect(self.del_trav)
+        layout.addWidget(rem_btn, 0, 1)
+
+        # Add a button to save the fluxes
+        sav_btn = QPushButton('Save Fluxes')
+        sav_btn.setFixedSize(90, 25)
+        sav_btn.clicked.connect(self.save_fluxes)
+        layout.addWidget(sav_btn, 0, 2)
 
         # Add a table to hold the flux results
         self.fluxTable = QTableWidget()
@@ -228,7 +240,7 @@ class CalcFlux(QMainWindow):
         self.fluxTable.setRowCount(0)
         self.fluxTable.setHorizontalHeaderLabels(['Flux', 'Error'])
 
-        layout.addWidget(self.fluxTable, 1, 0)
+        layout.addWidget(self.fluxTable, 1, 0, 1, 3)
 
 # =============================================================================
 #   Graphs
@@ -357,15 +369,12 @@ class CalcFlux(QMainWindow):
         self.lr.setZValue(-10)
         self.ax.addItem(self.lr)
 
-        # Create a traverse counter
+        # Create a traverse counter and dictionary to hold the results
+        self.flux_data = {}
         self.trav_no = 0
 
         # Reset the results table
         self.fluxTable.setRowCount(0)
-
-        # Initialise holder arrays for flux results
-        self.fluxes = []
-        self.errors = []
 
 # =============================================================================
 # Calculate Flux
@@ -470,11 +479,6 @@ class CalcFlux(QMainWindow):
         self.fluxTable.setItem(self.trav_no, 1,
                                QTableWidgetItem(f'{flux_err:.02f}'))
 
-        # Make sure the output directory exists, and create if not
-        out_path = self.out_path.text()
-        if not os.path.isdir(out_path):
-            os.makedirs(out_path)
-
         # Plot the traverse graphs
         self.mapax.clear()
         self.mapax.plot(self.lon, self.lat, pen=self.p0)
@@ -485,45 +489,76 @@ class CalcFlux(QMainWindow):
                         symbolPen=None, symbolSize=10,
                         symbolBrush=(0, 255, 0))
 
-        # Collate the output data
-        self.fluxes.append(flux)
-        self.errors.append(flux_err)
+        # Collate the results
         output_data = np.column_stack([so2_time[1:], so2_scd[1:], so2_err[1:],
                                        lat[1:], lon[1:], trav_dist,
                                        trav_bearing, corr_factor])
+        self.flux_data[f'trav{self.trav_no}'] = {'flux': flux,
+                                                 'flux_err': flux_err,
+                                                 'flux_units': flux_units,
+                                                 'wind_speed': wind_speed,
+                                                 'vlat': vlat,
+                                                 'vlon': vlon,
+                                                 'peak_loc': peak_loc,
+                                                 'output_data': output_data}
 
-        # Write detailed output
-        with open(out_path + 'flux_results.csv', 'a') as w:
-            w.write(f'Traverse Number,{self.trav_no}\n')
-            w.write(f'Flux ({flux_units}),{flux}\n')
-            w.write(f'Error ({flux_units}),{flux_err}\n')
-            w.write(f'Wind Speed (m/s), {wind_speed}\n')
-            w.write(f'Volcano Lat/Lon,{vlat},{vlon}\n')
-            w.write(f'Plume Center,{peak_loc[0]},{peak_loc[1]}\n')
-            w.write('Time (Decimal hours),SO2 SCD,SO2 Err,Lat,Lon,Distance,'
-                    + 'Bearing,Correction Factor\n')
+        # Increment the counter
+        self.trav_no += 1
 
-            for i, line in enumerate(output_data):
-                w.write(str(line[0]))
-                for j in line[1:]:
-                    w.write(f',{j}')
+        self.save_flag = True
+
+    def del_trav(self):
+        """Delete the last traverse"""
+        if self.trav_no > 0:
+            self.trav_no -= 1
+            self.flux_data.pop(f'trav{self.trav_no}')
+            self.fluxTable.setRowCount(self.fluxTable.rowCount()-1)
+
+    def save_fluxes(self):
+        """Output the flux results"""
+
+        # Make sure the output directory exists, and create if not
+        out_path = self.out_path.text()
+        if not os.path.isdir(out_path):
+            os.makedirs(out_path)
+
+        for key, data in self.flux_data.items():
+
+            # Write the detailed output
+            with open(out_path + 'flux_results.csv', 'a') as w:
+                w.write(f'Traverse Number,{self.trav_no}\n'
+                        + f'Flux ({data["flux_units"]}),{data["flux"]}\n'
+                        + f'Error ({data["flux_units"]}),{data["flux_err"]}\n'
+                        + f'Wind Speed (m/s), {data["wind_speed"]}\n'
+                        + f'Volcano Lat/Lon,{data["vlat"]},{data["vlon"]}\n'
+                        + f'Plume Center,{data["peak_loc"][0]},'
+                        + f'{data["peak_loc"][1]}\n'
+                        + 'Time (Decimal hours),SO2 SCD,SO2 Err,Lat,Lon,'
+                        + 'Distance,Bearing,Correction Factor\n')
+
+                for i, line in enumerate(data["output_data"]):
+                    w.write(str(line[0]))
+                    for j in line[1:]:
+                        w.write(f',{j}')
+                    w.write('\n')
                 w.write('\n')
-            w.write('\n')
 
         # Write summary output
-        w_mean_flux = np.average(self.fluxes,
-                                 weights=np.power(self.errors, -2))
-        w_mean_error = (1 / np.sum(np.power(self.errors, -2)))**0.5
+        flux_units = data["flux_units"]
+        fluxes = [data['flux'] for data in self.flux_data.values()]
+        errors = [data['flux_err'] for data in self.flux_data.values()]
+        w_mean_flux = np.average(fluxes, weights=np.power(errors, -2))
+        w_mean_error = (1 / np.sum(np.power(errors, -2)))**0.5
         with open(out_path + 'flux_summary.txt', 'w') as w:
             w.write(f'Flux Summary\nFlux ({flux_units}), Error\n')
-            for i in range(len(self.fluxes)):
-                w.write(f'{self.fluxes[i]}, {self.errors[i]}\n')
-            w.write(f'Av Flux = {np.average(self.fluxes):.02f} {flux_units}\n')
-            w.write(f'Stdev = {np.std(self.fluxes):.02f} {flux_units}\n')
+            for i in range(len(fluxes)):
+                w.write(f'{fluxes[i]}, {errors[i]}\n')
+            w.write(f'Av Flux = {np.average(fluxes):.02f} {flux_units}\n')
+            w.write(f'Stdev = {np.std(fluxes):.02f} {flux_units}\n')
             w.write(f'Weighted Mean Flux = {w_mean_flux:.02f}'
                     + f' (+/- {w_mean_error:.02f}) {flux_units}')
 
-        self.trav_no += 1
+        self.save_flag = False
 
 
 # =============================================================================
