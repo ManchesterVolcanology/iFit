@@ -179,7 +179,7 @@ class Analyser():
 
         # Interpolate onto model_grid
         self.init_frs = griddata(sol_x, sol_y, self.model_grid, method='cubic')
-        self.frs =self.init_frs.copy()
+        self.frs = self.init_frs.copy()
 
         logging.info('Solar reference spectrum imported')
 
