@@ -438,7 +438,7 @@ class MainWindow(QMainWindow):
         self.plot_lines = [l0, l1, l2, l3, l4, l5, l6]
 
         # Add the graphs to the layout
-        glayout.addWidget(self.graphwin, 0, 0, 1, 8)
+        glayout.addWidget(self.graphwin, 0, 0, 1, 7)
 
 # =============================================================================
 #      Graph settings
@@ -465,15 +465,19 @@ class MainWindow(QMainWindow):
         # self.widgets['scroll_amt'].setFixedSize(70, 20)
         glayout.addWidget(self.widgets['scroll_amt'], 1, 5)
 
+        # Create a checkbox to only display good fits
+        self.widgets['good_fit_flag'] = QCheckBox('Only Show\nGood Fits?')
+        glayout.addWidget(self.widgets['good_fit_flag'], 2, 0)
+
         # Add combo box for the graphbackground color
-        glayout.addWidget(QLabel('Graph Background:'), 1, 6)
+        glayout.addWidget(QLabel('Graph Background:'), 2, 1)
         self.widgets['graph_bg'] = QComboBox()
         self.widgets['graph_bg'].addItems(['Dark', 'Light'])
         self.widgets['graph_bg'].currentTextChanged.connect(self.alt_graph_bg)
-        glayout.addWidget(self.widgets['graph_bg'], 1, 7)
+        glayout.addWidget(self.widgets['graph_bg'], 2, 2)
 
         vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        glayout.addItem(vspacer, 1, 8, 1, -1)
+        glayout.addItem(vspacer, 1, 6, 1, -1)
 
 # =============================================================================
 #      Set up the scope plot
@@ -983,14 +987,31 @@ class MainWindow(QMainWindow):
                 ploty = np.array(self.df[self.key].dropna().to_numpy(),
                                  dtype=float)
 
-                # Check for large number in the time series. This is due to a
-                # bug in pyqtgraph not displaying large numbers
-                max_val = np.nanmax(np.abs(ploty))
-                if ~np.isnan(max_val) and max_val > 1e6:
-                    order = int(np.ceil(np.log10(max_val))) - 1
-                    ploty = ploty / 10**order
-                    self.plot_axes[4].setLabel('left',
-                                               f'Fit value (1e{order})')
+                # Remove bad points if desired
+                if self.widgets.get('good_fit_flag'):
+                    fit_quality = self.df['fit_quality'].dropna().to_numpy()
+                    idx = np.where(fit_quality == 1)[0]
+                    plotx = plotx[idx]
+                    ploty = ploty[idx]
+
+                # Scroll the graphs if desired
+                if self.widgets.get('scroll_flag'):
+                    npts = self.widgets.get('scroll_amt')
+                    if len(plotx) > npts:
+                        plotx = plotx[-npts:]
+                        ploty = ploty[-npts:]
+
+                # Check that there are data to plot
+                if len(plotx) != 0:
+
+                    # Check for large number in the time series. This is due to
+                    # a bug in pyqtgraph not displaying large numbers
+                    max_val = np.nanmax(np.abs(ploty))
+                    if ~np.isnan(max_val) and max_val > 1e6:
+                        order = int(np.ceil(np.log10(max_val))) - 1
+                        ploty = ploty / 10**order
+                        self.plot_axes[4].setLabel('left',
+                                                   f'Fit value (1e{order})')
 
                 # Plot the data
                 self.plot_lines[0].setData(self.fit_result.grid,

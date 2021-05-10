@@ -335,6 +335,7 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
     buffer_cols = ['Number']
     for par in analyser.params:
         buffer_cols += [par, f'{par}_err']
+    buffer_cols += ['fit_quality']
 
     # Set mode dependent settings
     settings = analysis_setup(worker, analysis_mode, widgetData, buffer_cols)
@@ -403,6 +404,7 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
             for par in fit_result.params.values():
                 row += [par.fit_val, par.fit_err]
                 w.write(f',{par.fit_val},{par.fit_err}')
+            row += [fit_result.nerr]
             buffer.update(row)
 
             # Write fit quality info and start a new line
@@ -415,7 +417,8 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
                 progress_callback.emit(((loop+1)/len(spec_fnames))*100)
 
             # Emit graph data
-            plot_callback.emit([fit_result, [x, y], buffer.df])
+            plot_callback.emit([fit_result, [x, y], buffer.df,
+                                info["spec_no"]])
 
             # Check if analysis is finished
             if analysis_mode == 'post_analyse' and loop == len(spec_fnames)-1:
