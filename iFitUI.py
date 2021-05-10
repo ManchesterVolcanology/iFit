@@ -346,20 +346,25 @@ class MainWindow(QMainWindow):
         self.progress.setFixedSize(400, 25)
         layout.addWidget(self.progress, 0, 0, 1, 6)
 
+        # Add spectrum number indicator
+        layout.addWidget(QLabel('Spectrum Number:'), 1, 0)
+        self.spectrum_number = QLabel('-')
+        layout.addWidget(self.spectrum_number, 1, 1)
+
         # Add numerical outputs
-        layout.addWidget(QLabel('Last amt:'), 1, 0)
+        layout.addWidget(QLabel('Last amt:'), 2, 0)
         self.last_amt = QLabel('-')
-        layout.addWidget(self.last_amt, 1, 1)
-        layout.addWidget(QLabel('+/-'), 1, 2)
+        layout.addWidget(self.last_amt, 2, 1)
+        layout.addWidget(QLabel('+/-'), 2, 2)
         self.last_err = QLabel('-')
-        layout.addWidget(self.last_err, 1, 3)
+        layout.addWidget(self.last_err, 2, 3)
 
         # Create a textbox to display the program logs
         self.logBox = QTextEditLogger(self)
         self.logBox.setFormatter(logging.Formatter('%(message)s'))
         logging.getLogger().addHandler(self.logBox)
         logging.getLogger().setLevel(logging.INFO)
-        layout.addWidget(self.logBox.widget, 2, 0, 1, 6)
+        layout.addWidget(self.logBox.widget, 3, 0, 1, 6)
         msg = 'Welcome to iFit! Written by Ben Esse'
         self.logBox.widget.appendPlainText(msg)
 
@@ -945,7 +950,7 @@ class MainWindow(QMainWindow):
     def get_plot_data(self, plot_info):
         """Catches plot info emitted by the analysis loop"""
         # Unpack the data
-        self.fit_result, self.spectrum, self.df = plot_info
+        self.fit_result, self.spectrum, self.df, spec_no = plot_info
 
         # Get the parameter to plot
         self.key = self.widgets.get('graph_param')
@@ -953,6 +958,7 @@ class MainWindow(QMainWindow):
         # Update the numerical output
         amt = self.fit_result.params[self.key].fit_val
         err = self.fit_result.params[self.key].fit_err
+        self.spectrum_number.setText(str(int(spec_no)))
         self.last_amt.setText(f'{amt:.03g}')
         self.last_err.setText(f'{err:.03g}')
 
