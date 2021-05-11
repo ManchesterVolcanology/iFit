@@ -1,6 +1,7 @@
 import os
 import sys
 import yaml
+import logging
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
@@ -15,6 +16,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QComboBox, QDoubleSpinBox, QTableWidget,
                              QTableWidgetItem, QTabWidget, QMessageBox)
 
+from ifit.gui_functions import QTextEditLogger
+
 try:
     from .make_ils import super_gaussian
     from .haversine import haversine
@@ -22,6 +25,8 @@ except ImportError:
     from make_ils import super_gaussian
     from haversine import haversine
 
+
+logger = logging.getLogger()
 
 # =============================================================================
 # Calculate Flux
@@ -241,8 +246,14 @@ class CalcFlux(QMainWindow):
         self.fluxTable.setColumnCount(2)
         self.fluxTable.setRowCount(0)
         self.fluxTable.setHorizontalHeaderLabels(['Flux', 'Error'])
-
         layout.addWidget(self.fluxTable, 1, 0, 1, 3)
+
+        # Create a textbox to display the program messages
+        self.logBox = QTextEditLogger(self)
+        self.logBox.setFormatter(logging.Formatter('%(message)s'))
+        logging.getLogger().addHandler(self.logBox)
+        logging.getLogger().setLevel(logging.INFO)
+        layout.addWidget(self.logBox.widget, 2, 0, 1, 3)
 
 # =============================================================================
 #   Graphs
@@ -326,7 +337,24 @@ class CalcFlux(QMainWindow):
     def import_data(self):
         """Import the traverse data"""
 
+        logger.info('Importing traverse data...')
+
+        # Ask to save any outstanding fluxes
+        if self.save_flag:
+            options = QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            reply = QMessageBox.question(self, 'Message',
+                                         "Would you like to save the fluxes?",
+                                         options, QMessageBox.Cancel)
+
+            if reply == QMessageBox.Yes:
+                self.save_fluxes()
+            elif reply == QMessageBox.No:
+                pass
+            else:
+                return
+
         # Read in the SO2 results
+        logger.info('Importing gas data...')
         so2_df = pd.read_csv(self.so2_path.text(), parse_dates=['Time'])
 
         self.so2_time = np.array([t.hour + t.minute/60 + t.second/3600
@@ -340,6 +368,7 @@ class CalcFlux(QMainWindow):
             self.so2_err = np.ma.masked_where(mask, self.so2_err)
 
         # Read in the GPS data
+        logger.info('Importing GPS data...')
         gps_df = pd.read_table(self.gps_path.text(), sep='\t',
                                parse_dates=['time'])
 
@@ -378,12 +407,19 @@ class CalcFlux(QMainWindow):
         # Reset the results table
         self.fluxTable.setRowCount(0)
 
+        # Turn off the svae flag
+        self.save_flag = False
+
+        logger.info('Traverses imported!')
+
 # =============================================================================
 # Calculate Flux
 # =============================================================================
 
     def calc_flux(self):
         """Calculate the flux from the selected traverse"""
+
+        logger.info('Calculating flux:')
 
         # Pull the relavant data from the GUI
         vlat = float(self.vlat.text())
@@ -407,6 +443,8 @@ class CalcFlux(QMainWindow):
         else:
             wind_speed = wind_speed
 
+        logger.info(f'Wind speed: {wind_speed:.02f} m/s')
+
         # Find the bounds of the selected area
         i0, i1 = self.lr.getRegion()
         idx = np.where(np.logical_and(self.so2_time >= i0,
@@ -418,7 +456,7 @@ class CalcFlux(QMainWindow):
         so2_err = self.so2_err[idx]
 
         # Find the centre of mass of the plume
-        cum_so2_scd = np.cumsum(so2_scd)
+        cum_so2_scd = np.nancumsum(so2_scd)
         peak_idx = np.abs(cum_so2_scd - cum_so2_scd[-1]/2).argmin()
 
         # Correct for the time diffeence between the SO2 and GPS data
@@ -432,6 +470,9 @@ class CalcFlux(QMainWindow):
         volc_loc = [vlat, vlon]
         peak_loc = [lat[peak_idx], lon[peak_idx]]
         plume_dist, plume_bearing = haversine(volc_loc, peak_loc)
+
+        logger.info(f'Distance from vent: {plume_dist:.02f} m')
+        logger.info(f'Azimuth from vent: {np.degrees(plume_bearing):.02f} deg')
 
         # Calculate the distance and bearing of each measurement vector
         vect = [haversine([lat[i-1], lon[i-1]], [lat[i], lon[i]])
@@ -449,7 +490,8 @@ class CalcFlux(QMainWindow):
         so2_molec_per_m2 = so2_scd * 1.0e4
 
         # Multiply by the distance moved and sum
-        so2_molec_per_m = np.sum(np.multiply(so2_molec_per_m2[1:], corr_dist))
+        so2_molec_per_m = np.nansum(np.multiply(so2_molec_per_m2[1:],
+                                                corr_dist))
 
         # Multiply by the wind speed
         so2_molec_per_s = so2_molec_per_m * wind_speed
@@ -459,6 +501,7 @@ class CalcFlux(QMainWindow):
 
         # Convert to kg/s. Molar mass of SO2 is 64.066 g/mole
         so2_kg_per_s = so2_moles_per_s * 0.064066
+        logger.info(f'Total SO2 mass: {abs(so2_kg_per_s/wind_speed):.02f} kg')
 
         # Convert to t/day if required
         if flux_units == 't/day':
@@ -466,9 +509,12 @@ class CalcFlux(QMainWindow):
         else:
             flux = abs(so2_kg_per_s)
 
+        logger.info(f'SO2 Flux: {flux:.02f} {flux_units}')
+
         # Calculate the Flux Error
-        tot_so2_err = np.sum(np.power(so2_err, 2)) ** 0.5
-        frac_so2_err = tot_so2_err / np.sum(so2_scd)
+        so2_err[abs(so2_err) == np.inf] = np.nan
+        tot_so2_err = np.nansum(np.power(so2_err, 2)) ** 0.5
+        frac_so2_err = tot_so2_err / np.nansum(so2_scd)
 
         # Combine with the wind speed error
         frac_err = ((frac_so2_err)**2 + (wind_error)**2)**0.5
@@ -483,12 +529,20 @@ class CalcFlux(QMainWindow):
 
         # Plot the traverse graphs
         self.mapax.clear()
+        self.mapax.addLegend()
         self.mapax.plot(self.lon, self.lat, pen=self.p0)
         self.mapax.plot(lon, lat, pen=self.p1)
         self.mapax.plot([vlon], [vlat], pen=None, symbol='o', symbolPen=None,
-                        symbolSize=10, symbolBrush=(255, 255, 255))
+                        symbolSize=10, symbolBrush=(255, 255, 255),
+                        name='Vent')
+        self.mapax.plot([lon[0]], [lat[0]], pen=None, symbol='t1',
+                        symbolPen=None, symbolSize=10, name='Plume Start',
+                        symbolBrush=(0, 255, 0))
         self.mapax.plot([peak_loc[1]], [peak_loc[0]], pen=None, symbol='o',
-                        symbolPen=None, symbolSize=10,
+                        symbolPen=None, symbolSize=10, name='Plume Centre',
+                        symbolBrush=(0, 255, 0))
+        self.mapax.plot([lon[-1]], [lat[-1]], pen=None, symbol='t',
+                        symbolPen=None, symbolSize=10, name='Plume End',
                         symbolBrush=(0, 255, 0))
 
         # Collate the results
@@ -512,6 +566,7 @@ class CalcFlux(QMainWindow):
     def del_trav(self):
         """Delete the last traverse"""
         if self.trav_no > 0:
+            logger.info('Removing last traverse')
             self.trav_no -= 1
             self.flux_data.pop(f'trav{self.trav_no}')
             self.fluxTable.setRowCount(self.fluxTable.rowCount()-1)
@@ -562,6 +617,7 @@ class CalcFlux(QMainWindow):
             w.write(f'Weighted Mean Flux = {w_mean_flux:.02f}'
                     + f' (+/- {w_mean_error:.02f}) {flux_units}')
 
+        logger.info('Fluxes saved')
         self.save_flag = False
 
     def closeEvent(self, event):
