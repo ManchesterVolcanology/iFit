@@ -981,18 +981,21 @@ class MainWindow(QMainWindow):
             # Plot the data
             if self.widgets.get('graph_flag') and not self.worker.is_paused:
 
-                # Get the time sereis data
-                plotx = np.array(self.df['Number'].dropna().to_numpy(),
-                                 dtype=float)
-                ploty = np.array(self.df[self.key].dropna().to_numpy(),
-                                 dtype=float)
+                # Get the time series data
+                plotx = np.array(self.df['Number'].to_numpy(), dtype=float)
+                ploty = np.array(self.df[self.key].to_numpy(), dtype=float)
+
+                # Remove failed fits
+                fail_idx = np.where(~np.isnan(ploty))
+                plotx = plotx[fail_idx]
+                ploty = ploty[fail_idx]
 
                 # Remove bad points if desired
                 if self.widgets.get('good_fit_flag'):
-                    fit_quality = self.df['fit_quality'].dropna().to_numpy()
-                    idx = np.where(fit_quality == 1)[0]
-                    plotx = plotx[idx]
-                    ploty = ploty[idx]
+                    fit_quality = self.df['fit_quality'].to_numpy()[fail_idx]
+                    qual_idx = np.where(fit_quality == 1)[0]
+                    plotx = plotx[qual_idx]
+                    ploty = ploty[qual_idx]
 
                 # Scroll the graphs if desired
                 if self.widgets.get('scroll_flag'):
