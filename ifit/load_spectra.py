@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 # read_spectrum
 # =============================================================================
 
-def read_spectrum(fname, spec_type='iFit', wl_calib_file=None):
+def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
+                  stop_on_err=True):
     """Function to read spectra and extract metadata.
 
     Parameters
@@ -24,6 +25,9 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None):
     wl_calib_file : str, optional
         The wavelength calibration file to use if not provided in the spectrum
         file. Must be provided for mobileDOAS files.
+    stop_on_err : bool, optional
+        If True then if an error is found while reading a spectrum an Exception
+        is raised.
 
     Returns
     -------
@@ -158,11 +162,15 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None):
                      'spec_no': spec_no}
 
     except Exception as e:
+
         # Something wrong with reading
         logger.warning(f'Error reading file {fname}:\n{e}')
         grid, spec = np.row_stack([[], []])
         spec_info = {}
         read_err = True, e
+
+        if stop_on_err:
+            raise Exception
 
     return grid, spec, spec_info, read_err
 
