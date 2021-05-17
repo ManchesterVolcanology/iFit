@@ -96,7 +96,7 @@ class Analyser():
                  stray_flag=False, stray_window=[280, 290], dark_flag=False,
                  ils_type='Manual', ils_path=None, despike_flag=False,
                  spike_limit=None):
-        """Initialise the model for the analyser"""
+        """Initialise the model for the analyser."""
 
         # Set the initial estimate for the fit parameters
         self.params = params.make_copy()
@@ -234,23 +234,22 @@ class Analyser():
 # =============================================================================
 
     def pre_process(self, spectrum):
-        """Function to pre-process the measured spectrum to prepare it for the
-        fit, correcting for the dark and flat spectrum, stray light and
-        extracting the fit wavelength window
+        """Prepare spectrum for fit.
+
+        Function to pre-process the measured spectrum to prepare it for the
+        fit, correcting for the dark and flat spectrum, stray light, spiky
+        pixels and extracting the fit wavelength window. Which corrections are
+        applied depends on the settings of the Analyser object.
 
         Parameters
         ----------
         spectrum : 2D numpy array
-            The spectrum in [wavelength, intensities]
-        common : dict
-            Common dictionary of parameters and variables passed from the main
-            program to subroutines
+            The spectrum as [wavelength, intensities].
 
         Returns
         -------
         processed_spec : 2D numpy array
-            The processed spectrum, corrected for dark, flat, stray light and
-            cut to the desired wavelength window
+            The processed spectrum.
         """
 
         # Unpack spectrum
@@ -323,8 +322,7 @@ class Analyser():
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
                      resid_type='Percentage', int_limit=None, calc_od=[],
                      pre_process=True, interp_method='cubic', fit_window=None):
-        """Fit the supplied spectrum using a non-linear least squares
-        minimisation
+        """Fit the supplied spectrum.
 
         Parameters
         ----------
@@ -447,13 +445,13 @@ class Analyser():
             Measurement wavelength grid
         *p0, floats
             Forward model state vector. Should consist of:
-                - bg_polyn: Background polynomial coefficients
-                - offsetn:  The intensity offset polynomial coefficients
-                - shiftn:   The wavelength shift polynomial
-                - gases:    Any variable with an associated cross section,
-                            including absorbing gases and Ring. Each "gas" is
-                            converted to transmittance through:
-                            gas_T = exp(-xsec . amt)
+                - bg_poly{n}: Background polynomial coefficients
+                - offset{n}:  The intensity offset polynomial coefficients
+                - shift{n}:   The wavelength shift polynomial
+                - gases:      Any variable with an associated cross section,
+                              including absorbing gases and Ring. Each "gas" is
+                              converted to transmittance through:
+                              gas_T = exp(-xsec . amt)
 
             For polynomial parameters n represents ascending intergers
             starting from 0 which correspond to the decreasing power of
@@ -528,8 +526,7 @@ class Analyser():
         shift_model_grid = np.add(self.model_grid, wl_shift)
 
         # Interpolate onto measurement wavelength grid
-        fit = griddata(shift_model_grid, F_conv, x,
-                       method=self.interp_method)
+        fit = griddata(shift_model_grid, F_conv, x, method=self.interp_method)
 
         return fit
 

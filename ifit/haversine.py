@@ -7,8 +7,7 @@ from math import sin, cos, atan2, asin, pi
 # =============================================================================
 
 def haversine(start_coords, end_coords, radius=6371000):
-    """Function to calculate the distance and initial bearing between two
-    points
+    """Calculate the distance and initial bearing between two points
 
     Parameters
     ----------
@@ -63,8 +62,7 @@ def haversine(start_coords, end_coords, radius=6371000):
 # =============================================================================
 
 def calc_end_point(start_coords, dist, bearing, radius=6371000):
-    """Function to calculate the final coordinates given a starting position
-    and vector of travel.
+    """Calculate the final coordinates given a starting position and vector
 
     Parameters
     ----------
@@ -110,7 +108,7 @@ def calc_end_point(start_coords, dist, bearing, radius=6371000):
 # =============================================================================
 
 def bearing_check(bearing, radians=True, max_iter=1000):
-    """Checks for a valid bearing (between 0 -> 360 degrees).
+    """Checks for a valid bearing (between 0 -> 360 degrees)
 
     Parameters
     ----------
