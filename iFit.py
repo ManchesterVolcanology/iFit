@@ -1,4 +1,6 @@
+import sys
 import glob
+import logging
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -8,6 +10,20 @@ from matplotlib.gridspec import GridSpec
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import read_spectrum, average_spectra
+
+
+# =============================================================================
+# Setup log output to standard output
+# =============================================================================
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+date_fmt = '%H:%M:%S'
+formatter = logging.Formatter('%(asctime)s - %(message)s', date_fmt)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 # =============================================================================
 # Define analysis files

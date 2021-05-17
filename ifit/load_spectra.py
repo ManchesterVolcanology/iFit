@@ -3,6 +3,8 @@ import datetime
 import linecache
 import numpy as np
 
+logger = logging.getLogger()
+
 
 # =============================================================================
 # read_spectrum
@@ -123,7 +125,9 @@ def read_spectrum(fname, spec_type='iFit'):
                      'spec_no': spec_no}
 
     except Exception as e:
-        # Something wrong with reading
+
+        # Log that something is wrong with reading
+        logger.wanring(f'Error reading spectrum {fname}:\n{e}')
         grid, spec = np.row_stack([[], []])
         spec_info = {}
         read_err = True, e
@@ -165,7 +169,7 @@ def average_spectra(files, spec_type='iFit'):
 
         # Check for a read error
         if read_err[0]:
-            logging.warn(f'Error reading spectrum:\n{read_err[1]}')
+            logger.warn(f'Error reading spectrum:\n{read_err[1]}')
 
         else:
             # Add to the spectra array

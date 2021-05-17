@@ -24,13 +24,14 @@ __version__ = '3.3'
 __author__ = 'Ben Esse'
 
 # Set up logging
+logger = logging.getLogger()
 if not os.path.isdir('bin/'):
     os.makedirs('bin/')
 fh = RotatingFileHandler('bin/iFit.log', maxBytes=20000, backupCount=5)
 fh.setLevel(logging.INFO)
 fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
 fh.setFormatter(logging.Formatter(fmt))
-logging.getLogger().addHandler(fh)
+logger.addHandler(fh)
 
 
 class MainWindow(QMainWindow):
@@ -362,8 +363,8 @@ class MainWindow(QMainWindow):
         # Create a textbox to display the program logs
         self.logBox = QTextEditLogger(self)
         self.logBox.setFormatter(logging.Formatter('%(message)s'))
-        logging.getLogger().addHandler(self.logBox)
-        logging.getLogger().setLevel(logging.INFO)
+        logger.addHandler(self.logBox)
+        logger.setLevel(logging.INFO)
         layout.addWidget(self.logBox.widget, 3, 0, 1, 6)
         msg = 'Welcome to iFit! Written by Ben Esse'
         self.logBox.widget.appendPlainText(msg)
@@ -867,7 +868,7 @@ class MainWindow(QMainWindow):
         with open(self.config_fname, 'w') as outfile:
             yaml.dump(config, outfile)
 
-        logging.info('Config file saved')
+        logger.info('Config file saved')
 
         with open('bin/.config', 'w') as w:
             w.write(self.config_fname)
@@ -908,11 +909,11 @@ class MainWindow(QMainWindow):
                 else:
                     self.widgets.set(label, config[label])
 
-            logging.info('Config file loaded')
+            logger.info('Config file loaded')
             self.config_fname = fname
 
         except FileNotFoundError:
-            logging.warning('Unable to load config file')
+            logger.warning('Unable to load config file')
             config = {}
 
         return config
@@ -932,7 +933,7 @@ class MainWindow(QMainWindow):
     def update_error(self, error):
         """Slot to update error messages from the worker"""
         exctype, value, trace = error
-        logging.warning(f'Uncaught exception!\n{trace}')
+        logger.warning(f'Uncaught exception!\n{trace}')
 
 # =============================================================================
 #   Analysis Loop Setup
@@ -1177,13 +1178,13 @@ class MainWindow(QMainWindow):
             self.rt_fitting_flag = False
             self.rt_flag_btn.setStyleSheet("background-color: red")
             self.rt_flag_btn.setText('Fitting OFF')
-            logging.info('Fitting turned off')
+            logger.info('Fitting turned off')
 
         else:
             self.rt_fitting_flag = True
             self.rt_flag_btn.setStyleSheet("background-color: green")
             self.rt_flag_btn.setText('Fitting ON')
-            logging.info('Fitting turned on')
+            logger.info('Fitting turned on')
 
     def pause(self):
         """Pauses the worker loop"""
@@ -1200,12 +1201,12 @@ class MainWindow(QMainWindow):
         """Kills the worker loop"""
         try:
             self.worker.kill()
-            logging.info('Analysis stopped')
+            logger.info('Analysis stopped')
         except AttributeError:
             pass
         try:
             self.acq_worker.kill()
-            logging.info('Acquisition stopped')
+            logger.info('Acquisition stopped')
         except AttributeError:
             pass
 

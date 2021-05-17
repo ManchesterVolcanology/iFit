@@ -9,6 +9,8 @@ try:
 except ImportError:
     pass
 
+logger = logging.getLogger()
+
 
 class Spectrometer():
     """Wrapper around the python-seabreeze library for controlling Ocean
@@ -60,7 +62,7 @@ class Spectrometer():
             self.serial_number = self.spectro.serial_number
             self.pixels = self.spectro.pixels
 
-            logging.info(f'Spectrometer {self.serial_number} connected')
+            logger.info(f'Spectrometer {self.serial_number} connected')
 
             # Set the initial integration time and coadds
             self.update_coadds(coadds)
@@ -71,7 +73,7 @@ class Spectrometer():
             self.correct_nonlinearity = correct_nonlinearity
 
         except SeaBreezeError:
-            logging.warning('No spectrometer found')
+            logger.warning('No spectrometer found')
             self.serial_number = None
 
     def update_integration_time(self, integration_time):
@@ -79,13 +81,13 @@ class Spectrometer():
 
         self.integration_time = integration_time
         self.spectro.integration_time_micros(integration_time*1000)
-        logging.info(f'Updated integration time to {integration_time} ms')
+        logger.info(f'Updated integration time to {integration_time} ms')
 
     def update_coadds(self, coadds):
         """Update the number of coadds to average each spectrum over"""
 
         self.coadds = coadds
-        logging.info(f'Updated coadds to {coadds}')
+        logger.info(f'Updated coadds to {coadds}')
 
     def get_spectrum(self, fname=None):
         """Read a spectrum from the spectrometer
@@ -147,7 +149,7 @@ class Spectrometer():
 
     def close(self):
         """Close the connection to the spectrometer"""
-        logging.info(f'Connection to spectrometer {self.serial_number} closed')
+        logger.info(f'Connection to spectrometer {self.serial_number} closed')
         self.spectro.close()
 
 
@@ -164,7 +166,7 @@ class VSpectrometer():
         self.serial_number = 'TEST123456'
         self.pixels = 2048
 
-        logging.info(f'Spectrometer {self.serial_number} connected')
+        logger.info(f'Spectrometer {self.serial_number} connected')
 
         # Set the initial integration time and coadds
         self.update_coadds(coadds)
@@ -180,13 +182,13 @@ class VSpectrometer():
         """Update the spectrometer integrations time (ms"""
 
         self.integration_time = integration_time
-        logging.info(f'Updated integration time to {integration_time} ms')
+        logger.info(f'Updated integration time to {integration_time} ms')
 
     def update_coadds(self, coadds):
         """Update the number of coadds to average each spectrum over"""
 
         self.coadds = coadds
-        logging.info(f'Updated coadds to {coadds}')
+        logger.info(f'Updated coadds to {coadds}')
 
     def get_spectrum(self, fname=None):
         """Read a spectrum from the spectrometer"""
@@ -233,5 +235,5 @@ class VSpectrometer():
 
     def close(self):
         """Close the connection to the spectrometer"""
-        logging.info(f'Connection to spectrometer {self.serial_number} closed')
+        logger.info(f'Connection to spectrometer {self.serial_number} closed')
         pass

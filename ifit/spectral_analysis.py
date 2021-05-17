@@ -7,6 +7,9 @@ from scipy.signal import savgol_filter
 from ifit.make_ils import make_ils
 
 
+logger = logging.getLogger()
+
+
 # =============================================================================
 # =============================================================================
 # # Spectral Analyser
@@ -116,16 +119,16 @@ class Analyser():
         # Try importing flat spectrum
         if flat_flag:
 
-            logging.info('Importing flat spectrum')
+            logger.info('Importing flat spectrum')
 
             try:
                 # Import the flat spectrum
                 self.flat = np.loadtxt(flat_path, unpack=True)
-                logging.info('Flat spectrum imported')
+                logger.info('Flat spectrum imported')
 
             except OSError:
                 # If no flat spectrum then report and turn off the flat flag
-                logging.warning('No flat spectrum found!')
+                logger.warning('No flat spectrum found!')
                 self.flat_flag = False
 
         # ---------------------------------------------------------------------
@@ -134,7 +137,7 @@ class Analyser():
 
         # Import measured ILS
         if ils_type == 'File':
-            logging.info('Importing ILS')
+            logger.info('Importing ILS')
 
             try:
                 # Read in measured ILS shape
@@ -147,11 +150,11 @@ class Analyser():
                 self.generate_ils = False
 
             except OSError:
-                logging.error(f'{ils_path} file not found!')
+                logger.error(f'{ils_path} file not found!')
 
         # Import ILS params
         if ils_type == 'Params':
-            logging.info('Importing ILS parameters')
+            logger.info('Importing ILS parameters')
             try:
                 # Import ils parameters
                 ils_params = np.loadtxt(ils_path, unpack=True)
@@ -160,10 +163,10 @@ class Analyser():
                 self.ils = make_ils(model_spacing, *ils_params)
 
                 self.generate_ils = False
-                logging.info('ILS imported')
+                logger.info('ILS imported')
 
             except OSError:
-                logging.error(f'{ils_path} file not found!')
+                logger.error(f'{ils_path} file not found!')
 
         # Manually set the ILS params
         if ils_type == 'Manual':
@@ -174,20 +177,20 @@ class Analyser():
         # ---------------------------------------------------------------------
 
         # Import solar reference spectrum
-        logging.info('Importing solar reference spectrum...')
+        logger.info('Importing solar reference spectrum...')
         sol_x, sol_y = np.loadtxt(frs_path, unpack=True)
 
         # Interpolate onto model_grid
         self.init_frs = griddata(sol_x, sol_y, self.model_grid, method='cubic')
         self.frs = self.init_frs.copy()
 
-        logging.info('Solar reference spectrum imported')
+        logger.info('Solar reference spectrum imported')
 
         # ---------------------------------------------------------------------
         # Import Gas spectra
         # ---------------------------------------------------------------------
 
-        logging.info('Importing gas cross-sections...')
+        logger.info('Importing gas cross-sections...')
 
         # Create an empty dictionary to hold the gas cross-sections
         self.init_xsecs = {}
@@ -197,7 +200,7 @@ class Analyser():
 
             # If a parameter has a xpath defined, read it in
             if param.xpath is not None:
-                logging.info(f'Importing {name} reference spectrum...')
+                logger.info(f'Importing {name} reference spectrum...')
 
                 # Read in the cross-section
                 x, xsec = np.loadtxt(param.xpath, unpack=True)
@@ -206,7 +209,7 @@ class Analyser():
                 self.init_xsecs[name] = griddata(x, xsec, self.model_grid,
                                                  method='cubic')
 
-                logging.info(f'{name} cross-section imported')
+                logger.info(f'{name} cross-section imported')
 
         # Create a copy of the cross-sections
         self.xsecs = self.init_xsecs.copy()
@@ -258,8 +261,8 @@ class Analyser():
             try:
                 y = np.subtract(y, self.dark_spec)
             except ValueError:
-                logging.exception('Error in dark correction. Is dark spectrum'
-                                  + ' the same shape as the measurement?')
+                logger.exception('Error in dark correction. Is dark spectrum'
+                                 + ' the same shape as the measurement?')
 
         # Remove stray light
         if self.stray_flag:
@@ -267,8 +270,8 @@ class Analyser():
                                                 x <= self.stray_window[1]))
 
             if len(stray_idx[0]) == 0:
-                logging.warn('No stray window outside spectrum, disabling '
-                             + 'stray correction')
+                logger.warn('No stray window outside spectrum, disabling '
+                            + 'stray correction')
                 self.stray_flag = False
 
             else:
@@ -308,8 +311,8 @@ class Analyser():
             try:
                 spec = np.divide(spec, flat)
             except ValueError:
-                logging.exception('Error in flat correction. Is flat spectrum'
-                                  + ' the same shape as the measurement?')
+                logger.exception('Error in flat correction. Is flat spectrum'
+                                 + ' the same shape as the measurement?')
 
         return np.row_stack([grid, spec])
 
@@ -368,8 +371,8 @@ class Analyser():
             a = fit_window[0] < self.init_fit_window[0]
             b = fit_window[1] > self.init_fit_window[1]
             if a or b:
-                logging.error('New fit window must be within initial fit'
-                              + 'window!')
+                logger.error('New fit window must be within initial fit'
+                             + 'window!')
                 raise ValueError
 
             # Pad the fit window
@@ -426,7 +429,7 @@ class Analyser():
         if update_params and fit_result.nerr == 1:
             self.p0 = popt
         else:
-            logging.info('Resetting initial guess parameters')
+            logger.info('Resetting initial guess parameters')
             self.p0 = self.params.fittedvalueslist()
 
         return fit_result
@@ -642,7 +645,7 @@ class FitResult():
 
             # Check the fit quality
             if resid_limit is not None and max(self.resid) > resid_limit:
-                logging.info('High residual detected')
+                logger.info('High residual detected')
                 self.nerr = 2
 
             # Check for spectrum light levels
@@ -650,12 +653,12 @@ class FitResult():
 
                 # Check for low intensity
                 if min(self.spec) <= int_limit[0]:
-                    logging.info('Low intensity detected')
+                    logger.info('Low intensity detected')
                     self.nerr = 2
 
                 # Check for high intensity
                 elif max(self.spec) >= int_limit[1]:
-                    logging.info('High intensity detected')
+                    logger.info('High intensity detected')
                     self.nerr = 2
 
             # Calculate optical depth spectra
@@ -665,7 +668,7 @@ class FitResult():
 
         # If not then return nans
         else:
-            logging.warn('Fit failed!')
+            logger.warn('Fit failed!')
             self.fit = np.full(len(self.spec), np.nan)
             self.resid = np.full(len(self.spec), np.nan)
             for par in calc_od:
