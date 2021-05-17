@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 class QTextEditLogger(logging.Handler, QObject):
-    """Records logs to the GUI"""
+    """Record logs to the GUI."""
+
     appendPlainText = pyqtSignal(str)
 
     def __init__(self, parent):
@@ -35,6 +36,7 @@ class QTextEditLogger(logging.Handler, QObject):
         self.appendPlainText.connect(self.widget.appendPlainText)
 
     def emit(self, record):
+        """Emit the log."""
         msg = self.format(record)
         self.appendPlainText.emit(msg)
 
@@ -58,6 +60,7 @@ class WorkerSignals(QObject):
     spectrum
         `tuple` spectrum to be displayed on the scope graph
     """
+
     finished = pyqtSignal()
     progress = pyqtSignal(int)
     plotter = pyqtSignal(list)
@@ -68,7 +71,7 @@ class WorkerSignals(QObject):
 
 # Create a worker to handle QThreads
 class Worker(QRunnable):
-    """Worker thread
+    """Worker thread.
 
     Inherits from QRunnable to handler worker thread setup, signals and wrap-up
 
@@ -126,8 +129,7 @@ class Worker(QRunnable):
 
     @pyqtSlot()
     def run(self):
-        """Initialise the runner function with passed args, kwargs"""
-
+        """Initialise the runner function with passed args and kwargs."""
         # Retrieve args/kwargs here; and fire processing using them
         try:
             self.fn(self, self.mode, *self.args, **self.kwargs)
@@ -140,24 +142,24 @@ class Worker(QRunnable):
         self.signals.finished.emit()
 
     def pause(self):
-        """Pauses the analysis/acquisition"""
+        """Pause the analysis/acquisition."""
         if self.is_paused:
             self.is_paused = False
         else:
             self.is_paused = True
 
     def resume(self):
-        """Resumes the analysis/acquisition"""
+        """Resume the analysis/acquisition."""
         self.is_paused = False
 
     def kill(self):
-        """Terminates the analysis/acquisition"""
+        """Terminate the analysis/acquisition."""
         if self.is_paused:
             self.is_paused = False
         self.is_killed = True
 
     def set_spectrum(self, spec_fname):
-        """Set the spectrum file to be analysed in real time analysis"""
+        """Set the spectrum file to be analysed in real time analysis."""
         self.spec_fname = spec_fname
 
 
@@ -166,7 +168,7 @@ class Worker(QRunnable):
 # =============================================================================
 
 def generate_analyser(widgetData):
-    """Generates the iFit analyser
+    """Generate the iFit analyser.
 
     Parameters
     ----------
@@ -178,7 +180,6 @@ def generate_analyser(widgetData):
     analyser : Analyser
         Returns the constructed iFit analyser
     """
-
     # Pull the parameters from the parameter table
     params = Parameters()
     logger.info('Generating model parameters')
@@ -233,8 +234,7 @@ def generate_analyser(widgetData):
 # =============================================================================
 
 def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
-    """Set up the mode dependant analysis settings"""
-
+    """Set up the mode dependant analysis settings."""
     # By default there is no dark spectrum
     dark_spec = None
 
@@ -296,7 +296,7 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
 
 def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
                   plot_callback, status_callback):
-    """Controll loop for spectral analysis
+    """Control loop for spectral analysis.
 
     Parameters
     ----------
@@ -318,7 +318,6 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
     -------
     None
     """
-
     # Create a loop counter
     loop = 0
 
@@ -445,7 +444,7 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
 
 def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
                     spectrum_callback, progress_callback, status_callback):
-    """Loop to handle spectra acquisition
+    """Loop to handle spectra acquisition.
 
     Parameters
     ----------
@@ -469,7 +468,6 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
     -------
     None
     """
-
     # Update the status
     status_callback.emit('Acquiring')
 
@@ -566,8 +564,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
 # =============================================================================
 
 def connect_spectrometer(gui):
-    """Connects or dissconnects to the spectrometer"""
-
+    """Connect or dissconnect the spectrometer."""
     if not gui.connected_flag:
 
         # Connect to the spectrometer
@@ -619,7 +616,7 @@ def connect_spectrometer(gui):
 # =============================================================================
 
 class Buffer:
-    """A buffer to hold the analysis results for plotting
+    """A buffer to hold the analysis results for plotting.
 
     Parameters
     ----------
@@ -643,13 +640,13 @@ class Buffer:
         self.size = size
 
     def update(self, data):
-        """Adds a row to the buffer. If full then the oldest row is removed
+        """Add a row to the buffer.
 
         Parameters
         ----------
         data : list
             The data to add to the buffer. Must have same length and order as
-            columns
+            columns. If full then the oldest row is removed.
 
         Returns
         -------
@@ -670,13 +667,13 @@ class Buffer:
 # =============================================================================
 
 class Widgets(dict):
-    """Object to allow easy config/info transfer with PyQT Widgets"""
+    """Object to allow easy config/info transfer with PyQT Widgets."""
 
     def __init__(self):
         super().__init__()
 
     def get(self, key):
-        """Get the value of a widget"""
+        """Get the value of a widget."""
         if type(self[key]) == QTextEdit:
             return self[key].toPlainText()
         elif type(self[key]) == QLineEdit:
@@ -689,7 +686,7 @@ class Widgets(dict):
             return self[key].value()
 
     def set(self, key, value):
-        """Set the value of a widget"""
+        """Set the value of a widget."""
         if type(self[key]) in [QTextEdit, QLineEdit]:
             self[key].setText(str(value))
         if type(self[key]) == QComboBox:
@@ -708,7 +705,7 @@ class Widgets(dict):
 
 # Create a Spinbox object for ease
 class DSpinBox(QDoubleSpinBox):
-    """Object for generating custom float spinboxes"""
+    """Object for generating custom float spinboxes."""
 
     def __init__(self, value, range):
         super().__init__()
@@ -717,7 +714,7 @@ class DSpinBox(QDoubleSpinBox):
 
 
 class SpinBox(QSpinBox):
-    """Object for generating custom integer spinboxes"""
+    """Object for generating custom integer spinboxes."""
 
     def __init__(self, value, range):
         super().__init__()
@@ -730,7 +727,7 @@ class SpinBox(QSpinBox):
 # =============================================================================
 
 class Table(QTableWidget):
-    """Object to build parameter tables"""
+    """Object to build parameter tables."""
 
     def __init__(self, parent, type, width, height, pname=None):
         super().__init__(parent)
@@ -747,7 +744,7 @@ class Table(QTableWidget):
             self._poly_table()
 
     def _param_table(self):
-        """Create a parameter table"""
+        """Create a parameter table."""
         self.setFixedWidth(self._width)
         self.setFixedHeight(self._height)
         self.setColumnCount(5)
@@ -756,7 +753,7 @@ class Table(QTableWidget):
                                         ''])
 
     def _poly_table(self):
-        """Create a polynomial table"""
+        """Create a polynomial table."""
         self.setFixedWidth(self._width)
         self.setFixedHeight(self._height)
         self.setColumnCount(2)
@@ -764,7 +761,7 @@ class Table(QTableWidget):
         self.setHorizontalHeaderLabels(['Value', 'Vary?'])
 
     def add_row(self):
-        """Add row to the bottom of the table"""
+        """Add row to the bottom of the table."""
         n = self.rowCount()
         self.setRowCount(n+1)
 
@@ -784,13 +781,13 @@ class Table(QTableWidget):
             self.setCellWidget(n, 1, cb)
 
     def rem_row(self):
-        """Remove the last row from the table"""
+        """Remove the last row from the table."""
         rows = [i.row() for i in self.selectedIndexes()]
         for row in sorted(rows, reverse=True):
             self.removeRow(row)
 
     def contextMenuEvent(self, event):
-        """Set up right click to add/remove rows"""
+        """Set up right click to add/remove rows."""
         menu = QMenu(self)
         addAction = menu.addAction('Add')
         remAction = menu.addAction('Remove')
@@ -801,7 +798,7 @@ class Table(QTableWidget):
             self.rem_row()
 
     def set_xsec(self, n):
-        """Command to set the cross-section in the table"""
+        """Command to set the cross-section in the table."""
         cwd = os.getcwd() + '/'
         cwd = cwd.replace("\\", "/")
         fname, _ = QFileDialog.getOpenFileName()
@@ -810,8 +807,7 @@ class Table(QTableWidget):
         self.setItem(n, 3, QTableWidgetItem(fname))
 
     def setData(self, data):
-        """Method to populate the table using saved config"""
-
+        """Populate the table using saved config."""
         for i in range(len(data)):
             self.add_row()
             line = data[i]
@@ -826,8 +822,7 @@ class Table(QTableWidget):
                 self.cellWidget(i, 1).setChecked(line[1])
 
     def getData(self):
-        """Method to extract the information from the table"""
-
+        """Extract the information from the table."""
         # Get number of rows
         nrows = self.rowCount()
         data = []

@@ -8,7 +8,9 @@ from collections import OrderedDict
 # =============================================================================
 
 class Parameters(OrderedDict):
-    """An ordered dictionary of all the Paramter objects that will be included
+    """Collection of Parameter objects.
+
+    An ordered dictionary of all the Paramter objects that will be included
     in the forward model. Each Parameter has a single entry with a string
     label, value and boolian control on whether it is varied in the fit.
 
@@ -22,12 +24,12 @@ class Parameters(OrderedDict):
     """
 
     def __init__(self, *args, **kwargs):
-
+        """Initialize the Parameters."""
         self.update(*args, **kwargs)
 
-    def add(self, name, value=0, vary=True, xpath=None, lo_bound=-np.inf,
-            hi_bound=np.inf):
-        """Method to add a Parameter to the Parameters object.
+    def add(self, name, value=0, vary=True, xpath=None, plume_gas=False,
+            lo_bound=-np.inf, hi_bound=np.inf):
+        """Add a Parameter to the Parameters object.
 
         Parameters
         ----------
@@ -41,6 +43,9 @@ class Parameters(OrderedDict):
         xpath : str, optional
             The file path to the cross-section file, used for gas parameters.
             Default is None
+        plume_gas : bool, optional
+            Marks an absorber as a plume species. Used when analysing for light
+            dilution. Default is False.
         lo_bound : float, optional
             The lower bound of the allowed variation of the Parameter. Default
             is -inf
@@ -48,28 +53,27 @@ class Parameters(OrderedDict):
             The higher bound of the allowed variation of the Parameter. Default
             is +inf
         """
-
         self.__setitem__(name, Parameter(name=name,
                                          value=value,
                                          vary=vary,
                                          xpath=xpath,
+                                         plume_gas=plume_gas,
                                          lo_bound=lo_bound,
                                          hi_bound=hi_bound))
 
     def add_many(self, param_list):
-        """ Method to add multiple Parameters to the Parameters object.
+        """Add multiple Parameters to the Parameters object.
 
         Parameters
         ----------
         param_list : list of Parameter like objects
         """
-
         for param in param_list:
 
             self.__setitem__(param.name, param)
 
     def update_values(self, new_values):
-        """Updates the values of each Parameter in order"""
+        """Update the values of each Parameter in order."""
         n = 0
         for name in self:
             if self[name].vary:
@@ -77,41 +81,41 @@ class Parameters(OrderedDict):
                 n += 1
 
     def valuesdict(self):
-        """Return an ordered dictionary of all parameter values"""
+        """Return an ordered dictionary of all parameter values."""
         return OrderedDict((p.name, p.value) for p in self.values())
 
     def fittedvaluesdict(self):
-        """Return an ordered dictionary of fitted parameter values"""
+        """Return an ordered dictionary of fitted parameter values."""
         return OrderedDict((p.name, p.value) for p in self.values() if p.vary)
 
     def popt_dict(self):
-        """Return a dictionary of the optimised parameters"""
+        """Return a dictionary of the optimised parameters."""
         return OrderedDict((p.name, p.fit_val)
                            for p in self.values() if p.vary)
 
     def valueslist(self):
-        """Return a list of all parameter values"""
+        """Return a list of all parameter values."""
         return [(p.value) for p in self.values()]
 
     def fittedvalueslist(self):
-        """Return a list of the fitted parameter values"""
+        """Return a list of the fitted parameter values."""
         return [(p.value) for p in self.values() if p.vary]
 
     def popt_list(self):
-        """Return a list of the optimised parameters"""
+        """Return a list of the optimised parameters."""
         return [(p.fit_val) for p in self.values() if p.vary]
 
     def bounds(self):
-        """Return a list of the low and high bounds"""
+        """Return a list of the low and high bounds."""
         return [[(p.lo_bound) for p in self.values() if p.vary],
                 [(p.hi_bound) for p in self.values() if p.vary]]
 
     def make_copy(self):
-        """Returns a deep copy of the Parameters object"""
+        """Return a deep copy of the Parameters object."""
         return copy.deepcopy(self)
 
     def pretty_print(self, mincolwidth=10, precision=4, cols='basic'):
-        """Print the parameters in a nice way
+        """Print the parameters in a nice way.
 
         Parameters
         ----------
@@ -129,7 +133,6 @@ class Parameters(OrderedDict):
         msg : str
             The formatted message to print
         """
-
         # Set default column choices
         def_cols = {'all':   ['name', 'value', 'vary', 'fit_val', 'fit_err'],
                     'basic': ['name', 'value', 'vary']}
@@ -197,7 +200,7 @@ class Parameters(OrderedDict):
 # =============================================================================
 
 class Parameter(object):
-    """A parameter is a value that can be varied in the fit
+    """A parameter is a value that can be varied in the fit.
 
     Each parameter has an assosiated name and value and can be set to either
     vary or be fixed in the model
@@ -215,6 +218,9 @@ class Parameter(object):
         value. Default is True
     xpath : str, optional
         The file path to the cross-section for this parameter. Default is None
+    plume_gas : bool, optional
+        Marks an absorber as a plume species. Used when analysing for light
+        dilution. Default is False.
     lo_bound : float, optional
         The lower bound of the allowed variation of the Parameter. Default
         is -inf
@@ -230,22 +236,22 @@ class Parameter(object):
         The fitted parameter error
     """
 
-    def __init__(self, name, value, vary=True, xpath=None, lo_bound=-np.inf,
-                 hi_bound=np.inf):
-
+    def __init__(self, name, value, vary=True, xpath=None, plume_gas=False,
+                 lo_bound=-np.inf, hi_bound=np.inf):
+        """Initialise the parameter."""
         self.name = name
         self.value = value
         self.vary = vary
         self.xpath = xpath
+        self.plume_gas = plume_gas
         self.lo_bound = lo_bound
         self.hi_bound = hi_bound
         self.fit_val = np.nan
         self.fit_err = np.nan
 
-    def set(self, value=None, vary=None, xpath=None, lo_bound=None,
-            hi_bound=None, fit_val=None, fit_err=None):
-        """Update the attributes of a Parameter. All are None by default"""
-
+    def set(self, value=None, vary=None, xpath=None, plume_gas=None,
+            lo_bound=None, hi_bound=None, fit_val=None, fit_err=None):
+        """Update the attributes of a Parameter."""
         if value is not None:
             self.value = value
 
@@ -254,6 +260,9 @@ class Parameter(object):
 
         if xpath is not None:
             self.xpath = xpath
+
+        if plume_gas is not None:
+            self.plume_gas = plume_gas
 
         if lo_bound is not None:
             self.lo_bound = lo_bound

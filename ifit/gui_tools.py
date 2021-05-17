@@ -34,7 +34,10 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 class CalcFlux(QMainWindow):
+    """Open a window for flux analysis."""
+
     def __init__(self, parent=None):
+        """Initialise the window."""
         super(CalcFlux, self).__init__(parent)
 
         # Set the window properties
@@ -59,8 +62,7 @@ class CalcFlux(QMainWindow):
         self._createApp()
 
     def _createApp(self):
-        """Create the app widgets"""
-
+        """Create the app widgets."""
         # Create a frame to hold program controls
         self.controlFrame = QFrame(self)
         self.controlFrame.setFrameShape(QFrame.StyledPanel)
@@ -100,8 +102,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def _createControls(self):
-        """Build the main GUI controls"""
-
+        """Build the main GUI controls."""
         # Generate main layout
         layout = QGridLayout(self.controlFrame)
 
@@ -158,8 +159,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def _createVolcano(self):
-        """Inputs for the volcano data"""
-
+        """Create the volcano data inputs."""
         # Load volcano data
         self.volcano_data = {}
         if os.path.isfile('bin/volcano_data.yml'):
@@ -219,8 +219,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def _createOutput(self):
-        """Program Outputs"""
-
+        """Create the program outputs."""
         # Generate the layout
         layout = QGridLayout(self.outputFrame)
 
@@ -261,8 +260,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def _createGraphs(self):
-        """Generate the graphs"""
-
+        """Generate the graphs."""
         layout = QGridLayout(self.graphFrame)
         pg.setConfigOptions(antialias=True)
 
@@ -321,8 +319,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def update_volcano_data(self):
-        """Update the volcano data on combobox change"""
-
+        """Update the volcano data on combobox change."""
         volc = str(self.volcano.currentText())
 
         if volc != '--select--':
@@ -336,8 +333,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def import_data(self):
-        """Import the traverse data"""
-
+        """Import the traverse data."""
         logger.info('Importing traverse data...')
 
         # Ask to save any outstanding fluxes
@@ -418,8 +414,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def calc_flux(self):
-        """Calculate the flux from the selected traverse"""
-
+        """Calculate the flux from the selected traverse."""
         logger.info('Calculating flux:')
 
         # Pull the relavant data from the GUI
@@ -565,7 +560,7 @@ class CalcFlux(QMainWindow):
         self.save_flag = True
 
     def del_trav(self):
-        """Delete the last traverse"""
+        """Delete the last traverse."""
         if self.trav_no > 0:
             logger.info('Removing last traverse')
             self.trav_no -= 1
@@ -575,8 +570,7 @@ class CalcFlux(QMainWindow):
             self.save_flag = False
 
     def save_fluxes(self):
-        """Output the flux results"""
-
+        """Output the flux results."""
         # Make sure the output directory exists, and create if not
         out_path = self.out_path.text()
         if not os.path.isdir(out_path):
@@ -622,7 +616,7 @@ class CalcFlux(QMainWindow):
         self.save_flag = False
 
     def closeEvent(self, event):
-        """Handle GUI closure"""
+        """Handle GUI closure."""
         if self.save_flag:
             options = QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
             reply = QMessageBox.question(self, 'Message',
@@ -643,7 +637,10 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
 class ILSWindow(QMainWindow):
+    """Opens ILS analysis window."""
+
     def __init__(self, parent=None):
+        """Initialise the ILS window."""
         super(ILSWindow, self).__init__(parent)
 
         # Set the window properties
@@ -741,8 +738,7 @@ class ILSWindow(QMainWindow):
         layout.addWidget(w, 0, 5, 5, 1)
 
     def import_spectra(self):
-        """Read in ILS spectra and display"""
-
+        """Read in ILS spectra and display."""
         # Read in the dark spectra
         files = self.dark_fnames.toPlainText()
         if files == '':
@@ -779,8 +775,7 @@ class ILSWindow(QMainWindow):
         self.ax0.addItem(self.lr)
 
     def measure_ils(self):
-        """Measure the ILS on the selected line"""
-
+        """Measure the ILS on the selected line."""
         # Get the highlighted region
         i0, i1 = self.lr.getRegion()
         idx = np.where(np.logical_and(self.x >= i0, self.x <= i1))
@@ -810,6 +805,7 @@ class ILSWindow(QMainWindow):
         self.ax1.plot(ngrid, fit, pen=pg.mkPen(color='#ff7f0e', width=1.0))
 
     def save_fit(self):
+        """Save the ILS fit parameters."""
         w, k, a_w, a_k, shift, amp, offset = self.popt
 
         fwem = 2*w
@@ -823,7 +819,10 @@ class ILSWindow(QMainWindow):
 # =============================================================================
 
 class FLATWindow(QMainWindow):
+    """Open a window for flat-field analysis."""
+
     def __init__(self, parent=None):
+        """Initialise the window."""
         super(FLATWindow, self).__init__(parent)
 
         # Set the window properties
@@ -923,7 +922,7 @@ class FLATWindow(QMainWindow):
         layout.addWidget(w, 0, 5, 5, 1)
 
     def import_spectra(self):
-        """Read in ILS spectra and display"""
+        """Read in ILS spectra and display."""
         # Read in the dark spectra
         files = self.dark_fnames.toPlainText()
         if files == '':
@@ -962,8 +961,7 @@ class FLATWindow(QMainWindow):
         self.ax0.addItem(self.lr)
 
     def measure_flat(self):
-        """Measure the flat spectrum across the selected region"""
-
+        """Measure the flat spectrum across the selected region."""
         width = 5
 
         # Get the highlighted region
@@ -997,14 +995,14 @@ class FLATWindow(QMainWindow):
         self.ax2.plot(self.grid, self.flat, pen=pg.mkPen(color='#1f77b4'))
 
     def save_fit(self):
-
+        """Save the flat response."""
         data = np.column_stack([self.grid, self.flat])
         header = 'Flat spectrum\nWavelength (nm),       Flat Response'
         np.savetxt(self.save_path.text(), data, header=header)
 
 
 def browse(gui, widget, mode='single', filter=False):
-
+    """Open file dialouge."""
     if not filter:
         filter = None
     else:
@@ -1035,7 +1033,7 @@ def browse(gui, widget, mode='single', filter=False):
 
 # Cliet Code
 def main():
-    """Main function"""
+    """Start the main function."""
     # Create an instance of QApplication
     app = QApplication(sys.argv)
 

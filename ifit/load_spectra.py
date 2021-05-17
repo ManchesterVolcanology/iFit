@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
                   stop_on_err=True):
-    """Function to read spectra and extract metadata.
+    """Read spectra and extract metadata.
 
     Parameters
     ----------
@@ -43,7 +43,6 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
         The string is 'No error' for no error, and the error message if an
         error occurs.
     """
-
     try:
 
         if spec_type == 'iFit':
@@ -180,7 +179,7 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
 # =============================================================================
 
 def average_spectra(files, spec_type='iFit', wl_calib_file=None):
-    """Fuction to average a selection of spectra.
+    """Average a selection of spectra.
 
     Parameters
     ----------
@@ -195,7 +194,6 @@ def average_spectra(files, spec_type='iFit', wl_calib_file=None):
     spectrum : 2d np.array
         The averaged spectrum as [wavelength, intensity]
     """
-
     # Load the first spectrum to get the shape
     grid, y, spec_info, read_err = read_spectrum(files[0], spec_type,
                                                  wl_calib_file)
@@ -228,8 +226,7 @@ def average_spectra(files, spec_type='iFit', wl_calib_file=None):
 # =============================================================================
 
 def read_scan(fpath, scan_type):
-    """Function to read spectra and header info for a data block created by
-       SpectraLan or OpenSO2.
+    """Read spectra and header info for a scan block.
 
     Parameters
     ----------
@@ -247,7 +244,6 @@ def read_scan(fpath, scan_type):
     spec_block : array
         Array of the measured spectra for the scan block
     """
-
     if scan_type == 'FLAME':
 
         try:
