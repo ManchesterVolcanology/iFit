@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 class Analyser():
-
-    """Object to perform the spectral analysis
+    """Object to perform the spectral analysis.
 
     Parameters
     ----------
@@ -97,7 +96,6 @@ class Analyser():
                  ils_type='Manual', ils_path=None, despike_flag=False,
                  spike_limit=None):
         """Initialise the model for the analyser."""
-
         # Set the initial estimate for the fit parameters
         self.params = params.make_copy()
         self.p0 = self.params.fittedvalueslist()
@@ -251,7 +249,6 @@ class Analyser():
         processed_spec : 2D numpy array
             The processed spectrum.
         """
-
         # Unpack spectrum
         x, y = spectrum
 
@@ -361,7 +358,6 @@ class Analyser():
         fit_result : ifit.spectral_analysis.FitResult object
             An object that contains the fit results
         """
-
         # If a new fit window is given, trim the cross-sections down
         if fit_window is not None:
 
@@ -437,7 +433,7 @@ class Analyser():
 # =============================================================================
 
     def fwd_model(self, x, *p0):
-        """iFit forward model to fit measured UV sky spectra.
+        """Forward model for iFit to fit measured UV sky spectra.
 
         Parameters
         ----------
@@ -462,7 +458,6 @@ class Analyser():
         fit, array
             Fitted spectrum interpolated onto the spectrometer wavelength grid
         """
-
         # Get dictionary of fitted parameters
         params = self.params
         p = params.valuesdict()
@@ -538,7 +533,7 @@ class Analyser():
 # =============================================================================
 
 class FitResult():
-    """Contains the fit results
+    """Contains the fit results.
 
     Parameters
     ----------
@@ -678,7 +673,7 @@ class FitResult():
 # =============================================================================
 
     def calc_od(self, par_name, analyser):
-        """Calculates the optical depth for the given parameter
+        """Calculate the optical depth for the given parameter.
 
         Parameters
         ----------
@@ -696,7 +691,6 @@ class FitResult():
             The synthetic optical depth, calculated by multiplying the
             parameter cross-section by the fitted amount
         """
-
         # Make a copy of the parameters to use in the OD calculation
         params = self.params.make_copy()
 

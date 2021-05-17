@@ -35,10 +35,10 @@ logger.addHandler(fh)
 
 
 class MainWindow(QMainWindow):
-    """View for the iFit GUI"""
+    """View for the iFit GUI."""
 
     def __init__(self):
-        """View initialiser"""
+        """View initialiser."""
         super().__init__()
 
         # Set the window properties
@@ -78,8 +78,7 @@ class MainWindow(QMainWindow):
             self.load_config(fname=self.config_fname)
 
     def _createApp(self):
-        """Handles building the main GUI"""
-
+        """Build the main GUI."""
         # Add file menubar
         saveAct = QAction(QIcon('bin/icons/disk.png'), '&Save', self)
         saveAct.setShortcut('Ctrl+S')
@@ -149,8 +148,7 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def _createControls(self):
-        """Builds the main GUI controls"""
-
+        """Build the main GUI controls."""
         # Setup tab layout
         tablayout = QGridLayout(self.controlFrame)
 
@@ -334,12 +332,16 @@ class MainWindow(QMainWindow):
         self.stop_btn.setEnabled(False)
         layout.addWidget(self.stop_btn, 4, 3)
 
+        # Add a spacer for layout
+        layout.addItem(QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding),
+                       1, 4, 5, 1)
+
 # =============================================================================
 #   Generate the program outputs
 # =============================================================================
 
     def _createOuput(self):
-        """Builds the main GUI visual ouputs"""
+        """Build the main GUI visual ouputs."""
         layout = QGridLayout(self.outputFrame)
         layout.setAlignment(Qt.AlignTop)
 
@@ -375,8 +377,7 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def _createGraphs(self):
-        """Build the graphical display and program settings"""
-
+        """Build the graphical display and program settings."""
         layout = QGridLayout(self.graphFrame)
 
         # Generate tabs for the graphs and settings
@@ -791,26 +792,29 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def open_ils_window(self):
+        """Open ILS analysis."""
         win = ILSWindow(self)
         win.show()
 
     def open_flat_window(self):
+        """Open flat analysis."""
         win = FLATWindow(self)
         win.show()
 
     def open_flux_window(self):
+        """Open flux analysis."""
         win = CalcFlux(self)
         win.show()
 
     def update_plot_params(self):
-        """Updates plot parameter options"""
+        """Update plot parameter options."""
         rows = self.gas_table.getData()
         params = [r[0] for r in rows]
         self.widgets['graph_param'].clear()
         self.widgets['graph_param'].addItems(params)
 
     def alt_graph_bg(self):
-        """Change the graph background color"""
+        """Change the graph background color."""
         var = self.widgets.get('graph_bg')
 
         if var == 'Light':
@@ -835,7 +839,7 @@ class MainWindow(QMainWindow):
         self.scope_ax.getAxis('bottom').setPen(pen)
 
     def closeEvent(self, event):
-        """Handle GUI closure"""
+        """Handle GUI closure."""
         reply = QMessageBox.question(self, 'Message',
                                      "Are you sure to quit?",
                                      QMessageBox.Yes | QMessageBox.No,
@@ -851,8 +855,7 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def save_config(self, asksavepath=True):
-        '''Save the config file'''
-
+        """Save the config file."""
         config = {'gas_params':    self.gas_table.getData(),
                   'bgpoly_params': self.bgpoly_table.getData(),
                   'offset_params': self.offset_table.getData(),
@@ -879,8 +882,7 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def load_config(self, fname=None):
-        '''Read the config file'''
-
+        """Read the config file."""
         if fname is None:
             fname, tfile = QFileDialog.getOpenFileName()
 
@@ -924,15 +926,15 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def update_progress(self, prog):
-        """Slot to update the progress bar"""
+        """Slot to update the progress bar."""
         self.progress.setValue(prog)
 
     def update_status(self, status):
-        """Update the status"""
+        """Update the status."""
         self.statusBar().showMessage(status)
 
     def update_error(self, error):
-        """Slot to update error messages from the worker"""
+        """Slot to update error messages from the worker."""
         exctype, value, trace = error
         logger.warning(f'Uncaught exception!\n{trace}')
 
@@ -941,7 +943,7 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def analysis_complete(self):
-        """Slot to run once the analysis worker is finished"""
+        """Slot to run once the analysis worker is finished."""
         # Renable the start button
         self.start_btn.setEnabled(True)
         self.pause_btn.setEnabled(False)
@@ -954,7 +956,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage('Ready')
 
     def get_plot_data(self, plot_info):
-        """Catches plot info emitted by the analysis loop"""
+        """Catch plot info emitted by the analysis loop."""
         # Unpack the data
         self.fit_result, self.spectrum, self.df, spec_no = plot_info
 
@@ -975,8 +977,7 @@ class MainWindow(QMainWindow):
             self.plot_timer.start()
 
     def update_plots(self):
-        """Update the plots"""
-
+        """Update the plots."""
         # See if the graph data has been updated
         if self.update_graph_flag:
 
@@ -1041,8 +1042,7 @@ class MainWindow(QMainWindow):
                 self.update_graph_flag = False
 
     def begin_analysis(self, analysis_mode):
-        """Function to set up and start the analysis worker"""
-
+        """Set up and start the analysis worker."""
         # Pull the plotting data from the GUI
         widgetData = {'gas_params':    self.gas_table.getData(),
                       'bgpoly_params': self.bgpoly_table.getData(),
@@ -1080,7 +1080,7 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def acquisition_complete(self):
-        """Slot to run once the acquisition worker is finished"""
+        """Slot to run once the acquisition worker is finished."""
         # Renable the start button
         self.rt_start_btn.setEnabled(True)
         self.rt_pause_btn.setEnabled(False)
@@ -1100,7 +1100,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage('Ready')
 
     def catch_spectrum(self, spec_data):
-        """Slot to catch the spectra acquired by the acquisition loop"""
+        """Slot to catch the spectra acquired by the acquisition loop."""
         self.last_spectrum, self.last_info, plot_flag = spec_data
 
         self.scope_line.setData(*self.last_spectrum)
@@ -1111,8 +1111,7 @@ class MainWindow(QMainWindow):
             pass
 
     def begin_acquisition(self, acquisition_mode):
-        """Function to set up and start the acquisition worker"""
-
+        """Set up and start the acquisition worker."""
         # This section is for testing with a virtual spectrometer
         #######################################################################
         # if acquisition_mode == 'acquire_single':
@@ -1166,15 +1165,15 @@ class MainWindow(QMainWindow):
         self.autoscale_flag = True
 
     def update_int_time(self):
-        """Update the spectrometer integration time"""
+        """Update the spectrometer integration time."""
         self.spectrometer.update_integration_time(self.widgets.get('int_time'))
 
     def update_coadds(self):
-        """Update the spectrometer coadds"""
+        """Update the spectrometer coadds."""
         self.spectrometer.update_coadds(self.widgets.get('coadds'))
 
     def toggle_fitting(self):
-        """Toggle sreal time fitting on and off"""
+        """Toggle real time fitting on and off."""
         if self.rt_fitting_flag:
             self.rt_fitting_flag = False
             self.rt_flag_btn.setStyleSheet("background-color: red")
@@ -1188,7 +1187,7 @@ class MainWindow(QMainWindow):
             logger.info('Fitting turned on')
 
     def pause(self):
-        """Pauses the worker loop"""
+        """Pause the worker loop."""
         try:
             self.worker.pause()
         except AttributeError:
@@ -1199,7 +1198,7 @@ class MainWindow(QMainWindow):
             pass
 
     def stop(self):
-        """Kills the worker loop"""
+        """Kill the worker loop."""
         try:
             self.worker.kill()
             logger.info('Analysis stopped')
@@ -1213,9 +1212,7 @@ class MainWindow(QMainWindow):
 
 
 def browse(gui, widget, mode='single', filter=None):
-    """Opens native file dialogue and sets a widget with the selected
-    file/folder"""
-
+    """Open native file dialogue."""
     # Check if specified file extensions
     if filter is not None:
         filter = filter + ';;All Files (*)'
@@ -1253,6 +1250,8 @@ def browse(gui, widget, mode='single', filter=None):
 
 
 class QHLine(QFrame):
+    """Horizontal line widget."""
+
     def __init__(self):
         super(QHLine, self).__init__()
         self.setFrameShape(QFrame.HLine)
@@ -1260,6 +1259,8 @@ class QHLine(QFrame):
 
 
 class QVLine(QFrame):
+    """Vertical line widget."""
+
     def __init__(self):
         super(QVLine, self).__init__()
         self.setFrameShape(QFrame.VLine)
@@ -1268,7 +1269,7 @@ class QVLine(QFrame):
 
 # Cliet Code
 def main():
-    """Main function"""
+    """Run main function."""
     # Create an instance of QApplication
     app = QApplication(sys.argv)
 
