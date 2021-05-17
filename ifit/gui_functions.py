@@ -241,6 +241,7 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
         spec_fnames = widgetData['spec_fnames'].split('\n')
         dark_fnames = widgetData['dark_fnames'].split('\n')
         spec_type = widgetData['spec_type']
+        wl_calib_file = widgetData['wl_calib']
         buffer = Buffer(len(spec_fnames), buffer_cols)
         save_path = widgetData['save_path']
         write_mode = 'w'
@@ -254,7 +255,8 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
                                 + 'disabling dark correction')
 
             else:
-                x, dark_spec = average_spectra(dark_fnames, spec_type)
+                x, dark_spec = average_spectra(dark_fnames, spec_type,
+                                               wl_calib_file)
 
     elif analysis_mode == 'rt_analyse':
 
@@ -281,7 +283,8 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
         else:
             write_mode = 'w'
 
-    return spec_fnames, dark_spec, spec_type, buffer, save_path, write_mode
+    return (spec_fnames, dark_spec, spec_type, wl_calib_file, buffer,
+            save_path, write_mode)
 
 
 # =============================================================================
@@ -338,8 +341,11 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
     buffer_cols += ['fit_quality']
 
     # Set mode dependent settings
-    settings = analysis_setup(worker, analysis_mode, widgetData, buffer_cols)
-    spec_fnames, dark_spec, spec_type, buffer, save_path, write_mode = settings
+    [spec_fnames, dark_spec, spec_type, wl_calib_file, buffer, save_path,
+     write_mode] = analysis_setup(worker,
+                                  analysis_mode,
+                                  widgetData,
+                                  buffer_cols)
 
     # Set the dark spectrum
     if analyser.dark_flag and dark_spec is not None:
@@ -385,7 +391,8 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
                 worker.spec_fname = None
 
             # Read in the spectrum
-            x, y, info, read_err = read_spectrum(fname, spec_type)
+            x, y, info, read_err = read_spectrum(fname, spec_type,
+                                                 wl_calib_file)
 
             # Fit the spectrum
             fit_result = analyser.fit_spectrum(spectrum=[x, y],

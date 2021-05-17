@@ -277,6 +277,7 @@ class MainWindow(QMainWindow):
         self.widgets['spec_type'].addItems(['iFit',
                                             'Master.Scope',
                                             'Spectrasuite',
+                                            'mobileDOAS',
                                             'Basic'])
         self.widgets['spec_type'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['spec_type'], 0, 1)
