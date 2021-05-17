@@ -19,6 +19,9 @@ from ifit.load_spectra import read_spectrum, average_spectra
 from ifit.spectrometers import Spectrometer
 
 
+logger = logging.getLogger()
+
+
 class QTextEditLogger(logging.Handler, QObject):
     """Records logs to the GUI"""
     appendPlainText = pyqtSignal(str)
@@ -178,7 +181,7 @@ def generate_analyser(widgetData):
 
     # Pull the parameters from the parameter table
     params = Parameters()
-    logging.info('Generating model parameters')
+    logger.info('Generating model parameters')
 
     # Build the parameters from GUI tables
     for line in widgetData['gas_params']:
@@ -220,7 +223,7 @@ def generate_analyser(widgetData):
                         spike_limit=widgetData['spike_limit'])
 
     # Report fitting parameters
-    logging.info(params.pretty_print(cols=['name', 'value', 'vary']))
+    logger.info(params.pretty_print(cols=['name', 'value', 'vary']))
 
     return analyser
 
@@ -251,8 +254,8 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
         if widgetData['dark_flag']:
 
             if len(dark_fnames) == 0:
-                logging.warning('No dark spectra selected, '
-                                + 'disabling dark correction')
+                logger.warning('No dark spectra selected, disabling dark '
+                               + 'correction')
 
             else:
                 x, dark_spec = average_spectra(dark_fnames, spec_type,
@@ -274,8 +277,8 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
             try:
                 dark_spec = np.loadtxt('bin/.dark')
             except OSError:
-                logging.warning('No dark spectrum found, '
-                                + 'disabling dark correction')
+                logger.warning('No dark spectrum found, disabling dark '
+                               + 'correction')
 
         # Set the output write format
         if os.path.isfile(save_path):
@@ -354,7 +357,7 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
         analyser.dark_flag = False
 
     # Set status
-    logging.info('Beginning analysis loop')
+    logger.info('Beginning analysis loop')
 
     # Open the output file
     with open(save_path, write_mode) as w:
@@ -429,7 +432,7 @@ def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
 
             # Check if analysis is finished
             if analysis_mode == 'post_analyse' and loop == len(spec_fnames)-1:
-                logging.info('Analysis finished!')
+                logger.info('Analysis finished!')
                 worker.kill()
 
             # Update loop counter
@@ -482,7 +485,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
     if acquisition_mode == 'acquire_darks':
 
         ndarks = widgetData['ndarks']
-        logging.info(f'Reading {ndarks} dark spectra')
+        logger.info(f'Reading {ndarks} dark spectra')
 
         # Set the save location for the dark spectra
         save_path = widgetData['rt_save_path'] + '/dark/'
@@ -518,7 +521,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
 
             # Get if the worker is killed
             if worker.is_killed:
-                logging.info('Dark spectra acquisition interupted')
+                logger.info('Dark spectra acquisition interupted')
 
         dark_spec = np.average(dark_arr, axis=0)
         np.savetxt('bin/.dark', dark_spec)
@@ -532,7 +535,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
 
-        logging.info('Beginning spectra acquisition')
+        logger.info('Beginning spectra acquisition')
 
         # Create a spectrum number parameter
         nspec = 0
