@@ -26,7 +26,7 @@ except ImportError:
     from haversine import haversine
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================

@@ -7,7 +7,7 @@ from scipy.signal import savgol_filter
 from ifit.make_ils import make_ils
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================

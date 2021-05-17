@@ -4,7 +4,7 @@ import linecache
 import numpy as np
 from datetime import datetime
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================

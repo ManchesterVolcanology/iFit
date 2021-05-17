@@ -19,7 +19,7 @@ from ifit.load_spectra import read_spectrum, average_spectra
 from ifit.spectrometers import Spectrometer
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class QTextEditLogger(logging.Handler, QObject):
