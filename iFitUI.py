@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
 from ifit.gui_functions import (analysis_loop, acquire_spectra, Widgets,
                                 SpinBox, DSpinBox, Table, Worker,
                                 QTextEditLogger, connect_spectrometer)
-from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux
+from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
 
 __version__ = '3.3'
 __author__ = 'Ben Esse'
@@ -80,23 +80,27 @@ class MainWindow(QMainWindow):
     def _createApp(self):
         """Build the main GUI."""
         # Add file menubar
-        saveAct = QAction(QIcon('bin/icons/disk.png'), '&Save', self)
+        saveAct = QAction(QIcon('bin/icons/save.png'), '&Save', self)
         saveAct.setShortcut('Ctrl+S')
         saveAct.triggered.connect(partial(self.save_config, False))
-        saveasAct = QAction(QIcon('bin/icons/disk--pencil.png'), '&Save As',
+        saveasAct = QAction(QIcon('bin/icons/saveas.png'), '&Save As',
                             self)
         saveasAct.setShortcut('Ctrl+Shift+S')
         saveasAct.triggered.connect(partial(self.save_config, True))
-        loadAct = QAction(QIcon('bin/icons/folder.png'), '&Load', self)
+        loadAct = QAction(QIcon('bin/icons/open.png'), '&Load', self)
         loadAct.triggered.connect(partial(self.load_config, None))
 
         # Add tools menubar
-        ilsAct = QAction('&Measure ILS', self)
+        ilsAct = QAction(QIcon('bin/icons/ils.png'), '&Measure ILS', self)
         ilsAct.triggered.connect(self.open_ils_window)
-        flatAct = QAction('&Measure\nFlat Field', self)
+        flatAct = QAction(QIcon('bin/icons/flat.png'), '&Measure\nFlat Field',
+                          self)
         flatAct.triggered.connect(self.open_flat_window)
-        fluxAct = QAction('&Calculate flux', self)
+        fluxAct = QAction(QIcon('bin/icons/flux.png'), '&Calculate flux', self)
         fluxAct.triggered.connect(self.open_flux_window)
+        ldfAct = QAction(QIcon('bin/icons/ldf.png'),
+                         '&Light Dilution\nAnalysis', self)
+        ldfAct.triggered.connect(self.open_ldf_window)
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
@@ -107,12 +111,19 @@ class MainWindow(QMainWindow):
         toolMenu.addAction(ilsAct)
         toolMenu.addAction(flatAct)
         toolMenu.addAction(fluxAct)
+        toolMenu.addAction(ldfAct)
 
         # Create a toolbar
         toolbar = QToolBar("Main toolbar")
         self.addToolBar(toolbar)
         toolbar.addAction(saveAct)
+        toolbar.addAction(saveasAct)
         toolbar.addAction(loadAct)
+        toolbar.addSeparator()
+        toolbar.addAction(ilsAct)
+        toolbar.addAction(flatAct)
+        toolbar.addAction(fluxAct)
+        toolbar.addAction(ldfAct)
 
         # Create a frame to hold program controls
         self.controlFrame = QFrame(self)
