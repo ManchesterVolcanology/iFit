@@ -159,7 +159,7 @@ class MainWindow(QMainWindow):
 # =============================================================================
 
     def _createControls(self):
-        """Build the main GUI controls."""
+        """Generate the main GUI controls."""
         # Setup tab layout
         tablayout = QGridLayout(self.controlFrame)
 
@@ -303,7 +303,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(btn, 1, 4)
 
         # Add an input for the dark selection
-        layout.addWidget(QLabel('Darks:'), 2, 0)
+        layout.addWidget(QLabel('Dark\nSpectra:'), 2, 0)
         self.widgets['dark_fnames'] = QTextEdit()
         layout.addWidget(self.widgets['dark_fnames'], 2, 1, 1, 3)
         btn = QPushButton('Browse')
@@ -342,10 +342,6 @@ class MainWindow(QMainWindow):
         self.stop_btn.setFixedSize(90, 25)
         self.stop_btn.setEnabled(False)
         layout.addWidget(self.stop_btn, 4, 3)
-
-        # Add a spacer for layout
-        layout.addItem(QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding),
-                       1, 4, 5, 1)
 
 # =============================================================================
 #   Generate the program outputs
