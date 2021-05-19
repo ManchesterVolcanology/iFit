@@ -737,6 +737,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['a_k_fit'], nrow, ncol+2)
         nrow += 1
 
+        layout.addWidget(QHLine(), nrow, 0, 1, 10)
+        nrow += 1
+
+        # Add an input for the bad pixel numbers
+        layout.addWidget(QLabel('Bad pixels:'), nrow, ncol)
+        self.widgets['bad_pixels'] = QLineEdit()
+        self.widgets['bad_pixels'].setFixedSize(300, 20)
+        layout.addWidget(self.widgets['bad_pixels'], nrow, ncol+1, 1, 2)
+
         vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
         layout.addItem(vspacer, nrow, 0, 1, -1)
 
@@ -770,13 +779,15 @@ class MainWindow(QMainWindow):
         ptab2 = QWidget()
         ptab3 = QWidget()
         ptab4 = QWidget()
+        ptab5 = QWidget()
 
         tabwidget = QTabWidget()
-        tabwidget.setFixedWidth(600)
+        tabwidget.setFixedWidth(620)
         tabwidget.addTab(ptab1, 'Absorbers')
         tabwidget.addTab(ptab2, 'Polynomial')
         tabwidget.addTab(ptab3, 'Offset')
         tabwidget.addTab(ptab4, 'Shift')
+        tabwidget.addTab(ptab5, 'Light Dilution')
         layout.addWidget(tabwidget, 1, 0, 1, 6)
 
         vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
@@ -786,13 +797,25 @@ class MainWindow(QMainWindow):
         layout.addItem(hspacer, 0, 5, -1, 1)
 
         # Create the absorber and polynomial tables
-        self.gas_table = Table(ptab1, 'param', 550, 400)
+        self.gas_table = Table(ptab1, 'param', 620, 400)
         self.bgpoly_table = Table(ptab2, 'poly', 550, 400, 'bg_poly')
         self.offset_table = Table(ptab3, 'poly', 550, 400, 'offset')
         self.shift_table = Table(ptab4, 'poly', 550, 400, 'shift')
 
         # Link the parameter table to the plot parameter combobox
         self.gas_table.cellChanged.connect(self.update_plot_params)
+
+        # Add controls for light dilution
+        ld_layout = QGridLayout(ptab5)
+        ld_layout.setAlignment(Qt.AlignTop)
+
+        # Add manual or fitted LDF controls
+        ld_layout.addWidget(QLabel('LDF:'), 1, 0)
+        self.widgets['ldf'] = DSpinBox(0, [0, 1], 0.1)
+        self.widgets['ldf'].setFixedSize(100, 20)
+        ld_layout.addWidget(self.widgets['ldf'], 1, 1)
+        self.widgets['ldf_fit'] = QCheckBox('Fit?')
+        ld_layout.addWidget(self.widgets['ldf_fit'], 1, 2)
 
 # =============================================================================
 # Tool Windows
@@ -811,6 +834,20 @@ class MainWindow(QMainWindow):
     def open_flux_window(self):
         """Open flux analysis."""
         win = CalcFlux(self)
+        win.show()
+
+    def open_ldf_window(self):
+        """Open LDF analysis."""
+        # Pull the plotting data from the GUI
+        widgetData = {'gas_params':    self.gas_table.getData(),
+                      'bgpoly_params': self.bgpoly_table.getData(),
+                      'offset_params': self.offset_table.getData(),
+                      'shift_params':  self.shift_table.getData()}
+
+        for label in self.widgets:
+            widgetData[label] = self.widgets.get(label)
+
+        win = LDFWindow(widgetData, self)
         win.show()
 
     def update_plot_params(self):
@@ -872,7 +909,9 @@ class MainWindow(QMainWindow):
             config[label] = self.widgets.get(label)
 
         if asksavepath or self.config_fname is None:
-            fname, s = QFileDialog.getSaveFileName()
+            filter = 'YAML (*.yml, *.yaml);;All Files (*)'
+            fname, s = QFileDialog.getSaveFileName(self, 'Save Config', '',
+                                                   filter)
             if fname != '':
                 self.config_fname = fname
 
@@ -891,7 +930,9 @@ class MainWindow(QMainWindow):
     def load_config(self, fname=None):
         """Read the config file."""
         if fname is None:
-            fname, tfile = QFileDialog.getOpenFileName()
+            filter = 'YAML (*.yml, *.yaml);;All Files (*)'
+            fname, tfile = QFileDialog.getOpenFileName(self, 'Load Config', '',
+                                                       filter)
 
         # Open the config file
         try:
@@ -1013,18 +1054,6 @@ class MainWindow(QMainWindow):
                     if len(plotx) > npts:
                         plotx = plotx[-npts:]
                         ploty = ploty[-npts:]
-
-                # Check that there are data to plot
-                if len(plotx) != 0:
-
-                    # Check for large number in the time series. This is due to
-                    # a bug in pyqtgraph not displaying large numbers
-                    max_val = np.nanmax(np.abs(ploty))
-                    if ~np.isnan(max_val) and max_val > 1e6:
-                        order = int(np.ceil(np.log10(max_val))) - 1
-                        ploty = ploty / 10**order
-                        self.plot_axes[4].setLabel('left',
-                                                   f'Fit value (1e{order})')
 
                 # Plot the data
                 self.plot_lines[0].setData(self.fit_result.grid,

@@ -2,6 +2,7 @@ import os
 import sys
 import yaml
 import logging
+import traceback
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
@@ -9,14 +10,15 @@ from functools import partial
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
 from PyQt5.QtGui import QIcon, QPalette, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThreadPool, QRunnable, pyqtSlot
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QLabel, QTextEdit, QLineEdit, QPushButton, QFrame,
                              QFileDialog, QScrollArea, QCheckBox, QSplitter,
                              QComboBox, QDoubleSpinBox, QTableWidget,
                              QTableWidgetItem, QTabWidget, QMessageBox)
 
-from ifit.gui_functions import QTextEditLogger
+from ifit.gui_functions import QTextEditLogger, DSpinBox, WorkerSignals
+from ifit.light_dilution import ld_launcher
 
 try:
     from .make_ils import super_gaussian
@@ -27,6 +29,87 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+
+
+# Create a worker to handle QThreads for light dilution analysis
+class LDWorker(QRunnable):
+    """Worker thread.
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up
+
+    Parameters
+    ----------
+    fn : function
+        The function to run on the worker thread
+    mode : str
+        Flags which signals to use. Must be one of 'analyse' or 'acquire', for
+        a spectral analysis or acquisition thread respectively
+
+    Attributes
+    ----------
+    args : list
+        Arguments to  pass to the function
+    kwargs : dict
+        Keyword arguments to pass to the function
+    signals : WorkerSignals object
+        The worker signals
+    is_paused : bool
+        State to show if the worker has been paused
+    is_killed : bool
+        State to show if the worker has been killed
+    spec_fname : str
+        File path to the last measured spectrum
+    """
+
+    def __init__(self, fn, *args, **kwargs):
+        super(LDWorker, self).__init__()
+
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+
+        # Set killed and paused flags
+        self.is_paused = False
+        self.is_killed = False
+
+        # Create a holder for the spectrum filepath
+        self.spec_fname = None
+
+        # Add the callbacks to our kwargs
+        self.kwargs['data_callback'] = self.signals.data
+
+    @pyqtSlot()
+    def run(self):
+        """Initialise the runner function with passed args and kwargs."""
+        # Retrieve args/kwargs here; and fire processing using them
+        try:
+            self.fn(self, *self.args, **self.kwargs)
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+
+        # Done
+        self.signals.finished.emit()
+
+    def pause(self):
+        """Pause the analysis/acquisition."""
+        if self.is_paused:
+            self.is_paused = False
+        else:
+            self.is_paused = True
+
+    def resume(self):
+        """Resume the analysis/acquisition."""
+        self.is_paused = False
+
+    def kill(self):
+        """Terminate the analysis/acquisition."""
+        if self.is_paused:
+            self.is_paused = False
+        self.is_killed = True
 
 
 # =============================================================================
@@ -1000,6 +1083,342 @@ class FLATWindow(QMainWindow):
         header = 'Flat spectrum\nWavelength (nm),       Flat Response'
         np.savetxt(self.save_path.text(), data, header=header)
 
+
+# =============================================================================
+# Measure Light Dilution
+# =============================================================================
+
+class LDFWindow(QMainWindow):
+    """Open a window for light dilution analysis."""
+
+    def __init__(self, widgetData, parent=None):
+        """Initialise the window."""
+        super(LDFWindow, self).__init__(parent)
+
+        # Set the window properties
+        self.setWindowTitle('Measure Light Dilution')
+        self.statusBar().showMessage('Ready')
+        self.setGeometry(40, 40, 1200, 700)
+        self.setWindowIcon(QIcon('bin/icon.ico'))
+
+        # Generate the threadpool for launching background processes
+        self.threadpool = QThreadPool()
+
+        # Set the window layout
+        self.generalLayout = QGridLayout()
+        self._centralWidget = QScrollArea()
+        self.widget = QWidget()
+        self.setCentralWidget(self._centralWidget)
+        self.widget.setLayout(self.generalLayout)
+
+        # Scroll Area Properties
+        self._centralWidget.setWidgetResizable(True)
+        self._centralWidget.setWidget(self.widget)
+
+        # Save the main GUI widget data
+        self.widgetData = widgetData
+
+        self._createApp()
+
+    def _createApp(self):
+        """Create the main app widgets."""
+        # Create a frame to hold program controls
+        self.controlFrame = QFrame(self)
+        self.controlFrame.setFrameShape(QFrame.StyledPanel)
+
+        # Create a frame to hold program outputs
+        self.outputFrame = QFrame(self)
+        self.outputFrame.setFrameShape(QFrame.StyledPanel)
+
+        # Create a frame to hold graphs
+        self.graphFrame = QFrame(self)
+        self.graphFrame.setFrameShape(QFrame.StyledPanel)
+
+        # Add splitters to allow for adjustment
+        splitter1 = QSplitter(Qt.Vertical)
+        splitter1.addWidget(self.controlFrame)
+        splitter1.addWidget(self.outputFrame)
+
+        splitter2 = QSplitter(Qt.Horizontal)
+        splitter2.addWidget(splitter1)
+        splitter2.addWidget(self.graphFrame)
+
+        # Pack the Frames and splitters
+        self.generalLayout.addWidget(splitter2)
+
+        # Create the individual widgets
+        self._createControls()
+        self._createOutput()
+        self._createGraphs()
+
+# =============================================================================
+#   Program controls
+# =============================================================================
+
+    def _createControls(self):
+        """Create main analysis controls."""
+        # Setup tab layout
+        tablayout = QGridLayout(self.controlFrame)
+
+        # Generate tabs for the gaphs and settings
+        tab1 = QWidget()
+        tab2 = QWidget()
+
+        # Form the tab widget
+        tabwidget = QTabWidget()
+        tabwidget.addTab(tab1, 'Generate Curves')
+        tabwidget.addTab(tab2, 'Load Curves')
+        tablayout.addWidget(tabwidget, 0, 0)
+
+        # Setup the main layout
+        layout = QGridLayout(tab1)
+        layout.setAlignment(Qt.AlignTop)
+
+        # Create an option menu for the spectra format
+        layout.addWidget(QLabel('Format:'), 0, 0)
+        self.spec_type = QComboBox()
+        self.spec_type.addItems(['iFit',
+                                 'Master.Scope',
+                                 'Spectrasuite',
+                                 'mobileDOAS',
+                                 'Basic'])
+        self.spec_type.setFixedSize(100, 20)
+        layout.addWidget(self.spec_type, 0, 1)
+        index = self.spec_type.findText(self.widgetData['spec_type'],
+                                        Qt.MatchFixedString)
+        if index >= 0:
+            self.spec_type.setCurrentIndex(index)
+
+        # Add an input for the spectra selection
+        layout.addWidget(QLabel('Spectra:'), 1, 0)
+        self.spec_fnames = QTextEdit()
+        self.spec_fnames.setFixedHeight(75)
+        layout.addWidget(self.spec_fnames, 1, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.spec_fnames, 'multi'))
+        layout.addWidget(btn, 1, 4)
+
+        # Add an input for the dark selection
+        layout.addWidget(QLabel('Dark Spectra:'), 2, 0)
+        self.dark_fnames = QTextEdit()
+        self.dark_fnames.setFixedHeight(75)
+        layout.addWidget(self.dark_fnames, 2, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.dark_fnames, 'multi'))
+        layout.addWidget(btn, 2, 4)
+
+        # Add spinboxs for the fit windows
+        layout.addWidget(QLabel('Fit Window 1:\n    (nm)'), 3, 0, 2, 1)
+        self.wb1_lo = DSpinBox(306, [0, 10000], 0.1)
+        self.wb1_lo.setFixedSize(70, 20)
+        layout.addWidget(self.wb1_lo, 3, 1)
+        self.wb1_hi = DSpinBox(316, [0, 10000], 0.1)
+        self.wb1_hi.setFixedSize(70, 20)
+        layout.addWidget(self.wb1_hi, 4, 1)
+
+        layout.addWidget(QLabel('Fit Window 2:\n    (nm)'), 3, 2, 2, 1)
+        self.wb2_lo = DSpinBox(312, [0, 10000], 0.1)
+        self.wb2_lo.setFixedSize(70, 20)
+        layout.addWidget(self.wb2_lo, 3, 3)
+        self.wb2_hi = DSpinBox(322, [0, 10000], 0.1)
+        self.wb2_hi.setFixedSize(70, 20)
+        layout.addWidget(self.wb2_hi, 4, 3)
+
+        # Add entries for the SO2 grid
+        layout.addWidget(QLabel('SO<sub>2</sub> Grid Low:'), 5, 0)
+        self.so2_grid_lo = QLineEdit()
+        self.so2_grid_lo.setText('0.0')
+        self.so2_grid_lo.setFixedSize(100, 20)
+        layout.addWidget(self.so2_grid_lo, 5, 1)
+        layout.addWidget(QLabel('SO<sub>2</sub> Grid High:'), 6, 0)
+        self.so2_grid_hi = QLineEdit()
+        self.so2_grid_hi.setText('1.0e19')
+        self.so2_grid_hi.setFixedSize(100, 20)
+        layout.addWidget(self.so2_grid_hi, 6, 1)
+        layout.addWidget(QLabel('SO<sub>2</sub> Grid Step:'), 7, 0)
+        self.so2_grid_step = QLineEdit()
+        self.so2_grid_step.setText('5.0e17')
+        self.so2_grid_step.setFixedSize(100, 20)
+        layout.addWidget(self.so2_grid_step, 7, 1)
+
+        # Add entries for the LDF grid
+        layout.addWidget(QLabel('LDF Grid Low:'), 5, 2)
+        self.ldf_grid_lo = QLineEdit()
+        self.ldf_grid_lo.setText('0.0')
+        self.ldf_grid_lo.setFixedSize(100, 20)
+        layout.addWidget(self.ldf_grid_lo, 5, 3)
+        layout.addWidget(QLabel('LDF Grid High:'), 6, 2)
+        self.ldf_grid_hi = QLineEdit()
+        self.ldf_grid_hi.setText('0.9')
+        self.ldf_grid_hi.setFixedSize(100, 20)
+        layout.addWidget(self.ldf_grid_hi, 6, 3)
+        layout.addWidget(QLabel('LDF Grid Step:'), 7, 2)
+        self.ldf_grid_step = QLineEdit()
+        self.ldf_grid_step.setText('0.1')
+        self.ldf_grid_step.setFixedSize(100, 20)
+        layout.addWidget(self.ldf_grid_step, 7, 3)
+
+        # Add an input for the save selection
+        layout.addWidget(QLabel('Output File:'), 8, 0)
+        self.save_path = QLineEdit()
+        self.save_path.setFixedHeight(25)
+        layout.addWidget(self.save_path, 8, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.save_path,
+                                    'save', "Text (*.txt)"))
+        layout.addWidget(btn, 8, 4)
+
+        # Add button to begin analysis
+        self.start_btn = QPushButton('Begin!')
+        self.start_btn.clicked.connect(partial(self.calc_ld_curves))
+        self.start_btn.setFixedSize(90, 25)
+        layout.addWidget(self.start_btn, 9, 1)
+
+        # Add button to pause analysis
+        self.save_btn = QPushButton('Save')
+        self.save_btn.clicked.connect(partial(self.save_ld_curves))
+        self.save_btn.setFixedSize(90, 25)
+        self.save_btn.setEnabled(False)
+        layout.addWidget(self.save_btn, 9, 2)
+
+# =============================================================================
+#   Program outputs
+# =============================================================================
+
+    def _createOutput(self):
+        """Create program output widgets."""
+        # Generate the layout
+        layout = QGridLayout(self.outputFrame)
+
+        # Create a textbox to display the program messages
+        self.logBox = QTextEditLogger(self)
+        self.logBox.setFormatter(logging.Formatter('%(message)s'))
+        logging.getLogger().addHandler(self.logBox)
+        logging.getLogger().setLevel(logging.INFO)
+        layout.addWidget(self.logBox.widget, 0, 0)
+
+# =============================================================================
+#   Graphs
+# =============================================================================
+
+    def _createGraphs(self):
+        """Generate the graphs."""
+        # Generate the graph layout and window
+        layout = QGridLayout(self.graphFrame)
+        pg.setConfigOptions(antialias=True)
+        graphwin = pg.GraphicsWindow(show=True)
+
+        # Make the graphs
+        self.ax = graphwin.addPlot()
+
+        self.ax.setDownsampling(mode='peak')
+        self.ax.setClipToView(True)
+        self.ax.showGrid(x=True, y=True)
+
+        # Add axis labels
+        self.ax.setLabel('left', 'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>)')
+        self.ax.setLabel('bottom', 'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>)')
+
+        # Add the graphs to the layout
+        layout.addWidget(graphwin, 0, 0, 0, 0)
+
+# =============================================================================
+#   Program functions
+# =============================================================================
+
+    def calc_ld_curves(self):
+        """Calculate Light Dilution curve data."""
+
+        # Disable buttons
+        self.start_btn.setEnabled(False)
+        self.save_btn.setEnabled(False)
+
+        # Pull the waveband data from the LD gui and pad for the initial fit
+        self.widgetData['fit_lo'] = self.wb1_lo.value() - 1
+        self.widgetData['fit_hi'] = self.wb2_hi.value() + 1
+
+        # Grab the spectra type from the GUI
+        self.widgetData['spec_type'] = self.spec_type.currentText()
+
+        # Pull the waveband, SO2 and LDF grid info from the GUI
+        ld_kwargs = {'wb1': [self.wb1_lo.value(), self.wb1_hi.value()],
+                     'wb2': [self.wb2_lo.value(), self.wb2_hi.value()],
+                     'so2_lims': [float(self.so2_grid_lo.text()),
+                                  float(self.so2_grid_hi.text())],
+                     'so2_step': float(self.so2_grid_step.text()),
+                     'ldf_lims': [float(self.ldf_grid_lo.text()),
+                                  float(self.ldf_grid_hi.text())],
+                     'ldf_step': float(self.ldf_grid_step.text())}
+
+        # Load the spectra to fit
+        spec_fnames = self.spec_fnames.toPlainText().split('\n')
+        dark_fnames = self.dark_fnames.toPlainText().split('\n')
+
+        # Initialise the analysis worker
+        self.worker = LDWorker(ld_launcher, spec_fnames, dark_fnames,
+                               self.widgetData, ld_kwargs)
+        self.worker.signals.finished.connect(self.analysis_complete)
+        self.worker.signals.data.connect(self.handle_data)
+        self.threadpool.start(self.worker)
+
+    def handle_data(self, ld_results):
+        """Handle the LD results."""
+        self.ld_results = ld_results
+        self.plot_ld_curves(ld_results)
+
+    def analysis_complete(self):
+        """Run when LD analysis is complete."""
+        self.start_btn.setEnabled(True)
+        self.save_btn.setEnabled(True)
+
+    def save_ld_curves(self):
+        """Save Light Dilution curve data."""
+        if self.save_path.text() == '':
+            filter = "Text (*.txt)"
+            fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
+        else:
+            fname = self.save_path.text()
+
+        np.savetxt(fname, self.ld_results)
+
+    def load_ld_curves(self):
+        """Load the light dilution curve data."""
+
+    def plot_ld_curves(self, ld_results):
+        """Plot the light dilution curves."""
+
+        # Clear the plot
+        self.ax.clear()
+
+        # Pull out the unique LDF values
+        ldf_grid = np.unique(ld_results[:, 0])
+
+        # Makes pens to distinguish lines
+        p0 = pg.mkPen(color='#2ca02c', width=2.0)
+        p1 = pg.mkPen(color='#d62728', width=2.0)
+
+        # Get the curve data for each LDF value
+        for i, ldf in enumerate(ldf_grid):
+            row_idx = np.where(ld_results[:, 0] == ldf)[0]
+            so2_scd_1 = ld_results[row_idx, 2]
+            so2_err_1 = ld_results[row_idx, 3]
+            so2_scd_2 = ld_results[row_idx, 4]
+            so2_err_2 = ld_results[row_idx, 5]
+
+            if not i % 2:
+                pen = p0
+            else:
+                pen = p1
+            self.ax.plot(so2_scd_1, so2_scd_2, pen=pen)
+
+
+
+# =============================================================================
+# Useful functions
+# =============================================================================
 
 def browse(gui, widget, mode='single', filter=False):
     """Open file dialouge."""

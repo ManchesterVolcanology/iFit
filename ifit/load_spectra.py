@@ -102,7 +102,12 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
         elif spec_type == 'mobileDOAS':
 
             # Read the wavelength calibration
-            grid = np.loadtxt(wl_calib_file)
+            try:
+                grid = np.loadtxt(wl_calib_file)
+            except FileNotFoundError:
+                logger.error(f'Wavelength calibration file {wl_calib_file} '
+                             + 'not found')
+                raise FileNotFoundError
 
             # Get the spectrum number
             head, tail = os.path.split(fname)

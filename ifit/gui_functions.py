@@ -67,6 +67,7 @@ class WorkerSignals(QObject):
     error = pyqtSignal(tuple)
     status = pyqtSignal(str)
     spectrum = pyqtSignal(tuple)
+    data = pyqtSignal(np.ndarray)
 
 
 # Create a worker to handle QThreads
@@ -186,7 +187,8 @@ def generate_analyser(widgetData):
 
     # Build the parameters from GUI tables
     for line in widgetData['gas_params']:
-        params.add(name=line[0], value=line[1], vary=line[2], xpath=line[3])
+        params.add(name=line[0], value=line[1], vary=line[2], xpath=line[4],
+                   plume_gas=line[3])
     for i, line in enumerate(widgetData['bgpoly_params']):
         params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
     for i, line in enumerate(widgetData['offset_params']):
@@ -205,6 +207,13 @@ def generate_analyser(widgetData):
         params.add('a_k', value=float(widgetData['a_k']),
                    vary=widgetData['a_k_fit'])
 
+    # Add the light dilution factor
+    params.add('LDF', value=float(widgetData['ldf']),
+               vary=widgetData['ldf_fit'])
+
+    # Get the bad pixels
+    bad_pixels = [int(i) for i in widgetData['bad_pixels'].split(',')]
+
     # Generate the analyser
     analyser = Analyser(params=params,
                         fit_window=[widgetData['fit_lo'],
@@ -221,7 +230,8 @@ def generate_analyser(widgetData):
                         ils_type=widgetData['ils_mode'],
                         ils_path=widgetData['ils_path'],
                         despike_flag=widgetData['despike_flag'],
-                        spike_limit=widgetData['spike_limit'])
+                        spike_limit=widgetData['spike_limit'],
+                        bad_pixels=bad_pixels)
 
     # Report fitting parameters
     logger.info(params.pretty_print(cols=['name', 'value', 'vary']))
@@ -700,17 +710,19 @@ class Widgets(dict):
 
 
 # =============================================================================
-# Spinbox
+# Spinbox classes
 # =============================================================================
 
 # Create a Spinbox object for ease
 class DSpinBox(QDoubleSpinBox):
     """Object for generating custom float spinboxes."""
 
-    def __init__(self, value, range):
+    def __init__(self, value, range=None, step=1.0):
         super().__init__()
-        self.setRange(*range)
+        if range is not None:
+            self.setRange(*range)
         self.setValue(value)
+        self.setSingleStep(step)
 
 
 class SpinBox(QSpinBox):
@@ -747,10 +759,10 @@ class Table(QTableWidget):
         """Create a parameter table."""
         self.setFixedWidth(self._width)
         self.setFixedHeight(self._height)
-        self.setColumnCount(5)
+        self.setColumnCount(6)
         self.setRowCount(0)
-        self.setHorizontalHeaderLabels(['Name', 'Value', 'Vary?', 'Xsec Path',
-                                        ''])
+        self.setHorizontalHeaderLabels(['Name', 'Value', 'Vary?', 'Plume Gas?',
+                                        'Xsec Path', ''])
 
     def _poly_table(self):
         """Create a polynomial table."""
@@ -766,12 +778,15 @@ class Table(QTableWidget):
         self.setRowCount(n+1)
 
         if self._type == 'param':
-            cb = QCheckBox()
-            cb.setChecked(True)
-            self.setCellWidget(n, 2, cb)
+            cb0 = QCheckBox()
+            cb0.setChecked(True)
+            self.setCellWidget(n, 2, cb0)
+            cb1 = QCheckBox()
+            cb1.setChecked(False)
+            self.setCellWidget(n, 3, cb1)
             b = QPushButton('Browse')
             self.setItem(n, 1, QTableWidgetItem('0.0'))
-            self.setCellWidget(n, 4, b)
+            self.setCellWidget(n, 5, b)
             b.clicked.connect(partial(self.set_xsec, n))
 
         if self._type == 'poly':
@@ -804,7 +819,7 @@ class Table(QTableWidget):
         fname, _ = QFileDialog.getOpenFileName()
         if cwd in fname:
             fname = fname[len(cwd):]
-        self.setItem(n, 3, QTableWidgetItem(fname))
+        self.setItem(n, 4, QTableWidgetItem(fname))
 
     def setData(self, data):
         """Populate the table using saved config."""
@@ -815,7 +830,8 @@ class Table(QTableWidget):
                 self.setItem(i, 0, QTableWidgetItem(line[0]))
                 self.setItem(i, 1, QTableWidgetItem(str(line[1])))
                 self.cellWidget(i, 2).setChecked(line[2])
-                self.setItem(i, 3, QTableWidgetItem(line[3]))
+                self.cellWidget(i, 3).setChecked(line[3])
+                self.setItem(i, 4, QTableWidgetItem(line[4]))
 
             elif self._type == 'poly':
                 self.setItem(i, 0, QTableWidgetItem(str(line[0])))
@@ -834,7 +850,8 @@ class Table(QTableWidget):
                     row = [self.item(i, 0).text(),
                            float(self.item(i, 1).text()),
                            self.cellWidget(i, 2).isChecked(),
-                           self.item(i, 3).text()]
+                           self.cellWidget(i, 3).isChecked(),
+                           self.item(i, 4).text()]
                     data.append(row)
 
             # Read the data from a poly table
