@@ -212,7 +212,10 @@ def generate_analyser(widgetData):
                vary=widgetData['ldf_fit'])
 
     # Get the bad pixels
-    bad_pixels = [int(i) for i in widgetData['bad_pixels'].split(',')]
+    if widgetData['bad_pixels'] != '':
+        bad_pixels = [int(i) for i in widgetData['bad_pixels'].split(',')]
+    else:
+        bad_pixels = []
 
     # Generate the analyser
     analyser = Analyser(params=params,
