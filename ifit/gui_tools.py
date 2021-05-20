@@ -1096,7 +1096,7 @@ class LDFWindow(QMainWindow):
         super(LDFWindow, self).__init__(parent)
 
         # Set the window properties
-        self.setWindowTitle('Measure Light Dilution')
+        self.setWindowTitle('Light Dilution Analysis')
         self.statusBar().showMessage('Ready')
         self.setGeometry(40, 40, 1200, 700)
         self.setWindowIcon(QIcon('bin/icon.ico'))
@@ -1163,12 +1163,15 @@ class LDFWindow(QMainWindow):
         # Generate tabs for the gaphs and settings
         tab1 = QWidget()
         tab2 = QWidget()
+        tab3 = QWidget()
 
         # Form the tab widget
         tabwidget = QTabWidget()
         tabwidget.addTab(tab1, 'Generate Curves')
-        tabwidget.addTab(tab2, 'Load Curves')
+        tabwidget.addTab(tab2, 'Load Data')
         tablayout.addWidget(tabwidget, 0, 0)
+
+        # Generate Curves =====================================================
 
         # Setup the main layout
         layout = QGridLayout(tab1)
@@ -1284,6 +1287,55 @@ class LDFWindow(QMainWindow):
         self.save_btn.setEnabled(False)
         layout.addWidget(self.save_btn, 9, 2)
 
+        # Load Curves =========================================================
+
+        # Setup the main layout
+        layout = QGridLayout(tab2)
+        layout.setAlignment(Qt.AlignTop)
+
+        # Add an input for the loading selection
+        layout.addWidget(QLabel('Light Dilution\nCurve File:'), 0, 0)
+        self.load_path = QLineEdit()
+        self.load_path.setFixedHeight(25)
+        layout.addWidget(self.load_path, 0, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.load_path,
+                                    'single', "Text (*.txt)"))
+        layout.addWidget(btn, 0, 4)
+        btn = QPushButton('Load')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(self.load_ld_curves)
+        layout.addWidget(btn, 0, 5)
+
+        layout.addWidget(QHLine(), 1, 0, 1, 5)
+
+        # Add an input for the iFit output files
+        layout.addWidget(QLabel('iFit Output:\n(W1):'), 2, 0)
+        self.ifit_1_path = QLineEdit()
+        self.ifit_1_path.setFixedHeight(25)
+        layout.addWidget(self.ifit_1_path, 2, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.ifit_1_path,
+                                    'single', "Comma separated (*.csv)"))
+        layout.addWidget(btn, 2, 4)
+
+        layout.addWidget(QLabel('iFit Output:\n(W2):'), 3, 0)
+        self.ifit_2_path = QLineEdit()
+        self.ifit_2_path.setFixedHeight(25)
+        layout.addWidget(self.ifit_2_path, 3, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.ifit_2_path,
+                                    'single', "Comma separated (*.csv)"))
+        layout.addWidget(btn, 3, 4)
+
+        btn = QPushButton('Load')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(self.load_ifit_data)
+        layout.addWidget(btn, 4, 4)
+
 # =============================================================================
 #   Program outputs
 # =============================================================================
@@ -1331,7 +1383,6 @@ class LDFWindow(QMainWindow):
 
     def calc_ld_curves(self):
         """Calculate Light Dilution curve data."""
-
         # Disable buttons
         self.start_btn.setEnabled(False)
         self.save_btn.setEnabled(False)
@@ -1378,18 +1429,42 @@ class LDFWindow(QMainWindow):
         """Save Light Dilution curve data."""
         if self.save_path.text() == '':
             filter = "Text (*.txt)"
-            fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
+            fname, _ = QFileDialog.getSaveFileName(self, 'Save As', '', filter)
         else:
             fname = self.save_path.text()
 
         np.savetxt(fname, self.ld_results)
 
+        logger.info('Light dilution curve data saved!')
+
     def load_ld_curves(self):
         """Load the light dilution curve data."""
+        if self.load_path.text() == '':
+            filter = "Text (*.txt)"
+            fname, _ = QFileDialog.getOpenFileName(self, 'Load', '', filter)
+        else:
+            fname = self.load_path.text()
+
+        self.ld_results = np.loadtxt(fname)
+        self.plot_ld_curves(self.ld_results)
+        logger.info('Light dilution curve data loaded!')
+
+    def load_ifit_data(self):
+        """Load the light dilution curve data."""
+        # Read in the iFit analysis results
+        df1 = pd.read_csv(self.ifit_1_path.text())
+        df2 = pd.read_csv(self.ifit_2_path.text())
+
+        # Plot on the graph
+        p0 = pg.mkPen(color='#1f77b4', width=0.5)
+        line = self.ax.plot(df1['SO2'], df2['SO2'], pen=None, symbolPen=p0,
+                            symbol='o', brush=None)
+        line.setAlpha(0.75, False)
+
+        logger.info('iFit data loaded!')
 
     def plot_ld_curves(self, ld_results):
         """Plot the light dilution curves."""
-
         # Clear the plot
         self.ax.clear()
 
@@ -1404,16 +1479,16 @@ class LDFWindow(QMainWindow):
         for i, ldf in enumerate(ldf_grid):
             row_idx = np.where(ld_results[:, 0] == ldf)[0]
             so2_scd_1 = ld_results[row_idx, 2]
-            so2_err_1 = ld_results[row_idx, 3]
+            # so2_err_1 = ld_results[row_idx, 3]
             so2_scd_2 = ld_results[row_idx, 4]
-            so2_err_2 = ld_results[row_idx, 5]
+            # so2_err_2 = ld_results[row_idx, 5]
 
             if not i % 2:
                 pen = p0
             else:
                 pen = p1
-            self.ax.plot(so2_scd_1, so2_scd_2, pen=pen)
-
+            self.ax.plot(so2_scd_1, so2_scd_2, pen=pen, hoverable=True,
+                         name=f'{ldf:.02f}')
 
 
 # =============================================================================
@@ -1448,6 +1523,15 @@ def browse(gui, widget, mode='single', filter=False):
         fname = QFileDialog.getExistingDirectory(gui, 'Select Foler')
         if fname != '':
             widget.setText(fname + '/')
+
+
+class QHLine(QFrame):
+    """Horizontal line widget."""
+
+    def __init__(self):
+        super(QHLine, self).__init__()
+        self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
 
 
 # Cliet Code
