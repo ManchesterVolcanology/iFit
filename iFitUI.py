@@ -1265,7 +1265,7 @@ def browse(gui, widget, mode='single', filter=None):
         fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
 
     elif mode == 'folder':
-        fname = QFileDialog.getExistingDirectory(gui, 'Select Foler')
+        fname = QFileDialog.getExistingDirectory(gui, 'Select Folder')
 
     # Get current working directory
     cwd = os.getcwd() + '/'
