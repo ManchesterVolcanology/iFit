@@ -1163,7 +1163,6 @@ class LDFWindow(QMainWindow):
         # Generate tabs for the gaphs and settings
         tab1 = QWidget()
         tab2 = QWidget()
-        tab3 = QWidget()
 
         # Form the tab widget
         tabwidget = QTabWidget()
@@ -1334,7 +1333,7 @@ class LDFWindow(QMainWindow):
         btn = QPushButton('Load')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(self.load_ifit_data)
-        layout.addWidget(btn, 4, 4)
+        layout.addWidget(btn, 2, 5, 2, 1)
 
 # =============================================================================
 #   Program outputs
