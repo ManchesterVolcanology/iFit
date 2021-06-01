@@ -592,7 +592,7 @@ class CalcFlux(QMainWindow):
 
         # Calculate the Flux Error
         so2_err[abs(so2_err) == np.inf] = np.nan
-        tot_so2_err = np.nansum(np.power(so2_err, 2)) ** 0.5
+        tot_so2_err = np.nansum(so2_err)
         frac_so2_err = tot_so2_err / np.nansum(so2_scd)
 
         # Combine with the wind speed error
