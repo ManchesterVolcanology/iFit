@@ -669,7 +669,7 @@ class FitResult():
                 self.resid = (self.spec - self.fit)/self.spec * 100
 
             # Check the fit quality
-            if resid_limit is not None and max(self.resid) > resid_limit:
+            if resid_limit is not None and max(abs(self.resid)) > resid_limit:
                 logger.info('High residual detected')
                 self.nerr = 2
 
