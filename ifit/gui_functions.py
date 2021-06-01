@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt, QObject, QRunnable, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QSpinBox, QCheckBox, QFileDialog, QPushButton,
                              QTableWidgetItem, QMenu, QTableWidget,
-                             QPlainTextEdit)
+                             QPlainTextEdit, QHeaderView)
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
@@ -757,6 +757,10 @@ class Table(QTableWidget):
 
         if self._type == 'poly':
             self._poly_table()
+
+        header = self.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        # header.setSectionResizeMode(0, QHeaderView.Stretch)
 
     def _param_table(self):
         """Create a parameter table."""
