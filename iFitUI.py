@@ -909,7 +909,7 @@ class MainWindow(QMainWindow):
             config[label] = self.widgets.get(label)
 
         if asksavepath or self.config_fname is None:
-            filter = 'YAML (*.yml, *.yaml);;All Files (*)'
+            filter = 'YAML (*.yml *.yaml);;All Files (*)'
             fname, s = QFileDialog.getSaveFileName(self, 'Save Config', '',
                                                    filter)
             if fname != '':
@@ -918,7 +918,7 @@ class MainWindow(QMainWindow):
         with open(self.config_fname, 'w') as outfile:
             yaml.dump(config, outfile)
 
-        logger.info('Config file saved')
+        logger.info(f'Config file saved to {self.config_fname}')
 
         with open('bin/.config', 'w') as w:
             w.write(self.config_fname)
@@ -930,7 +930,7 @@ class MainWindow(QMainWindow):
     def load_config(self, fname=None):
         """Read the config file."""
         if fname is None:
-            filter = 'YAML (*.yml, *.yaml);;All Files (*)'
+            filter = 'YAML (*.yml *.yaml);;All Files (*)'
             fname, tfile = QFileDialog.getOpenFileName(self, 'Load Config', '',
                                                        filter)
 
@@ -960,11 +960,15 @@ class MainWindow(QMainWindow):
                 else:
                     self.widgets.set(label, config[label])
 
-            logger.info('Config file loaded')
+            logger.info(f'Config file loaded from {self.config_fname}')
+
+            # Update the config file settings
             self.config_fname = fname
+            with open('bin/.config', 'w') as w:
+                w.write(self.config_fname)
 
         except FileNotFoundError:
-            logger.warning('Unable to load config file')
+            logger.warning(f'Unable to load config file {self.config_fname}')
             config = {}
 
         return config
