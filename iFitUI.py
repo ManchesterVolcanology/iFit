@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from functools import partial
 from logging.handlers import RotatingFileHandler
 from PyQt5.QtGui import QIcon, QPalette, QColor
-from PyQt5.QtCore import Qt, QThreadPool, QTimer
+from PyQt5.QtCore import Qt, QThreadPool
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QComboBox, QTextEdit,
                              QLineEdit, QPushButton, QProgressBar, QFrame,
@@ -997,9 +997,6 @@ class MainWindow(QMainWindow):
         self.pause_btn.setEnabled(False)
         self.stop_btn.setEnabled(False)
 
-        # Stop the plotting timer
-        self.plot_timer.stop()
-
         # Set the status bar
         self.statusBar().showMessage('Ready')
 
@@ -1020,9 +1017,7 @@ class MainWindow(QMainWindow):
 
         self.update_graph_flag = True
 
-        # Start the plot timer if it is not already running
-        if not self.plot_timer.isActive():
-            self.plot_timer.start()
+        self.update_plots()
 
     def update_plots(self):
         """Update the plots."""
@@ -1107,9 +1102,6 @@ class MainWindow(QMainWindow):
 
         # Initialise the plotting timer
         self.update_graph_flag = False
-        self.plot_timer = QTimer()
-        self.plot_timer.setInterval(100)
-        self.plot_timer.timeout.connect(self.update_plots)
 
 # =============================================================================
 #   Acquisition Loop Setup
