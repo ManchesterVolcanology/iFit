@@ -549,7 +549,8 @@ class Analyser():
         F_conv = np.convolve(raw_F, ils, 'same')
 
         # Apply shift and stretch to the model_grid
-        wl_shift = np.polyval(shift_coefs, self.model_grid)
+        zero_grid = self.model_grid - min(self.model_grid)
+        wl_shift = np.polyval(shift_coefs, zero_grid)
         shift_model_grid = np.add(self.model_grid, wl_shift)
 
         # Interpolate onto measurement wavelength grid
@@ -740,7 +741,8 @@ class FitResult():
 
         # Calculate the shifted model grid
         shift_coefs = [p[n] for n in p if 'shift' in n]
-        wl_shift = np.polyval(shift_coefs, analyser.model_grid)
+        zero_grid = analyser.model_grid - min(analyser.model_grid)
+        wl_shift = np.polyval(shift_coefs, zero_grid)
         shift_model_grid = np.add(analyser.model_grid, wl_shift)
 
         # Calculate the wavelength offset
