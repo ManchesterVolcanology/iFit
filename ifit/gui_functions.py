@@ -583,7 +583,10 @@ def connect_spectrometer(gui):
 
         # Connect to the spectrometer
         spec = Spectrometer(integration_time=gui.widgets.get("int_time"),
-                            coadds=gui.widgets.get("coadds"))
+                            coadds=gui.widgets.get("coadds"),
+                            correct_dark_counts=gui.widgets.get("nonlin_flag"),
+                            correct_nonlinearity=gui.widgets.get("eldark_flag")
+                            )
 
         # Check if connection was successful
         if spec.serial_number is not None:
@@ -606,6 +609,8 @@ def connect_spectrometer(gui):
             gui.update_coadds_btn.setEnabled(True)
             gui.acquire_darks_btn.setEnabled(True)
             gui.rt_start_btn.setEnabled(True)
+            for k in ["nonlin_flag", "eldark_flag"]:
+                gui.widgets[k].setEnabled(False)
 
     else:
         # Disconnect the spectrometer
@@ -623,6 +628,8 @@ def connect_spectrometer(gui):
         gui.update_coadds_btn.setEnabled(False)
         gui.acquire_darks_btn.setEnabled(False)
         gui.rt_start_btn.setEnabled(False)
+        for k in ["nonlin_flag", "eldark_flag"]:
+            gui.widgets[k].setEnabled(True)
 
 
 # =============================================================================

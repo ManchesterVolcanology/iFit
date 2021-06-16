@@ -241,6 +241,14 @@ class MainWindow(QMainWindow):
         self.acquire_darks_btn.setEnabled(False)
         layout.addWidget(self.acquire_darks_btn, 3, 2)
 
+        # Add stereo button for non-liniarity correction
+        self.widgets['nonlin_flag'] = QCheckBox('Correct\nNon-Linearity?')
+        layout.addWidget(self.widgets['nonlin_flag'], 1, 3)
+
+        # Add stereo button for non-liniarity correction
+        self.widgets['eldark_flag'] = QCheckBox('Correct\nElectronic dark?')
+        layout.addWidget(self.widgets['eldark_flag'], 2, 3)
+
         # Add an input for the save selection
         layout.addWidget(QLabel('Output\nFolder:'), 4, 0)
         self.widgets['rt_save_path'] = QLineEdit()
