@@ -4,6 +4,7 @@ import yaml
 import logging
 import numpy as np
 import pyqtgraph as pg
+from datetime import datetime
 from functools import partial
 from logging.handlers import RotatingFileHandler
 from PyQt5.QtGui import QIcon, QPalette, QColor
@@ -1155,7 +1156,8 @@ class MainWindow(QMainWindow):
     def begin_acquisition(self, acquisition_mode):
         """Set up and start the acquisition worker."""
         # Create a log handler
-        log_fname = f'{self.widgets.get("rt_save_path")}/iFit.log'
+        date_str = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        log_fname = f'{self.widgets.get("rt_save_path")}/{date_str}_iFit.log'
         self.acquisition_logger = logging.FileHandler(log_fname,
                                                       mode='a')
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
