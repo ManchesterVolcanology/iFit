@@ -1124,9 +1124,11 @@ class MainWindow(QMainWindow):
         self.update_coadds_btn.setEnabled(True)
         self.rt_flag_btn.setEnabled(True)
 
-        # Rest the range on the progress bar
+        # Reset the range on the progress bar
         self.progress.setRange(0, 100)
-        # self.progress.setValue(0)
+
+        # Turn off the logger
+        logger.removeHandler(self.acquisition_logger)
 
         # Set the status bar
         self.statusBar().showMessage('Ready')
@@ -1144,6 +1146,16 @@ class MainWindow(QMainWindow):
 
     def begin_acquisition(self, acquisition_mode):
         """Set up and start the acquisition worker."""
+        # Create a log handler
+        log_fname = f'{self.widgets.get("rt_save_path")}/iFit.log'
+        self.acquisition_logger = logging.FileHandler(log_fname,
+                                                      mode='a')
+        log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        date_fmt = '%Y-%m-%d %H:%M:%S'
+        f_format = logging.Formatter(log_fmt, date_fmt)
+        self.acquisition_logger.setFormatter(f_format)
+        logger.addHandler(self.acquisition_logger)
+
         # This section is for testing with a virtual spectrometer
         #######################################################################
         # if acquisition_mode == 'acquire_single':
