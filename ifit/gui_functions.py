@@ -283,7 +283,6 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
         spec_type = 'iFit'
         wl_calib_file = ''
         buffer = Buffer(2000, buffer_cols)
-        date_str = datetime.now()
         date_str = datetime.strftime(datetime.now(), "%Y-%m-%d_%H%M%S")
         save_path = f'{widgetData["rt_save_path"]}/{date_str}_iFit_output.csv'
         worker.signals.status.emit('Acquiring')
