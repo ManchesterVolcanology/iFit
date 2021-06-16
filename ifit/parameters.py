@@ -141,7 +141,7 @@ class Parameters(OrderedDict):
         # Make list of columns
         if cols == 'all' or cols == 'basic':
             cols = def_cols[cols]
-        print(cols)
+
         colwidth = [mincolwidth] * (len(cols))
 
         if 'name' in cols:
