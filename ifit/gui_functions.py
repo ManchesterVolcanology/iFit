@@ -5,6 +5,7 @@ import logging
 import traceback
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from functools import partial
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QObject, QRunnable, pyqtSignal, pyqtSlot
@@ -282,7 +283,9 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
         spec_type = 'iFit'
         wl_calib_file = ''
         buffer = Buffer(2000, buffer_cols)
-        save_path = widgetData['rt_save_path'] + '/iFit_rt_output.csv'
+        date_str = datetime.now()
+        date_str = datetime.strftime(datetime.now(), "%Y-%m-%d_%H%M%S")
+        save_path = f'{widgetData["rt_save_path"]}/{date_str}_iFit_output.csv'
         worker.signals.status.emit('Acquiring')
 
         # Read the dark spectrum
