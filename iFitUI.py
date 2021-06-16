@@ -1009,6 +1009,7 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(True)
         self.pause_btn.setEnabled(False)
         self.stop_btn.setEnabled(False)
+        self.pause_btn.setText('Pause')
 
         # Set the status bar
         self.statusBar().showMessage('Ready')
@@ -1132,6 +1133,7 @@ class MainWindow(QMainWindow):
         self.update_inttime_btn.setEnabled(True)
         self.update_coadds_btn.setEnabled(True)
         self.rt_flag_btn.setEnabled(True)
+        self.rt_pause_btn.setText('Pause')
 
         # Reset the range on the progress bar
         self.progress.setRange(0, 100)
@@ -1242,6 +1244,16 @@ class MainWindow(QMainWindow):
 
     def pause(self):
         """Pause the worker loop."""
+        # Update button text
+        if self.rt_pause_btn.text() == 'Pause':
+            self.rt_pause_btn.setText('Continue')
+        else:
+            self.rt_pause_btn.setText('Pause')
+        if self.pause_btn.text() == 'Pause':
+            self.pause_btn.setText('Continue')
+        else:
+            self.pause_btn.setText('Pause')
+
         try:
             self.worker.pause()
         except AttributeError:
