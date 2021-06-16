@@ -237,7 +237,7 @@ def generate_analyser(widgetData):
                         bad_pixels=bad_pixels)
 
     # Report fitting parameters
-    logger.info(params.pretty_print(cols=['name', 'value', 'vary']))
+    logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
     return analyser
 

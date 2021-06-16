@@ -134,13 +134,14 @@ class Parameters(OrderedDict):
             The formatted message to print
         """
         # Set default column choices
-        def_cols = {'all':   ['name', 'value', 'vary', 'fit_val', 'fit_err'],
-                    'basic': ['name', 'value', 'vary']}
+        def_cols = {'all':   ['name', 'value', 'vary', 'fit_val', 'fit_err',
+                              'xpath'],
+                    'basic': ['name', 'value', 'vary', 'xpath']}
 
         # Make list of columns
         if cols == 'all' or cols == 'basic':
             cols = def_cols[cols]
-
+        print(cols)
         colwidth = [mincolwidth] * (len(cols))
 
         if 'name' in cols:
@@ -155,6 +156,11 @@ class Parameters(OrderedDict):
         if 'vary' in cols:
             i = cols.index('vary')
             colwidth[i] = mincolwidth
+
+        if 'xpath' in cols:
+            i = cols.index('xpath')
+            colwidth[i] = max([len(p.xpath) for p in self.values()
+                               if p.xpath is not None]) + 2
 
         if 'fit_val' in cols:
             i = cols.index('fit_val')
@@ -182,6 +188,7 @@ class Parameters(OrderedDict):
         for name, p in self.items():
             d = {'name': f'{p.name}',
                  'value': f'{p.value:.{precision}g}',
+                 'xpath': f'{p.xpath}',
                  'fit_val': f'{p.fit_val:.{precision}g}',
                  'fit_err': f'{p.fit_err:.{precision}g}',
                  'vary': f'{p.vary}'
