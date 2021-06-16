@@ -45,7 +45,7 @@ class MainWindow(QMainWindow):
         # Set the window properties
         self.setWindowTitle(f'iFit {__version__}')
         self.statusBar().showMessage('Ready')
-        self.setGeometry(40, 40, 1200, 700)
+        self.setGeometry(40, 40, 1210, 700)
         self.setWindowIcon(QIcon('bin/icons/main.ico'))
 
         # Set the window layout
