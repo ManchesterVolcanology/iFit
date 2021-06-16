@@ -9,6 +9,7 @@ temp*
 *.exe
 *.zip
 *scratch*
+Ref
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
