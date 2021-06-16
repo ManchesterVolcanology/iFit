@@ -280,6 +280,7 @@ def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
         spec_fnames = None
         dark_fnames = ['bin/.dark']
         spec_type = 'iFit'
+        wl_calib_file = ''
         buffer = Buffer(2000, buffer_cols)
         save_path = widgetData['rt_save_path'] + '/iFit_rt_output.csv'
         worker.signals.status.emit('Acquiring')
