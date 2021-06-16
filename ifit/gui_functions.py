@@ -521,7 +521,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
         dark_arr = np.zeros([ndarks, spectrometer.pixels])
 
         for i in range(ndarks):
-            fname = f'{save_path}spectrum{i:05d}.txt'
+            fname = f'{save_path}spectrum_{i:05d}.txt'
             spectrum, info = spectrometer.get_spectrum(fname=fname)
             dark_arr[i] = spectrum[1]
 
