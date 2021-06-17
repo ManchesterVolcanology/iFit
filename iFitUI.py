@@ -72,6 +72,7 @@ class MainWindow(QMainWindow):
         self._createApp()
 
         # Update widgets from loaded config file
+        self.config = {}
         self.config_fname = None
         if os.path.isfile('bin/.config'):
             with open('bin/.config', 'r') as r:
@@ -893,15 +894,46 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handle GUI closure."""
-        reply = QMessageBox.question(self, 'Message',
-                                     "Are you sure to quit?",
-                                     QMessageBox.Yes | QMessageBox.No,
-                                     QMessageBox.No)
+        # Pull widget values
+        config = {'gas_params':    self.gas_table.getData(),
+                  'bgpoly_params': self.bgpoly_table.getData(),
+                  'offset_params': self.offset_table.getData(),
+                  'shift_params':  self.shift_table.getData()}
+        for label in self.widgets:
+            config[label] = self.widgets.get(label)
 
-        if reply == QMessageBox.Yes:
-            event.accept()
+        # Check if the config matches the current widget states
+        save_flag = True
+        for k in config.keys():
+            if k not in self.config.keys() or config[k] != self.config[k]:
+                save_flag = False
+
+        # If there have been no changes, ask if want to quit
+        if save_flag:
+            reply = QMessageBox.question(self, 'Message',
+                                         "Are you sure to quit?",
+                                         QMessageBox.Yes | QMessageBox.No,
+                                         QMessageBox.No)
+
+            if reply == QMessageBox.Yes:
+                event.accept()
+            else:
+                event.ignore()
+
+        # If there have been changes, ask if want to save
         else:
-            event.ignore()
+            msg = "Would you like to save before quitting?"
+            options = QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            reply = QMessageBox.question(self, 'Message', msg, options,
+                                         QMessageBox.Cancel)
+
+            if reply == QMessageBox.Yes:
+                self.save_config(asksavepath=False)
+                event.accept()
+            if reply == QMessageBox.No:
+                event.accept()
+            else:
+                event.ignore()
 
 # =============================================================================
 # Save config
@@ -979,7 +1011,7 @@ class MainWindow(QMainWindow):
         except FileNotFoundError:
             logger.warning(f'Unable to load config file {self.config_fname}')
             config = {}
-
+        self.config = config
         return config
 
 # =============================================================================
