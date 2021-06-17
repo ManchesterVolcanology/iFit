@@ -981,25 +981,27 @@ class MainWindow(QMainWindow):
                 config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
             for label in config:
+                try:
+                    if label == 'gas_params':
+                        self.gas_table.setRowCount(0)
+                        self.gas_table.setData(config['gas_params'])
 
-                if label == 'gas_params':
-                    self.gas_table.setRowCount(0)
-                    self.gas_table.setData(config['gas_params'])
+                    elif label == 'bgpoly_params':
+                        self.bgpoly_table.setRowCount(0)
+                        self.bgpoly_table.setData(config['bgpoly_params'])
 
-                elif label == 'bgpoly_params':
-                    self.bgpoly_table.setRowCount(0)
-                    self.bgpoly_table.setData(config['bgpoly_params'])
+                    elif label == 'offset_params':
+                        self.offset_table.setRowCount(0)
+                        self.offset_table.setData(config['offset_params'])
 
-                elif label == 'offset_params':
-                    self.offset_table.setRowCount(0)
-                    self.offset_table.setData(config['offset_params'])
+                    elif label == 'shift_params':
+                        self.shift_table.setRowCount(0)
+                        self.shift_table.setData(config['shift_params'])
 
-                elif label == 'shift_params':
-                    self.shift_table.setRowCount(0)
-                    self.shift_table.setData(config['shift_params'])
-
-                else:
-                    self.widgets.set(label, config[label])
+                    else:
+                        self.widgets.set(label, config[label])
+                except Exception:
+                    logger.warning(f'Failed to load {label} from config file')
 
             logger.info(f'Config file loaded from {self.config_fname}')
 
