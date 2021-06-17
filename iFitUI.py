@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from datetime import datetime
 from functools import partial
 from logging.handlers import RotatingFileHandler
-from PyQt5.QtGui import QIcon, QPalette, QColor
+from PyQt5.QtGui import QIcon, QPalette, QColor, QFont
 from PyQt5.QtCore import Qt, QThreadPool
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QComboBox, QTextEdit,
@@ -187,15 +187,19 @@ class MainWindow(QMainWindow):
         self.connected_flag = False
         layout.addWidget(QLabel('Spectrometer:'), 0, 0)
         self.spec_id = QLabel('Not connected')
+        self.spec_id.setToolTip('Spectrometer Serial Number')
         layout.addWidget(self.spec_id, 0, 1)
 
         # Create a button to connect to a spectrometer
         self.connect_btn = QPushButton('Connect')
+        self.connect_btn.setToolTip('Connect or disconnect the spectrometer')
         self.connect_btn.clicked.connect(partial(connect_spectrometer, self))
         layout.addWidget(self.connect_btn, 0, 2)
 
         # Create a button to acquire a test spectrum
         self.acquire_test_btn = QPushButton('Test Spectrum')
+        self.acquire_test_btn.setToolTip('Acquire test spectrum displayed in '
+                                         + 'Scope')
         self.acquire_test_btn.clicked.connect(partial(self.begin_acquisition,
                                               'acquire_single'))
         self.acquire_test_btn.setEnabled(False)
@@ -204,10 +208,13 @@ class MainWindow(QMainWindow):
         # Create a control for the spectrometer integration time
         layout.addWidget(QLabel('Integration\nTime (ms):'), 1, 0)
         self.widgets['int_time'] = SpinBox(100, [10, 1000000])
+        self.widgets['int_time'].setToolTip('Spectrometer integration time')
         layout.addWidget(self.widgets['int_time'], 1, 1)
 
         # Create a button to update the integration time
         self.update_inttime_btn = QPushButton('Update')
+        self.update_inttime_btn.setToolTip('Update Spectrometer Integration'
+                                           + ' Time')
         self.update_inttime_btn.clicked.connect(self.update_int_time)
         self.update_inttime_btn.setEnabled(False)
         layout.addWidget(self.update_inttime_btn, 1, 2)
@@ -215,6 +222,7 @@ class MainWindow(QMainWindow):
         # Create a button to toggle real-time analysis
         self.rt_fitting_flag = False
         self.rt_flag_btn = QPushButton('Fitting OFF')
+        self.rt_flag_btn.setToolTip('Toggle Real Time Fitting')
         self.rt_flag_btn.clicked.connect(self.toggle_fitting)
         self.rt_flag_btn.setEnabled(False)
         self.rt_flag_btn.setStyleSheet("background-color: red")
@@ -223,10 +231,12 @@ class MainWindow(QMainWindow):
         # Create a control for the spectrometer coadds
         layout.addWidget(QLabel('Coadds:'), 2, 0)
         self.widgets['coadds'] = SpinBox(10, [1, 1000000])
+        self.widgets['coadds'].setToolTip('No. spectra to average')
         layout.addWidget(self.widgets['coadds'], 2, 1)
 
         # Create a button to update the coadds
         self.update_coadds_btn = QPushButton('Update')
+        self.update_coadds_btn.setToolTip('Update Spectrometer Coadds')
         self.update_coadds_btn.clicked.connect(self.update_coadds)
         self.update_coadds_btn.setEnabled(False)
         layout.addWidget(self.update_coadds_btn, 2, 2)
@@ -234,10 +244,13 @@ class MainWindow(QMainWindow):
         # Create a control for the number of dark spectra
         layout.addWidget(QLabel('No. Dark\nSpectra:'), 3, 0)
         self.widgets['ndarks'] = SpinBox(10, [1, 1000000])
+        self.widgets['ndarks'].setToolTip('Set number of dark spectra to '
+                                          + 'measure')
         layout.addWidget(self.widgets['ndarks'], 3, 1)
 
         # Create a button to acquire the dark spectra
         self.acquire_darks_btn = QPushButton('Acquire')
+        self.acquire_darks_btn.setToolTip('Measure Dark Spectra')
         self.acquire_darks_btn.clicked.connect(partial(self.begin_acquisition,
                                                'acquire_darks'))
         self.acquire_darks_btn.setEnabled(False)
@@ -245,15 +258,22 @@ class MainWindow(QMainWindow):
 
         # Add stereo button for non-liniarity correction
         self.widgets['nonlin_flag'] = QCheckBox('Correct\nNon-Linearity?')
+        self.widgets['nonlin_flag'].setToolTip('Turn on correction for non-'
+                                               + 'linear intensity response'
+                                               + ' correction')
         layout.addWidget(self.widgets['nonlin_flag'], 1, 3)
 
         # Add stereo button for non-liniarity correction
         self.widgets['eldark_flag'] = QCheckBox('Correct\nElectronic dark?')
+        self.widgets['eldark_flag'].setToolTip('Turn on electronic dark '
+                                               + 'correction')
         layout.addWidget(self.widgets['eldark_flag'], 2, 3)
 
         # Add an input for the save selection
         layout.addWidget(QLabel('Output\nFolder:'), 4, 0)
         self.widgets['rt_save_path'] = QLineEdit()
+        self.widgets['rt_save_path'].setToolTip('Folder to hold real time '
+                                                + 'results')
         layout.addWidget(self.widgets['rt_save_path'], 4, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
@@ -263,6 +283,7 @@ class MainWindow(QMainWindow):
 
         # Add button to begin analysis
         self.rt_start_btn = QPushButton('Begin!')
+        self.rt_start_btn.setToolTip('Begin Spectra Acquisition')
         self.rt_start_btn.clicked.connect(partial(self.begin_acquisition,
                                                   'acquire_cont'))
         self.rt_start_btn.setFixedSize(90, 25)
@@ -271,6 +292,7 @@ class MainWindow(QMainWindow):
 
         # Add button to pause analysis
         self.rt_pause_btn = QPushButton('Pause')
+        self.rt_pause_btn.setToolTip('Pause/Play Spectra Acquisition')
         self.rt_pause_btn.clicked.connect(partial(self.pause))
         self.rt_pause_btn.setFixedSize(90, 25)
         self.rt_pause_btn.setEnabled(False)
@@ -278,6 +300,7 @@ class MainWindow(QMainWindow):
 
         # Add button to stop analysis
         self.rt_stop_btn = QPushButton('Stop')
+        self.rt_stop_btn.setToolTip('Stop Spectra Acquisition')
         self.rt_stop_btn.clicked.connect(partial(self.stop))
         self.rt_stop_btn.setFixedSize(90, 25)
         self.rt_stop_btn.setEnabled(False)
@@ -294,6 +317,7 @@ class MainWindow(QMainWindow):
         # Create an option menu for the spectra format
         layout.addWidget(QLabel('Format:'), 0, 0)
         self.widgets['spec_type'] = QComboBox()
+        self.widgets['spec_type'].setToolTip('Choose spectrum format')
         self.widgets['spec_type'].addItems(['iFit',
                                             'Master.Scope',
                                             'Spectrasuite',
@@ -305,6 +329,7 @@ class MainWindow(QMainWindow):
         # Add an input for the spectra selection
         layout.addWidget(QLabel('Spectra:'), 1, 0)
         self.widgets['spec_fnames'] = QTextEdit()
+        self.widgets['spec_fnames'].setToolTip('Measurement spectrum files')
         layout.addWidget(self.widgets['spec_fnames'], 1, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
@@ -315,6 +340,7 @@ class MainWindow(QMainWindow):
         # Add an input for the dark selection
         layout.addWidget(QLabel('Dark\nSpectra:'), 2, 0)
         self.widgets['dark_fnames'] = QTextEdit()
+        self.widgets['dark_fnames'].setToolTip('Dark spectrum files')
         layout.addWidget(self.widgets['dark_fnames'], 2, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
@@ -325,6 +351,7 @@ class MainWindow(QMainWindow):
         # Add an input for the save selection
         layout.addWidget(QLabel('Output\nFile:'), 3, 0)
         self.widgets['save_path'] = QLineEdit()
+        self.widgets['save_path'].setToolTip('Output .csv file')
         layout.addWidget(self.widgets['save_path'], 3, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
@@ -334,6 +361,7 @@ class MainWindow(QMainWindow):
 
         # Add button to begin analysis
         self.start_btn = QPushButton('Begin!')
+        self.start_btn.setToolTip('Begin spectra analysis')
         self.start_btn.clicked.connect(partial(self.begin_analysis,
                                                'post_analyse'))
         self.start_btn.setFixedSize(90, 25)
@@ -341,6 +369,7 @@ class MainWindow(QMainWindow):
 
         # Add button to pause analysis
         self.pause_btn = QPushButton('Pause')
+        self.pause_btn.setToolTip('Pause/play spectra analysis')
         self.pause_btn.clicked.connect(partial(self.pause))
         self.pause_btn.setFixedSize(90, 25)
         self.pause_btn.setEnabled(False)
@@ -348,6 +377,7 @@ class MainWindow(QMainWindow):
 
         # Add button to stop analysis
         self.stop_btn = QPushButton('Stop')
+        self.stop_btn.setToolTip('Stop spectra analysis')
         self.stop_btn.clicked.connect(partial(self.stop))
         self.stop_btn.setFixedSize(90, 25)
         self.stop_btn.setEnabled(False)
@@ -364,7 +394,7 @@ class MainWindow(QMainWindow):
 
         # Add a progress bar
         self.progress = QProgressBar(self)
-        self.progress.setFixedSize(400, 25)
+        self.progress.setFixedSize(480, 25)
         layout.addWidget(self.progress, 0, 0, 1, 6)
 
         # Add spectrum number indicator
@@ -466,6 +496,8 @@ class MainWindow(QMainWindow):
 
         # Create a checkbox to turn plotting on or off
         self.widgets['graph_flag'] = QCheckBox('Show Graphs?')
+        self.widgets['graph_flag'].setToolTip('Display graph plots (can slow '
+                                              + 'analysis)')
         glayout.addWidget(self.widgets['graph_flag'], 1, 0)
 
         # Add combo box for the graph parameter
@@ -477,6 +509,9 @@ class MainWindow(QMainWindow):
 
         # Create a checkbox to turn scrolling on or off
         self.widgets['scroll_flag'] = QCheckBox('Scroll Graphs?')
+        self.widgets['scroll_flag'].setToolTip('Allow graphs to scroll\n'
+                                               + '(limits no. spectra '
+                                               + 'displayed)')
         glayout.addWidget(self.widgets['scroll_flag'], 1, 3)
 
         # Add spinbox for the graph scroll amount
@@ -487,11 +522,16 @@ class MainWindow(QMainWindow):
 
         # Create a checkbox to only display good fits
         self.widgets['good_fit_flag'] = QCheckBox('Only Show\nGood Fits?')
+        self.widgets['good_fit_flag'].setToolTip('Only display results for '
+                                                 + 'fits that pass the '
+                                                 + 'quality checks')
         glayout.addWidget(self.widgets['good_fit_flag'], 2, 0)
 
         # Add combo box for the graphbackground color
         glayout.addWidget(QLabel('Graph Background:'), 2, 1)
         self.widgets['graph_bg'] = QComboBox()
+        self.widgets['graph_bg'].setToolTip('Select light/dark graph '
+                                            + 'background')
         self.widgets['graph_bg'].addItems(['Dark', 'Light'])
         self.widgets['graph_bg'].currentTextChanged.connect(self.alt_graph_bg)
         glayout.addWidget(self.widgets['graph_bg'], 2, 2)
@@ -541,16 +581,24 @@ class MainWindow(QMainWindow):
         # Setup the layout
         layout = QGridLayout(stab1)
         layout.setAlignment(Qt.AlignTop)
-        nrow = 0
-        ncol = 1
+        nrow = 1
+        ncol = 0
+
+        # Add column header
+        header = QLabel('Model Settings')
+        header.setAlignment(Qt.AlignCenter)
+        header.setFont(QFont('Arial', 14))
+        layout.addWidget(header, 0, ncol, 1, 2)
 
         # Add spinboxs for the fit window
         layout.addWidget(QLabel('Fit Window:\n    (nm)'), nrow, ncol, 2, 1)
         self.widgets['fit_lo'] = DSpinBox(310, [0, 10000])
+        self.widgets['fit_lo'].setToolTip('Fit window lower limit')
         self.widgets['fit_lo'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['fit_lo'], nrow, ncol+1)
         nrow += 1
         self.widgets['fit_hi'] = DSpinBox(320, [0, 10000])
+        self.widgets['fit_hi'].setToolTip('Fit window upper limit')
         self.widgets['fit_hi'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['fit_hi'], nrow, ncol+1)
         nrow += 1
@@ -558,6 +606,8 @@ class MainWindow(QMainWindow):
         # Add spinbox for the model grid padding
         layout.addWidget(QLabel('Model Grid\nPadding (nm):'), nrow, ncol)
         self.widgets['model_padding'] = DSpinBox(1.0, [0, 10000])
+        self.widgets['model_padding'].setToolTip('Pad the analysis window to '
+                                                 + 'avoid edge effects in fit')
         self.widgets['model_padding'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['model_padding'], nrow, ncol+1)
         nrow += 1
@@ -572,38 +622,55 @@ class MainWindow(QMainWindow):
         # Add combo box for interpolation method
         layout.addWidget(QLabel('Interpolation\nMethod:'), nrow, ncol)
         self.widgets['interp_method'] = QComboBox()
+        self.widgets['interp_method'].setToolTip('How the model spectrum is '
+                                                 + 'interpolated onto the '
+                                                 + 'model grid')
         self.widgets['interp_method'].addItems(['cubic', 'linear'])
         self.widgets['interp_method'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['interp_method'], nrow, ncol+1)
 
         # New column
         layout.addWidget(QVLine(), 0, ncol+2, 10, 1)
-        nrow = 0
+        nrow = 1
         ncol += 3
+
+        # Add column header
+        header = QLabel('Spectrum Preprocessing')
+        header.setAlignment(Qt.AlignCenter)
+        header.setFont(QFont('Ariel', 14))
+        layout.addWidget(header, 0, ncol, 1, 3)
 
         # Add sterio button for dark correction
         self.widgets['dark_flag'] = QCheckBox('Correct Dark\nSpectrum?')
+        self.widgets['dark_flag'].setToolTip('Remove averaged dark spectrum '
+                                             + 'before fitting')
         layout.addWidget(self.widgets['dark_flag'], nrow, ncol, 1, 2)
         nrow += 1
 
         # Add sterio button for flat correction
         self.widgets['flat_flag'] = QCheckBox('Correct Flat\nSpectrum?')
+        self.widgets['flat_flag'].setToolTip('Remove flat-field spectrum '
+                                             + 'before fitting')
         layout.addWidget(self.widgets['flat_flag'], nrow, ncol, 1, 2)
         nrow += 1
 
         # Add spinboxs for the stray light window
         layout.addWidget(QLabel('Stray Light\nWindow: (nm)'), nrow, ncol, 2, 1)
         self.widgets['stray_lo'] = DSpinBox(280, [0, 10000])
+        self.widgets['stray_lo'].setToolTip('Stray window lower limit')
         self.widgets['stray_lo'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['stray_lo'], nrow, ncol+1)
         nrow += 1
         self.widgets['stray_hi'] = DSpinBox(290, [0, 10000])
+        self.widgets['stray_hi'].setToolTip('Stray window upper limit')
         self.widgets['stray_hi'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['stray_hi'], nrow, ncol+1)
         nrow += 1
 
         # Add sterio button for stray light correction
         self.widgets['stray_flag'] = QCheckBox('Remove?')
+        self.widgets['stray_flag'].setToolTip('Apply stray light correction '
+                                              + 'before fitting')
         layout.addWidget(self.widgets['stray_flag'], nrow-2, ncol+2, 2, 1)
 
         # Add spinbox to control spike removal
@@ -612,13 +679,21 @@ class MainWindow(QMainWindow):
         self.widgets['spike_limit'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['spike_limit'], nrow, ncol+1)
         self.widgets['despike_flag'] = QCheckBox('Remove?')
+        self.widgets['despike_flag'].setToolTip('Remove spikey pixels, based '
+                                                + 'on the Spike Limit')
         layout.addWidget(self.widgets['despike_flag'], nrow, ncol+2)
         nrow += 1
 
         # New column
         layout.addWidget(QVLine(), 0, ncol+3, 10, 1)
-        nrow = 0
+        nrow = 1
         ncol += 4
+
+        # Add column header
+        header = QLabel('Quality Control')
+        header.setAlignment(Qt.AlignCenter)
+        header.setFont(QFont('Ariel', 14))
+        layout.addWidget(header, 0, ncol, 1, 2)
 
         # Add combo box for residual display
         layout.addWidget(QLabel('Residual Display:'), nrow, ncol)
@@ -630,12 +705,16 @@ class MainWindow(QMainWindow):
 
         # Add sterio button for auto-update of fit params
         self.widgets['update_flag'] = QCheckBox('Auto-update\nFit Parameters?')
+        self.widgets['update_flag'].setToolTip('Use previous fit results as '
+                                               + 'next first guess\n(if fit '
+                                               + 'is good)')
         layout.addWidget(self.widgets['update_flag'], nrow, ncol, 1, 2)
         nrow += 1
 
         # Add spinbox for the residual limit
         layout.addWidget(QLabel('Residual Limit:'), nrow, ncol)
         self.widgets['resid_limit'] = DSpinBox(10.0, [0, 10000])
+        self.widgets['resid_limit'].setToolTip('Residual limit for a good fit')
         self.widgets['resid_limit'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['resid_limit'], nrow, ncol+1)
         nrow += 1
@@ -643,10 +722,14 @@ class MainWindow(QMainWindow):
         # Add spinboxs for the intensity limits
         layout.addWidget(QLabel('Intensity Limits:'), nrow, ncol, 2, 1)
         self.widgets['lo_int_limit'] = SpinBox(0, [0, 100000])
+        self.widgets['lo_int_limit'].setToolTip('Low intensity limit for a '
+                                                + 'good fit')
         self.widgets['lo_int_limit'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['lo_int_limit'], nrow, ncol+1)
         nrow += 1
         self.widgets['hi_int_limit'] = SpinBox(70000, [0, 100000])
+        self.widgets['hi_int_limit'].setToolTip('High intensity limit for a '
+                                                + 'good fit')
         self.widgets['hi_int_limit'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['hi_int_limit'], nrow, ncol+1)
         nrow += 1
@@ -670,7 +753,7 @@ class MainWindow(QMainWindow):
         # Create entries for the ILS input
         layout.addWidget(QLabel('Generate ILS:'), nrow, ncol)
         self.widgets['ils_mode'] = QComboBox()
-        self.widgets['ils_mode'].addItems(['Params', 'File', 'Manual'])
+        self.widgets['ils_mode'].addItems(['Manual', 'Params', 'File'])
         self.widgets['ils_mode'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['ils_mode'], nrow, ncol+1)
         nrow += 1
@@ -716,34 +799,38 @@ class MainWindow(QMainWindow):
 
         # Add inputs for the manual ILS parameters
         layout.addWidget(QLabel('FWEM:'), nrow, ncol)
-        self.widgets['fwem'] = QLineEdit()
+        self.widgets['fwem'] = QLineEdit("0.6")
         self.widgets['fwem'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['fwem'], nrow, ncol+1)
         self.widgets['fwem_fit'] = QCheckBox('Fit?')
+        self.widgets['fwem_fit'].setChecked(True)
         layout.addWidget(self.widgets['fwem_fit'], nrow, ncol+2)
         nrow += 1
 
         layout.addWidget(QLabel('k:'), nrow, ncol)
-        self.widgets['k'] = QLineEdit()
+        self.widgets['k'] = QLineEdit("2.0")
         self.widgets['k'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['k'], nrow, ncol+1)
         self.widgets['k_fit'] = QCheckBox('Fit?')
+        self.widgets['k_fit'].setChecked(True)
         layout.addWidget(self.widgets['k_fit'], nrow, ncol+2)
         nrow += 1
 
         layout.addWidget(QLabel('a<sub>w</sub>:'), nrow, ncol)
-        self.widgets['a_w'] = QLineEdit()
+        self.widgets['a_w'] = QLineEdit("0.0")
         self.widgets['a_w'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['a_w'], nrow, ncol+1)
         self.widgets['a_w_fit'] = QCheckBox('Fit?')
+        self.widgets['a_w_fit'].setChecked(True)
         layout.addWidget(self.widgets['a_w_fit'], nrow, ncol+2)
         nrow += 1
 
         layout.addWidget(QLabel('a<sub>k</sub>:'), nrow, ncol)
-        self.widgets['a_k'] = QLineEdit()
+        self.widgets['a_k'] = QLineEdit("0.0")
         self.widgets['a_k'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['a_k'], nrow, ncol+1)
         self.widgets['a_k_fit'] = QCheckBox('Fit?')
+        self.widgets['a_k_fit'].setChecked(True)
         layout.addWidget(self.widgets['a_k_fit'], nrow, ncol+2)
         nrow += 1
 
