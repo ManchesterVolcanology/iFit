@@ -1297,6 +1297,15 @@ class MainWindow(QMainWindow):
 
     def begin_acquisition(self, acquisition_mode):
         """Set up and start the acquisition worker."""
+        # Check a results folder has been chosen
+        if self.widgets.get("rt_save_path") == '':
+            logger.error('Please select an output folder!')
+            return
+
+        # Ensure the results folder exists
+        if not os.path.exists(self.widgets.get("rt_save_path")):
+            os.makedirs(self.widgets.get("rt_save_path"))
+
         # Create a log handler
         date_str = datetime.strftime(datetime.now(), "%Y-%m-%d")
         log_fname = f'{self.widgets.get("rt_save_path")}/{date_str}_iFit.log'
