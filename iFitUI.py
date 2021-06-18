@@ -8,7 +8,7 @@ from datetime import datetime
 from functools import partial
 from logging.handlers import RotatingFileHandler
 from PyQt5.QtGui import QIcon, QPalette, QColor, QFont
-from PyQt5.QtCore import Qt, QThreadPool
+from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot, QFile, QTextStream
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QComboBox, QTextEdit,
                              QLineEdit, QPushButton, QProgressBar, QFrame,
