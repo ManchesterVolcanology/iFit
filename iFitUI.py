@@ -18,8 +18,9 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
 
 from ifit.gui_functions import (analysis_loop, acquire_spectra, Widgets,
                                 SpinBox, DSpinBox, Table, Worker,
-                                QTextEditLogger, connect_spectrometer)
+                                QTextEditLogger)
 from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
+from ifit.spectrometers import Spectrometer
 
 __version__ = '3.3'
 __author__ = 'Ben Esse'
@@ -218,17 +219,8 @@ class MainWindow(QMainWindow):
         # Create a button to connect to a spectrometer
         self.connect_btn = QPushButton('Connect')
         self.connect_btn.setToolTip('Connect or disconnect the spectrometer')
-        self.connect_btn.clicked.connect(partial(connect_spectrometer, self))
+        self.connect_btn.clicked.connect(self.connect_spectrometer)
         layout.addWidget(self.connect_btn, 0, 2)
-
-        # Create a button to acquire a test spectrum
-        self.acquire_test_btn = QPushButton('Test Spectrum')
-        self.acquire_test_btn.setToolTip('Acquire test spectrum displayed in '
-                                         + 'Scope')
-        self.acquire_test_btn.clicked.connect(partial(self.begin_acquisition,
-                                              'acquire_single'))
-        self.acquire_test_btn.setEnabled(False)
-        layout.addWidget(self.acquire_test_btn, 0, 3)
 
         # Create a control for the spectrometer integration time
         layout.addWidget(QLabel('Integration\nTime (ms):'), 1, 0)
@@ -243,15 +235,6 @@ class MainWindow(QMainWindow):
         self.update_inttime_btn.clicked.connect(self.update_int_time)
         self.update_inttime_btn.setEnabled(False)
         layout.addWidget(self.update_inttime_btn, 1, 2)
-
-        # Create a button to toggle real-time analysis
-        self.rt_fitting_flag = False
-        self.rt_flag_btn = QPushButton('Fitting OFF')
-        self.rt_flag_btn.setToolTip('Toggle Real Time Fitting')
-        self.rt_flag_btn.clicked.connect(self.toggle_fitting)
-        self.rt_flag_btn.setEnabled(False)
-        self.rt_flag_btn.setStyleSheet("background-color: red")
-        layout.addWidget(self.rt_flag_btn, 0, 4)
 
         # Create a control for the spectrometer coadds
         layout.addWidget(QLabel('Coadds:'), 2, 0)
@@ -280,6 +263,15 @@ class MainWindow(QMainWindow):
                                                'acquire_darks'))
         self.acquire_darks_btn.setEnabled(False)
         layout.addWidget(self.acquire_darks_btn, 3, 2)
+
+        # Create a button to toggle real-time analysis
+        self.rt_fitting_flag = False
+        self.rt_flag_btn = QPushButton('Fitting OFF')
+        self.rt_flag_btn.setToolTip('Toggle Real Time Fitting')
+        self.rt_flag_btn.clicked.connect(self.toggle_fitting)
+        self.rt_flag_btn.setEnabled(False)
+        self.rt_flag_btn.setStyleSheet("background-color: red")
+        layout.addWidget(self.rt_flag_btn, 3, 3)
 
         # Add stereo button for non-liniarity correction
         self.widgets['nonlin_flag'] = QCheckBox('Correct\nNon-Linearity?')
@@ -1258,6 +1250,72 @@ class MainWindow(QMainWindow):
         self.update_graph_flag = False
 
 # =============================================================================
+# Connect to spectrometer
+# =============================================================================
+
+    def connect_spectrometer(self):
+        """Connect or dissconnect the spectrometer."""
+        if not self.connected_flag:
+
+            # Connect to the spectrometer
+            w = self.widgets
+            spec = Spectrometer(integration_time=w.get("int_time"),
+                                coadds=w.get("coadds"),
+                                correct_dark_counts=w.get("nonlin_flag"),
+                                correct_nonlinearity=w.get("eldark_flag")
+                                )
+
+            # Check if connection was successful
+            if spec.serial_number is not None:
+
+                # Add the spectrometer to the parent GUI
+                self.spectrometer = spec
+
+                # Update the GUI
+                self.spec_id.setText(self.spectrometer.serial_number)
+                self.connect_btn.setText('Disconnect')
+
+                # Create a holder for the dark spectra
+                self.dark_spectrum = np.zeros(self.spectrometer.pixels)
+
+                # Update GUI features
+                self.connected_flag = True
+                self.rt_flag_btn.setEnabled(True)
+                self.acquire_darks_btn.setEnabled(True)
+                self.update_inttime_btn.setEnabled(True)
+                self.update_coadds_btn.setEnabled(True)
+                self.rt_start_btn.setEnabled(True)
+                for k in ["nonlin_flag", "eldark_flag"]:
+                    self.widgets[k].setEnabled(False)
+                    self.widgets[k].setStyleSheet("color: darkGray")
+
+                # Begin scope acquisition
+                self.scope_acquisition()
+
+        else:
+
+            # Kill scope acquisition
+            self.scope_worker.kill()
+
+            # Disconnect the spectrometer
+            self.spectrometer.close()
+
+            # Update the GUI
+            self.spec_id.setText('Not connected')
+            self.connect_btn.setText('Connect')
+
+            # Update GUI features
+            self.connected_flag = False
+            self.rt_flag_btn.setEnabled(False)
+            self.acquire_darks_btn.setEnabled(False)
+            self.update_inttime_btn.setEnabled(False)
+            self.update_coadds_btn.setEnabled(False)
+            self.rt_start_btn.setEnabled(False)
+            for k in ["nonlin_flag", "eldark_flag"]:
+                self.widgets[k].setEnabled(True)
+                self.widgets[k].setStyleSheet("color: white")
+
+# =============================================================================
 #   Acquisition Loop Setup
 # =============================================================================
 
@@ -1268,10 +1326,7 @@ class MainWindow(QMainWindow):
         self.rt_pause_btn.setEnabled(False)
         self.rt_stop_btn.setEnabled(False)
         self.connect_btn.setEnabled(True)
-        self.acquire_test_btn.setEnabled(True)
         self.acquire_darks_btn.setEnabled(True)
-        self.update_inttime_btn.setEnabled(True)
-        self.update_coadds_btn.setEnabled(True)
         self.rt_flag_btn.setEnabled(True)
         self.rt_pause_btn.setText('Pause')
 
@@ -1284,19 +1339,50 @@ class MainWindow(QMainWindow):
         # Set the status bar
         self.statusBar().showMessage('Ready')
 
+        # Begin background measurements
+        self.scope_acquisition()
+
     def catch_spectrum(self, spec_data):
         """Slot to catch the spectra acquired by the acquisition loop."""
-        self.last_spectrum, self.last_info, plot_flag = spec_data
+        self.last_spectrum, self.last_info, plot_flag, save_flag = spec_data
 
-        self.scope_line.setData(*self.last_spectrum)
+        if plot_flag:
+            self.scope_line.setData(*self.last_spectrum)
 
-        try:
-            self.worker.set_spectrum(self.last_info['fname'])
-        except AttributeError:
-            pass
+        if save_flag:
+            try:
+                self.worker.set_spectrum(self.last_info['fname'])
+            except AttributeError:
+                pass
+
+    def scope_acquisition(self):
+        """Set up scope acquisition."""
+        # This section is for testing with a virtual spectrometer
+        #######################################################################
+        # self.spectrometer.fpath = 'Example/spectrum_00000.txt'
+        #######################################################################
+
+        # Pull the plotting data from the GUI
+        widgetData = {'gas_params':    self.gas_table.getData(),
+                      'bgpoly_params': self.bgpoly_table.getData(),
+                      'offset_params': self.offset_table.getData(),
+                      'shift_params':  self.shift_table.getData()}
+
+        for label in self.widgets:
+            widgetData[label] = self.widgets.get(label)
+
+        # Initialise the acquisition worker
+        self.scope_worker = Worker(acquire_spectra, 'acquire_scope',
+                                   widgetData, self.spectrometer)
+        self.scope_worker.signals.spectrum.connect(self.catch_spectrum)
+        self.scope_worker.signals.error.connect(self.update_error)
+        self.threadpool.start(self.scope_worker)
 
     def begin_acquisition(self, acquisition_mode):
         """Set up and start the acquisition worker."""
+        # Kill the background acquisition
+        self.scope_worker.kill()
+
         # Check a results folder has been chosen
         if self.widgets.get("rt_save_path") == '':
             logger.error('Please select an output folder!')
@@ -1319,8 +1405,6 @@ class MainWindow(QMainWindow):
 
         # This section is for testing with a virtual spectrometer
         #######################################################################
-        # if acquisition_mode == 'acquire_single':
-        #     self.spectrometer.fpath = 'Example/spectrum_00000.txt'
         # if acquisition_mode == 'acquire_darks':
         #     self.spectrometer.fpath = 'Example/dark.txt'
         # if acquisition_mode == 'acquire_cont':
@@ -1356,10 +1440,7 @@ class MainWindow(QMainWindow):
         self.rt_pause_btn.setEnabled(True)
         self.rt_stop_btn.setEnabled(True)
         self.connect_btn.setEnabled(False)
-        self.acquire_test_btn.setEnabled(False)
         self.acquire_darks_btn.setEnabled(False)
-        self.update_inttime_btn.setEnabled(False)
-        self.update_coadds_btn.setEnabled(False)
         self.rt_flag_btn.setEnabled(False)
 
         # If running real time, launch the analyser loop

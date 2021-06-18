@@ -17,7 +17,6 @@ from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import read_spectrum, average_spectra
-from ifit.spectrometers import Spectrometer
 
 
 logger = logging.getLogger(__name__)
@@ -468,9 +467,9 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
         The worker running the thread
     aquisition_mode : str
         How spectra acquisition is run:
-            - acquire_single: measure a single test spectrum
             - acquire_darks: measure dark spectra
-            - acquire_cont: continuous acquisition
+            - acquire_cont: continuous acquisition with saving/analysis
+            - acquire_scope: continuous acquisition without saving/analysis
     widgetData : dict
         Contains the program settings from the GUI
     spectrum_callback : Signal
@@ -486,14 +485,6 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
     """
     # Update the status
     status_callback.emit('Acquiring')
-
-    # Read single spectrum
-    if acquisition_mode == 'acquire_single':
-
-        # Read the spectrum
-        spectrum, info = spectrometer.get_spectrum()
-
-        spectrum_callback.emit((spectrum, info, True))
 
     # Read dark spectra
     if acquisition_mode == 'acquire_darks':
@@ -572,68 +563,12 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
             spectrum, info = spectrometer.get_spectrum(fname=spec_fname)
 
             # Display the spectrum
-            spectrum_callback.emit((spectrum, info, True))
+            spectrum_callback.emit((spectrum, info, True, True))
 
-
-# =============================================================================
-# Connect to spectrometer
-# =============================================================================
-
-def connect_spectrometer(gui):
-    """Connect or dissconnect the spectrometer."""
-    if not gui.connected_flag:
-
-        # Connect to the spectrometer
-        spec = Spectrometer(integration_time=gui.widgets.get("int_time"),
-                            coadds=gui.widgets.get("coadds"),
-                            correct_dark_counts=gui.widgets.get("nonlin_flag"),
-                            correct_nonlinearity=gui.widgets.get("eldark_flag")
-                            )
-
-        # Check if connection was successful
-        if spec.serial_number is not None:
-
-            # Add the spectrometer to the parent GUI
-            gui.spectrometer = spec
-
-            # Update the GUI
-            gui.spec_id.setText(gui.spectrometer.serial_number)
-            gui.connect_btn.setText('Disconnect')
-
-            # Create a holder for the dark spectra
-            gui.dark_spectrum = np.zeros(gui.spectrometer.pixels)
-
-            # Update GUI features
-            gui.connected_flag = True
-            gui.acquire_test_btn.setEnabled(True)
-            gui.update_inttime_btn.setEnabled(True)
-            gui.rt_flag_btn.setEnabled(True)
-            gui.update_coadds_btn.setEnabled(True)
-            gui.acquire_darks_btn.setEnabled(True)
-            gui.rt_start_btn.setEnabled(True)
-            for k in ["nonlin_flag", "eldark_flag"]:
-                gui.widgets[k].setEnabled(False)
-                gui.widgets[k].setStyleSheet("color: darkGray")
-
-    else:
-        # Disconnect the spectrometer
-        gui.spectrometer.close()
-
-        # Update the GUI
-        gui.spec_id.setText('Not connected')
-        gui.connect_btn.setText('Connect')
-
-        # Update GUI features
-        gui.connected_flag = False
-        gui.acquire_test_btn.setEnabled(False)
-        gui.update_inttime_btn.setEnabled(False)
-        gui.rt_flag_btn.setEnabled(False)
-        gui.update_coadds_btn.setEnabled(False)
-        gui.acquire_darks_btn.setEnabled(False)
-        gui.rt_start_btn.setEnabled(False)
-        for k in ["nonlin_flag", "eldark_flag"]:
-            gui.widgets[k].setEnabled(True)
-            gui.widgets[k].setStyleSheet("color: white")
+    if acquisition_mode == 'acquire_scope':
+        while not worker.is_killed:
+            spectrum, info = spectrometer.get_spectrum()
+            spectrum_callback.emit((spectrum, info, True, False))
 
 
 # =============================================================================
