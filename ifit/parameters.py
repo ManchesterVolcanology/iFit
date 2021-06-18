@@ -114,13 +114,13 @@ class Parameters(OrderedDict):
         """Return a deep copy of the Parameters object."""
         return copy.deepcopy(self)
 
-    def pretty_print(self, mincolwidth=10, precision=4, cols='basic'):
+    def pretty_print(self, mincolwidth=7, precision=4, cols='basic'):
         """Print the parameters in a nice way.
 
         Parameters
         ----------
         mincolwidth : int, optional
-            Minimum width of the columns. Default is 10
+            Minimum width of the columns. Default is 7
         precision : int, optional
             Number of significant figures to print to. Default is 4
         cols : str or list, optional
