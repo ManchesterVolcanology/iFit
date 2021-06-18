@@ -1170,6 +1170,18 @@ class MainWindow(QMainWindow):
                         plotx = plotx[-npts:]
                         ploty = ploty[-npts:]
 
+                # Check that there are data to plot
+                if len(plotx) != 0:
+
+                    # Check for large number in the time series. This is due to
+                    # a bug in pyqtgraph not displaying large numbers
+                    max_val = np.nanmax(np.abs(ploty))
+                    if ~np.isnan(max_val) and max_val > 1e6:
+                        order = int(np.ceil(np.log10(max_val))) - 1
+                        ploty = ploty / 10**order
+                        self.plot_axes[4].setLabel('left',
+                                                   f'Fit value (1e{order})')
+
                 # Plot the data
                 self.plot_lines[0].setData(self.fit_result.grid,
                                            self.fit_result.spec)
