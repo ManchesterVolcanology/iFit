@@ -519,7 +519,7 @@ def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
             dark_arr[i] = spectrum[1]
 
             # Display the spectrum
-            spectrum_callback.emit((spectrum, info, True))
+            spectrum_callback.emit((spectrum, info, True, False))
 
             # Update the progress bar
             progress_callback.emit(((i+1)/ndarks)*100)
