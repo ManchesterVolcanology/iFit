@@ -1190,6 +1190,8 @@ class MainWindow(QMainWindow):
                         ploty = ploty / 10**order
                         self.plot_axes[4].setLabel('left',
                                                    f'Fit value (1e{order})')
+                    else:
+                        self.plot_axes[4].setLabel('left', 'Fit value')
 
                 # Plot the data
                 self.plot_lines[0].setData(self.fit_result.grid,
