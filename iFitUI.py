@@ -8,7 +8,7 @@ from datetime import datetime
 from functools import partial
 from logging.handlers import RotatingFileHandler
 from PyQt5.QtGui import QIcon, QPalette, QColor, QFont
-from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot, QFile, QTextStream
+from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QComboBox, QTextEdit,
                              QLineEdit, QPushButton, QProgressBar, QFrame,
@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
         # Create an empty dictionary to hold the GUI widgets
         self.widgets = Widgets()
 
-        # Set the theme
+        # Set the default theme
         self.theme = 'Dark'
 
         # Build the GUI
@@ -81,6 +81,12 @@ class MainWindow(QMainWindow):
             with open('bin/.config', 'r') as r:
                 self.config_fname = r.readline().strip()
             self.load_config(fname=self.config_fname)
+
+        # Update GUI theme
+        if self.theme == 'Dark':
+            self.changeSkinDark()
+        elif self.theme == 'Light':
+            self.changeSkinLight()
 
     def _createApp(self):
         """Build the main GUI."""
@@ -973,6 +979,7 @@ class MainWindow(QMainWindow):
                   'shift_params':  self.shift_table.getData()}
         for label in self.widgets:
             config[label] = self.widgets.get(label)
+        config['theme'] = self.theme
 
         # Check if the config matches the current widget states
         save_flag = True
@@ -1020,6 +1027,7 @@ class MainWindow(QMainWindow):
                   'shift_params':  self.shift_table.getData()}
         for label in self.widgets:
             config[label] = self.widgets.get(label)
+        config['theme'] = self.theme
 
         # Get save filename if required
         if asksavepath or self.config_fname is None:
@@ -1078,6 +1086,9 @@ class MainWindow(QMainWindow):
                     elif label == 'shift_params':
                         self.shift_table.setRowCount(0)
                         self.shift_table.setData(config['shift_params'])
+
+                    elif label == 'theme':
+                        self.theme = config[label]
 
                     else:
                         self.widgets.set(label, config[label])
@@ -1534,25 +1545,6 @@ def main():
     app = QApplication(sys.argv)
 
     app.setStyle("Fusion")
-
-    # Use a palette to switch to dark colors:
-    palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(53, 53, 53))
-    palette.setColor(QPalette.WindowText, Qt.white)
-    palette.setColor(QPalette.Base, QColor(25, 25, 25))
-    palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-    palette.setColor(QPalette.ToolTipBase, Qt.black)
-    palette.setColor(QPalette.ToolTipText, Qt.white)
-    palette.setColor(QPalette.Text, Qt.white)
-    palette.setColor(QPalette.Button, QColor(53, 53, 53))
-    palette.setColor(QPalette.Active, QPalette.Button, QColor(53, 53, 53))
-    palette.setColor(QPalette.ButtonText, Qt.white)
-    palette.setColor(QPalette.BrightText, Qt.red)
-    palette.setColor(QPalette.Link, QColor(42, 130, 218))
-    palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-    palette.setColor(QPalette.HighlightedText, Qt.black)
-    palette.setColor(QPalette.Disabled, QPalette.ButtonText, Qt.darkGray)
-    app.setPalette(palette)
 
     # Show the GUI
     view = MainWindow()
