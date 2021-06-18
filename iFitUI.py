@@ -1013,28 +1013,37 @@ class MainWindow(QMainWindow):
 
     def save_config(self, asksavepath=True):
         """Save the config file."""
+        # Get the GUI configuration
         config = {'gas_params':    self.gas_table.getData(),
                   'bgpoly_params': self.bgpoly_table.getData(),
                   'offset_params': self.offset_table.getData(),
                   'shift_params':  self.shift_table.getData()}
-
         for label in self.widgets:
             config[label] = self.widgets.get(label)
 
+        # Get save filename if required
         if asksavepath or self.config_fname is None:
             filter = 'YAML (*.yml *.yaml);;All Files (*)'
             fname, s = QFileDialog.getSaveFileName(self, 'Save Config', '',
                                                    filter)
-            if fname != '':
+            # If valid, proceed. If not, return
+            if fname != '' and fname is not None:
                 self.config_fname = fname
+            else:
+                return
 
+        # Write the config
         with open(self.config_fname, 'w') as outfile:
             yaml.dump(config, outfile)
 
+        # Log the update
         logger.info(f'Config file saved to {self.config_fname}')
 
+        #
         with open('bin/.config', 'w') as w:
             w.write(self.config_fname)
+
+        self.config = config
 
 # =============================================================================
 # Load config
