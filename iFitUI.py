@@ -68,6 +68,9 @@ class MainWindow(QMainWindow):
         # Create an empty dictionary to hold the GUI widgets
         self.widgets = Widgets()
 
+        # Set the theme
+        self.theme = 'Dark'
+
         # Build the GUI
         self._createApp()
 
@@ -81,29 +84,42 @@ class MainWindow(QMainWindow):
 
     def _createApp(self):
         """Build the main GUI."""
-        # Add file menubar
+        # Generate actions
+        # Save action
         saveAct = QAction(QIcon('bin/icons/save.png'), '&Save', self)
         saveAct.setShortcut('Ctrl+S')
         saveAct.triggered.connect(partial(self.save_config, False))
+
+        # Save As action
         saveasAct = QAction(QIcon('bin/icons/saveas.png'), '&Save As',
                             self)
         saveasAct.setShortcut('Ctrl+Shift+S')
         saveasAct.triggered.connect(partial(self.save_config, True))
+
+        # Load action
         loadAct = QAction(QIcon('bin/icons/open.png'), '&Load', self)
         loadAct.triggered.connect(partial(self.load_config, None))
 
-        # Add tools menubar
+        # Change theme action
+        themeAct = QAction(QIcon('bin/icons/theme.png'), '&Change Theme', self)
+        themeAct.triggered.connect(self.change_theme)
+
+        # ILS GUI action
         ilsAct = QAction(QIcon('bin/icons/ils.png'), '&Measure ILS', self)
         ilsAct.triggered.connect(self.open_ils_window)
         flatAct = QAction(QIcon('bin/icons/flat.png'), '&Measure\nFlat Field',
                           self)
+        # Flat GUI action
         flatAct.triggered.connect(self.open_flat_window)
         fluxAct = QAction(QIcon('bin/icons/flux.png'), '&Calculate flux', self)
         fluxAct.triggered.connect(self.open_flux_window)
+
+        # LDF GUI action
         ldfAct = QAction(QIcon('bin/icons/ldf.png'),
                          '&Light Dilution\nAnalysis', self)
         ldfAct.triggered.connect(self.open_ldf_window)
 
+        # Add menubar
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(saveAct)
@@ -114,6 +130,8 @@ class MainWindow(QMainWindow):
         toolMenu.addAction(flatAct)
         toolMenu.addAction(fluxAct)
         toolMenu.addAction(ldfAct)
+        toolMenu = menubar.addMenu('&View')
+        toolMenu.addAction(themeAct)
 
         # Create a toolbar
         toolbar = QToolBar("Main toolbar")
@@ -121,6 +139,7 @@ class MainWindow(QMainWindow):
         toolbar.addAction(saveAct)
         toolbar.addAction(saveasAct)
         toolbar.addAction(loadAct)
+        toolbar.addAction(themeAct)
         toolbar.addSeparator()
         toolbar.addAction(ilsAct)
         toolbar.addAction(flatAct)
@@ -500,41 +519,32 @@ class MainWindow(QMainWindow):
                                               + 'analysis)')
         glayout.addWidget(self.widgets['graph_flag'], 1, 0)
 
+        # Create a checkbox to only display good fits
+        self.widgets['good_fit_flag'] = QCheckBox('Only Show\nGood Fits?')
+        self.widgets['good_fit_flag'].setToolTip('Only display results for '
+                                                 + 'fits that pass the '
+                                                 + 'quality checks')
+        glayout.addWidget(self.widgets['good_fit_flag'], 1, 1)
+
         # Add combo box for the graph parameter
-        glayout.addWidget(QLabel('Parameter to graph:'), 1, 1)
+        glayout.addWidget(QLabel('Parameter to graph:'), 1, 2)
         self.widgets['graph_param'] = QComboBox()
         self.widgets['graph_param'].addItems([''])
         # self.widgets['graph_param'].setFixedSize(70, 20)
-        glayout.addWidget(self.widgets['graph_param'], 1, 2)
+        glayout.addWidget(self.widgets['graph_param'], 1, 3)
 
         # Create a checkbox to turn scrolling on or off
         self.widgets['scroll_flag'] = QCheckBox('Scroll Graphs?')
         self.widgets['scroll_flag'].setToolTip('Allow graphs to scroll\n'
                                                + '(limits no. spectra '
                                                + 'displayed)')
-        glayout.addWidget(self.widgets['scroll_flag'], 1, 3)
+        glayout.addWidget(self.widgets['scroll_flag'], 1, 4)
 
         # Add spinbox for the graph scroll amount
-        glayout.addWidget(QLabel('No. Spectra\nTo Display:'), 1, 4)
+        glayout.addWidget(QLabel('No. Spectra\nTo Display:'), 1, 5)
         self.widgets['scroll_amt'] = SpinBox(100, [1, 10000])
         # self.widgets['scroll_amt'].setFixedSize(70, 20)
-        glayout.addWidget(self.widgets['scroll_amt'], 1, 5)
-
-        # Create a checkbox to only display good fits
-        self.widgets['good_fit_flag'] = QCheckBox('Only Show\nGood Fits?')
-        self.widgets['good_fit_flag'].setToolTip('Only display results for '
-                                                 + 'fits that pass the '
-                                                 + 'quality checks')
-        glayout.addWidget(self.widgets['good_fit_flag'], 2, 0)
-
-        # Add combo box for the graphbackground color
-        glayout.addWidget(QLabel('Graph Background:'), 2, 1)
-        self.widgets['graph_bg'] = QComboBox()
-        self.widgets['graph_bg'].setToolTip('Select light/dark graph '
-                                            + 'background')
-        self.widgets['graph_bg'].addItems(['Dark', 'Light'])
-        self.widgets['graph_bg'].currentTextChanged.connect(self.alt_graph_bg)
-        glayout.addWidget(self.widgets['graph_bg'], 2, 2)
+        glayout.addWidget(self.widgets['scroll_amt'], 1, 6)
 
         vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
         glayout.addItem(vspacer, 1, 6, 1, -1)
@@ -954,31 +964,6 @@ class MainWindow(QMainWindow):
         self.widgets['graph_param'].clear()
         self.widgets['graph_param'].addItems(params)
 
-    def alt_graph_bg(self):
-        """Change the graph background color."""
-        var = self.widgets.get('graph_bg')
-
-        if var == 'Light':
-            bgcolor = 'w'
-            fgcolor = 'k'
-        if var == 'Dark':
-            bgcolor = 'k'
-            fgcolor = 'w'
-
-        self.graphwin.setBackground(bgcolor)
-        self.scopewin.setBackground(bgcolor)
-        pen = pg.mkPen(fgcolor, width=1)
-
-        for ax in self.plot_axes:
-            ax.getAxis('left').setPen(pen)
-            ax.getAxis('right').setPen(pen)
-            ax.getAxis('top').setPen(pen)
-            ax.getAxis('bottom').setPen(pen)
-        self.scope_ax.getAxis('left').setPen(pen)
-        self.scope_ax.getAxis('right').setPen(pen)
-        self.scope_ax.getAxis('top').setPen(pen)
-        self.scope_ax.getAxis('bottom').setPen(pen)
-
     def closeEvent(self, event):
         """Handle GUI closure."""
         # Pull widget values
@@ -1396,6 +1381,71 @@ class MainWindow(QMainWindow):
             logger.info('Acquisition stopped')
         except AttributeError:
             pass
+
+    def change_theme(self):
+        """Change the theme."""
+        if self.theme == 'Light':
+            self.changeSkinDark()
+            self.theme = 'Dark'
+        elif self.theme == 'Dark':
+            self.changeSkinLight()
+            self.theme = 'Light'
+
+    @pyqtSlot()
+    def changeSkinDark(self):
+        """Change theme to dark."""
+        darkpalette = QPalette()
+        darkpalette.setColor(QPalette.Window, QColor(53, 53, 53))
+        darkpalette.setColor(QPalette.WindowText, Qt.white)
+        darkpalette.setColor(QPalette.Base, QColor(25, 25, 25))
+        darkpalette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        darkpalette.setColor(QPalette.ToolTipBase, Qt.black)
+        darkpalette.setColor(QPalette.ToolTipText, Qt.white)
+        darkpalette.setColor(QPalette.Text, Qt.white)
+        darkpalette.setColor(QPalette.Button, QColor(53, 53, 53))
+        darkpalette.setColor(QPalette.Active, QPalette.Button,
+                             QColor(53, 53, 53))
+        darkpalette.setColor(QPalette.ButtonText, Qt.white)
+        darkpalette.setColor(QPalette.BrightText, Qt.red)
+        darkpalette.setColor(QPalette.Link, QColor(42, 130, 218))
+        darkpalette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        darkpalette.setColor(QPalette.HighlightedText, Qt.black)
+        darkpalette.setColor(QPalette.Disabled, QPalette.ButtonText,
+                             Qt.darkGray)
+        QApplication.instance().setPalette(darkpalette)
+
+        # Update graphs
+        self.graphwin.setBackground('k')
+        self.scopewin.setBackground('k')
+        pen = pg.mkPen('w', width=1)
+
+        for ax in self.plot_axes:
+            ax.getAxis('left').setPen(pen)
+            ax.getAxis('right').setPen(pen)
+            ax.getAxis('top').setPen(pen)
+            ax.getAxis('bottom').setPen(pen)
+        self.scope_ax.getAxis('left').setPen(pen)
+        self.scope_ax.getAxis('right').setPen(pen)
+        self.scope_ax.getAxis('top').setPen(pen)
+        self.scope_ax.getAxis('bottom').setPen(pen)
+
+    @pyqtSlot()
+    def changeSkinLight(self):
+        """Change theme to light."""
+        QApplication.instance().setPalette(self.style().standardPalette())
+        self.graphwin.setBackground('w')
+        self.scopewin.setBackground('w')
+        pen = pg.mkPen('k', width=1)
+
+        for ax in self.plot_axes:
+            ax.getAxis('left').setPen(pen)
+            ax.getAxis('right').setPen(pen)
+            ax.getAxis('top').setPen(pen)
+            ax.getAxis('bottom').setPen(pen)
+        self.scope_ax.getAxis('left').setPen(pen)
+        self.scope_ax.getAxis('right').setPen(pen)
+        self.scope_ax.getAxis('top').setPen(pen)
+        self.scope_ax.getAxis('bottom').setPen(pen)
 
 
 def browse(gui, widget, mode='single', filter=None):
