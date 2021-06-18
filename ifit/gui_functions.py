@@ -613,6 +613,7 @@ def connect_spectrometer(gui):
             gui.rt_start_btn.setEnabled(True)
             for k in ["nonlin_flag", "eldark_flag"]:
                 gui.widgets[k].setEnabled(False)
+                gui.widgets[k].setStyleSheet("color: darkGray")
 
     else:
         # Disconnect the spectrometer
@@ -632,6 +633,7 @@ def connect_spectrometer(gui):
         gui.rt_start_btn.setEnabled(False)
         for k in ["nonlin_flag", "eldark_flag"]:
             gui.widgets[k].setEnabled(True)
+            gui.widgets[k].setStyleSheet("color: white")
 
 
 # =============================================================================
