@@ -208,8 +208,9 @@ def generate_analyser(widgetData):
                    vary=widgetData['a_k_fit'])
 
     # Add the light dilution factor
-    params.add('LDF', value=float(widgetData['ldf']),
-               vary=widgetData['ldf_fit'])
+    if widgetData['ldf_fit']:
+        params.add('LDF', value=float(widgetData['ldf']),
+                   vary=widgetData['ldf_fit'])
 
     # Get the bad pixels
     if widgetData['bad_pixels'] != '':
