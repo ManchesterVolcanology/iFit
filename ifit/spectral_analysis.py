@@ -161,14 +161,23 @@ class Analyser():
                 self.ils = make_ils(model_spacing, *ils_params)
 
                 self.generate_ils = False
-                logger.info('ILS imported')
+                logger.info(f'ILS parameters imported: {ils_path}')
 
             except OSError:
                 logger.error(f'{ils_path} file not found!')
 
         # Manually set the ILS params
         if ils_type == 'Manual':
-            self.generate_ils = True
+
+            # Check if they're all fixed
+            keys = ['fwem', 'k', 'a_w', 'a_k']
+            vary_check = np.array([params[k].vary for k in keys])
+            if vary_check.any():
+                self.generate_ils = True
+            else:
+                ils_params = [params[k].value for k in keys]
+                self.ils = make_ils(model_spacing, *ils_params)
+                self.generate_ils = False
 
         # ---------------------------------------------------------------------
         # Import solar spectrum
