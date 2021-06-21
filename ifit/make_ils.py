@@ -9,33 +9,44 @@ from scipy.interpolate import griddata
 
 def super_gaussian(grid, w, k, a_w, a_k, shift=0, amp=1, offset=0):
     """Return a super-Gaussian line shape."""
-    # Make model grid
-    mod_grid = np.linspace(grid[0]-2, grid[-1]+2, 100)
-
     # Compute A
     A = k / (2 * w * gamma(1/k))
 
     # Form empty array
-    ils = np.zeros(len(mod_grid))
+    ils = np.zeros(len(grid))
 
     # Iterate over x grid. If negative do one thing, if positive do the other
-    for n, x in enumerate(mod_grid):
-
-        if x <= 0:
-            ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w - a_w)),
-                                                     k - a_k)))
-
-        else:
-            ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w + a_w)),
-                                                     k + a_k)))
+    ils = np.array([left_func(x, w, k, a_w, a_k) if x <= 0
+                    else right_func(x, w, k, a_w, a_k)
+                    for x in grid])
+    # for n, x in enumerate(grid):
+    #
+    #     if x <= 0:
+    #         ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w - a_w)),
+    #                                                  k - a_k)))
+    #
+    #     else:
+    #         ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w + a_w)),
+    #                                                  k + a_k)))
 
     # Shift the lineshape
-    mod_grid = mod_grid + shift
+    if shift != 0:
+        mod_grid = grid + shift
 
-    # Interpolate onto the measurement grid
-    ils = griddata(mod_grid, ils, grid, method='cubic')
+        # Interpolate onto the measurement grid
+        ils = griddata(mod_grid, ils, grid, method='cubic')
 
-    return ils * amp + offset
+    return ils * A * amp + offset
+
+
+def left_func(x, w, k, a_w, a_k):
+    """Left function."""
+    return np.exp(-np.power(np.abs((x) / (w - a_w)), k - a_k))
+
+
+def right_func(x, w, k, a_w, a_k):
+    """Right function."""
+    return np.exp(-np.power(np.abs((x) / (w + a_w)), k + a_k))
 
 
 # =============================================================================
