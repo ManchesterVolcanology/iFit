@@ -19,15 +19,6 @@ def super_gaussian(grid, w, k, a_w, a_k, shift=0, amp=1, offset=0):
     ils = np.array([left_func(x, w, k, a_w, a_k) if x <= 0
                     else right_func(x, w, k, a_w, a_k)
                     for x in grid])
-    # for n, x in enumerate(grid):
-    #
-    #     if x <= 0:
-    #         ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w - a_w)),
-    #                                                  k - a_k)))
-    #
-    #     else:
-    #         ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w + a_w)),
-    #                                                  k + a_k)))
 
     # Shift the lineshape
     if shift != 0:
@@ -40,12 +31,12 @@ def super_gaussian(grid, w, k, a_w, a_k, shift=0, amp=1, offset=0):
 
 
 def left_func(x, w, k, a_w, a_k):
-    """Left function."""
+    """Left function for asymetric Gaussian."""
     return np.exp(-np.power(np.abs((x) / (w - a_w)), k - a_k))
 
 
 def right_func(x, w, k, a_w, a_k):
-    """Right function."""
+    """Right function for asymetric Gaussian."""
     return np.exp(-np.power(np.abs((x) / (w + a_w)), k + a_k))
 
 
