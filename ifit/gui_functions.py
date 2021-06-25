@@ -208,7 +208,7 @@ def generate_analyser(widgetData):
                    vary=widgetData['a_k_fit'])
 
     # Add the light dilution factor
-    if widgetData['ldf_fit']:
+    if widgetData['ldf_fit'] or widgetData['ldf'] != 0.0:
         params.add('LDF', value=float(widgetData['ldf']),
                    vary=widgetData['ldf_fit'])
 
