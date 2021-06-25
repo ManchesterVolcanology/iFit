@@ -372,7 +372,13 @@ class CalcFlux(QMainWindow):
         self.ax.setLabel('bottom', 'Time')
 
         # Add the graphs to the layout
-        g1layout.addWidget(graphwin, 0, 0, 0, 0)
+        g1layout.addWidget(graphwin, 0, 0, 0, 5)
+
+        # Create a combobox to determine x axis as time or number
+        self.x_axis = QComboBox()
+        self.x_axis.addItems(['Time', 'Number'])
+        self.x_axis.currentIndexChanged.connect(self.switch_x_axis)
+        g1layout.addWidget(self.x_axis, 1, 2)
 
         g2layout = QGridLayout(tab2)
         graphwin = pg.GraphicsWindow(show=True)
@@ -439,6 +445,7 @@ class CalcFlux(QMainWindow):
 
         self.so2_time = np.array([t.hour + t.minute/60 + t.second/3600
                                   for t in so2_df['Time']])
+        self.so2_num = so2_df['Number'].to_numpy()
         self.so2_scd = so2_df['SO2'].to_numpy()
         self.so2_err = so2_df['SO2_err'].to_numpy()
 
@@ -467,16 +474,21 @@ class CalcFlux(QMainWindow):
                         ploty + self.so2_err/10**order]
             self.ax.setLabel('left', f'Fit value (1e{order})')
 
+        if self.x_axis.currentText() == 'Time':
+            plotx = self.so2_time
+        else:
+            plotx = self.so2_num
+
         # Update the graph
         self.ax.clear()
-        l1 = pg.PlotCurveItem(self.so2_time, plot_err[0], pen=None)
-        l2 = pg.PlotCurveItem(self.so2_time, plot_err[1], pen=None)
+        l1 = pg.PlotCurveItem(plotx, plot_err[0], pen=None)
+        l2 = pg.PlotCurveItem(plotx, plot_err[1], pen=None)
         pfill = pg.FillBetweenItem(l1, l2, pen=None, brush=self.b0)
         self.ax.addItem(pfill)
-        self.ax.plot(self.so2_time, ploty, pen=self.p0)
+        self.ax.plot(plotx, ploty, pen=self.p0)
 
         # Add the region selector
-        self.lr = pg.LinearRegionItem([self.so2_time[0], self.so2_time[-1]])
+        self.lr = pg.LinearRegionItem([plotx[0], plotx[-1]])
         self.lr.setZValue(-10)
         self.ax.addItem(self.lr)
 
@@ -491,6 +503,39 @@ class CalcFlux(QMainWindow):
         self.save_flag = False
 
         logger.info('Traverses imported!')
+
+    def switch_x_axis(self):
+        """Switch traverse x axis."""
+        try:
+            ploty = self.so2_scd
+
+            if np.nanmax(self.so2_scd) > 1e6:
+                order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
+                ploty = ploty / 10**order
+                plot_err = [ploty - self.so2_err/10**order,
+                            ploty + self.so2_err/10**order]
+                self.ax.setLabel('left', f'Fit value (1e{order})')
+
+            if self.x_axis.currentText() == 'Time':
+                plotx = self.so2_time
+            else:
+                plotx = self.so2_num
+
+            # Update the graph
+            self.ax.clear()
+            l1 = pg.PlotCurveItem(plotx, plot_err[0], pen=None)
+            l2 = pg.PlotCurveItem(plotx, plot_err[1], pen=None)
+            pfill = pg.FillBetweenItem(l1, l2, pen=None, brush=self.b0)
+            self.ax.addItem(pfill)
+            self.ax.plot(plotx, ploty, pen=self.p0)
+
+            # Add the region selector
+            self.lr = pg.LinearRegionItem([plotx[0], plotx[-1]])
+            self.lr.setZValue(-10)
+            self.ax.addItem(self.lr)
+        except AttributeError:
+            pass
+
 
 # =============================================================================
 # Calculate Flux
