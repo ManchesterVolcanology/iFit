@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 class Analyser():
-
-    """Object to perform the spectral analysis
+    """Object to perform the spectral analysis.
 
     Parameters
     ----------
@@ -95,9 +94,8 @@ class Analyser():
                  model_spacing=0.01, flat_flag=False, flat_path=None,
                  stray_flag=False, stray_window=[280, 290], dark_flag=False,
                  ils_type='Manual', ils_path=None, despike_flag=False,
-                 spike_limit=None):
+                 spike_limit=None, bad_pixels=None):
         """Initialise the model for the analyser."""
-
         # Set the initial estimate for the fit parameters
         self.params = params.make_copy()
         self.p0 = self.params.fittedvalueslist()
@@ -163,14 +161,23 @@ class Analyser():
                 self.ils = make_ils(model_spacing, *ils_params)
 
                 self.generate_ils = False
-                logger.info('ILS imported')
+                logger.info(f'ILS parameters imported: {ils_path}')
 
             except OSError:
                 logger.error(f'{ils_path} file not found!')
 
         # Manually set the ILS params
         if ils_type == 'Manual':
-            self.generate_ils = True
+
+            # Check if they're all fixed
+            keys = ['fwem', 'k', 'a_w', 'a_k']
+            vary_check = np.array([params[k].vary for k in keys])
+            if vary_check.any():
+                self.generate_ils = True
+            else:
+                ils_params = [params[k].value for k in keys]
+                self.ils = make_ils(model_spacing, *ils_params)
+                self.generate_ils = False
 
         # ---------------------------------------------------------------------
         # Import solar spectrum
@@ -228,6 +235,7 @@ class Analyser():
         self.model_spacing = model_spacing
         self.despike_flag = despike_flag
         self.spike_limit = spike_limit
+        self.bad_pixels = bad_pixels
 
 # =============================================================================
 #   Spectrum Pre-processing
@@ -251,7 +259,6 @@ class Analyser():
         processed_spec : 2D numpy array
             The processed spectrum.
         """
-
         # Unpack spectrum
         x, y = spectrum
 
@@ -288,8 +295,13 @@ class Analyser():
             # Find any points that are over the spike limit and replace with
             # smoothed values
             spike_idx = np.where(dspec > self.spike_limit)[0]
-            x = np.delete(x, spike_idx)
-            y = np.delete(y, spike_idx)
+            for i in spike_idx:
+                y[i] = sy[i]
+
+        # Remove bad pixels
+        if self.bad_pixels is not None:
+            for i in self.bad_pixels:
+                y[i] = np.average([y[i-1], y[i+1]])
 
         # Cut desired wavelength window
         fit_idx = np.where(np.logical_and(x >= self.fit_window[0],
@@ -361,7 +373,6 @@ class Analyser():
         fit_result : ifit.spectral_analysis.FitResult object
             An object that contains the fit results
         """
-
         # If a new fit window is given, trim the cross-sections down
         if fit_window is not None:
 
@@ -437,7 +448,7 @@ class Analyser():
 # =============================================================================
 
     def fwd_model(self, x, *p0):
-        """iFit forward model to fit measured UV sky spectra.
+        """Forward model for iFit to fit measured UV sky spectra.
 
         Parameters
         ----------
@@ -462,7 +473,6 @@ class Analyser():
         fit, array
             Fitted spectrum interpolated onto the spectrometer wavelength grid
         """
-
         # Get dictionary of fitted parameters
         params = self.params
         p = params.valuesdict()
@@ -486,25 +496,51 @@ class Analyser():
         bg_poly = np.polyval(bg_poly_coefs, self.model_grid)
         frs = np.multiply(self.frs, bg_poly)
 
-        # Create empty array to hold optical depth spectra
-        gas_T = np.zeros((len(self.xsecs),
-                          len(self.model_grid)))
+        # Create empty arrays to hold optical depth spectra
+        plm_gas_T = np.zeros((len(self.xsecs), len(self.model_grid)))
+        sky_gas_T = np.zeros((len(self.xsecs), len(self.model_grid)))
 
         # Calculate the gas optical depth spectra
         for n, gas in enumerate(self.xsecs):
-            gas_T[n] = (np.multiply(self.xsecs[gas], p[gas]))
+            if self.params[gas].plume_gas:
+                plm_gas_T[n] = (np.multiply(self.xsecs[gas], p[gas]))
+            else:
+                sky_gas_T[n] = (np.multiply(self.xsecs[gas], p[gas]))
 
         # Sum the gas ODs
-        sum_gas_T = np.sum(gas_T, axis=0)
+        sum_plm_T = np.sum(np.vstack([plm_gas_T, sky_gas_T]), axis=0)
+        sky_plm_T = np.sum(sky_gas_T, axis=0)
 
         # Build the exponent term
-        exponent = np.exp(-sum_gas_T)
-
-        # Build the baseline polynomial
-        offset = np.polyval(offset_coefs, self.model_grid)
+        plm_exponent = np.exp(-sum_plm_T)
+        sky_exponent = np.exp(-sky_plm_T)
 
         # Build the complete model
-        raw_F = np.multiply(frs, exponent) + offset
+        sky_F = np.multiply(frs, sky_exponent)
+        plm_F = np.multiply(frs, plm_exponent)
+
+        # Add effects of light dilution
+        if 'LDF' in p and p['LDF'] != 0:
+
+            # Calculate constant light dilution
+            ldf_const = - np.log(1-p['LDF'])*(310**4)
+
+            # Add wavelength dependancy to light dilution factor
+            rayleigh_scale = self.model_grid**-4
+            ldf = 1-np.exp(-ldf_const * rayleigh_scale)
+
+        else:
+            ldf = 0
+
+        # Construct the plume and diluting light spectra, scaling by the ldf
+        dilut_F = np.multiply(sky_F, ldf)
+        plume_F = np.multiply(plm_F, 1-ldf)
+
+        # Build the baseline offset polynomial
+        offset = np.polyval(offset_coefs, self.model_grid)
+
+        # Combine the undiluted light, diluted light and offset
+        raw_F = np.add(dilut_F, plume_F) + offset
 
         # Generate the ILS
         if self.generate_ils:
@@ -522,7 +558,8 @@ class Analyser():
         F_conv = np.convolve(raw_F, ils, 'same')
 
         # Apply shift and stretch to the model_grid
-        wl_shift = np.polyval(shift_coefs, self.model_grid)
+        zero_grid = self.model_grid - min(self.model_grid)
+        wl_shift = np.polyval(shift_coefs, zero_grid)
         shift_model_grid = np.add(self.model_grid, wl_shift)
 
         # Interpolate onto measurement wavelength grid
@@ -538,7 +575,7 @@ class Analyser():
 # =============================================================================
 
 class FitResult():
-    """Contains the fit results
+    """Contains the fit results.
 
     Parameters
     ----------
@@ -641,7 +678,7 @@ class FitResult():
                 self.resid = (self.spec - self.fit)/self.spec * 100
 
             # Check the fit quality
-            if resid_limit is not None and max(self.resid) > resid_limit:
+            if resid_limit is not None and max(abs(self.resid)) > resid_limit:
                 logger.info('High residual detected')
                 self.nerr = 2
 
@@ -678,7 +715,7 @@ class FitResult():
 # =============================================================================
 
     def calc_od(self, par_name, analyser):
-        """Calculates the optical depth for the given parameter
+        """Calculate the optical depth for the given parameter.
 
         Parameters
         ----------
@@ -696,7 +733,6 @@ class FitResult():
             The synthetic optical depth, calculated by multiplying the
             parameter cross-section by the fitted amount
         """
-
         # Make a copy of the parameters to use in the OD calculation
         params = self.params.make_copy()
 
@@ -714,7 +750,8 @@ class FitResult():
 
         # Calculate the shifted model grid
         shift_coefs = [p[n] for n in p if 'shift' in n]
-        wl_shift = np.polyval(shift_coefs, analyser.model_grid)
+        zero_grid = analyser.model_grid - min(analyser.model_grid)
+        wl_shift = np.polyval(shift_coefs, zero_grid)
         shift_model_grid = np.add(analyser.model_grid, wl_shift)
 
         # Calculate the wavelength offset

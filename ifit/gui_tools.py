@@ -2,6 +2,7 @@ import os
 import sys
 import yaml
 import logging
+import traceback
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
@@ -9,14 +10,15 @@ from functools import partial
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
 from PyQt5.QtGui import QIcon, QPalette, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThreadPool, QRunnable, pyqtSlot
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QLabel, QTextEdit, QLineEdit, QPushButton, QFrame,
                              QFileDialog, QScrollArea, QCheckBox, QSplitter,
                              QComboBox, QDoubleSpinBox, QTableWidget,
                              QTableWidgetItem, QTabWidget, QMessageBox)
 
-from ifit.gui_functions import QTextEditLogger
+from ifit.gui_functions import QTextEditLogger, DSpinBox, WorkerSignals
+from ifit.light_dilution import ld_launcher
 
 try:
     from .make_ils import super_gaussian
@@ -29,12 +31,96 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+# Create a worker to handle QThreads for light dilution analysis
+class LDWorker(QRunnable):
+    """Worker thread.
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up
+
+    Parameters
+    ----------
+    fn : function
+        The function to run on the worker thread
+    mode : str
+        Flags which signals to use. Must be one of 'analyse' or 'acquire', for
+        a spectral analysis or acquisition thread respectively
+
+    Attributes
+    ----------
+    args : list
+        Arguments to  pass to the function
+    kwargs : dict
+        Keyword arguments to pass to the function
+    signals : WorkerSignals object
+        The worker signals
+    is_paused : bool
+        State to show if the worker has been paused
+    is_killed : bool
+        State to show if the worker has been killed
+    spec_fname : str
+        File path to the last measured spectrum
+    """
+
+    def __init__(self, fn, *args, **kwargs):
+        super(LDWorker, self).__init__()
+
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+
+        # Set killed and paused flags
+        self.is_paused = False
+        self.is_killed = False
+
+        # Create a holder for the spectrum filepath
+        self.spec_fname = None
+
+        # Add the callbacks to our kwargs
+        self.kwargs['data_callback'] = self.signals.data
+
+    @pyqtSlot()
+    def run(self):
+        """Initialise the runner function with passed args and kwargs."""
+        # Retrieve args/kwargs here; and fire processing using them
+        try:
+            self.fn(self, *self.args, **self.kwargs)
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+
+        # Done
+        self.signals.finished.emit()
+
+    def pause(self):
+        """Pause the analysis/acquisition."""
+        if self.is_paused:
+            self.is_paused = False
+        else:
+            self.is_paused = True
+
+    def resume(self):
+        """Resume the analysis/acquisition."""
+        self.is_paused = False
+
+    def kill(self):
+        """Terminate the analysis/acquisition."""
+        if self.is_paused:
+            self.is_paused = False
+        self.is_killed = True
+
+
 # =============================================================================
 # Calculate Flux
 # =============================================================================
 
 class CalcFlux(QMainWindow):
+    """Open a window for flux analysis."""
+
     def __init__(self, parent=None):
+        """Initialise the window."""
         super(CalcFlux, self).__init__(parent)
 
         # Set the window properties
@@ -59,8 +145,7 @@ class CalcFlux(QMainWindow):
         self._createApp()
 
     def _createApp(self):
-        """Create the app widgets"""
-
+        """Create the app widgets."""
         # Create a frame to hold program controls
         self.controlFrame = QFrame(self)
         self.controlFrame.setFrameShape(QFrame.StyledPanel)
@@ -100,8 +185,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def _createControls(self):
-        """Build the main GUI controls"""
-
+        """Build the main GUI controls."""
         # Generate main layout
         layout = QGridLayout(self.controlFrame)
 
@@ -158,8 +242,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def _createVolcano(self):
-        """Inputs for the volcano data"""
-
+        """Create the volcano data inputs."""
         # Load volcano data
         self.volcano_data = {}
         if os.path.isfile('bin/volcano_data.yml'):
@@ -219,8 +302,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def _createOutput(self):
-        """Program Outputs"""
-
+        """Create the program outputs."""
         # Generate the layout
         layout = QGridLayout(self.outputFrame)
 
@@ -261,8 +343,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def _createGraphs(self):
-        """Generate the graphs"""
-
+        """Generate the graphs."""
         layout = QGridLayout(self.graphFrame)
         pg.setConfigOptions(antialias=True)
 
@@ -291,7 +372,13 @@ class CalcFlux(QMainWindow):
         self.ax.setLabel('bottom', 'Time')
 
         # Add the graphs to the layout
-        g1layout.addWidget(graphwin, 0, 0, 0, 0)
+        g1layout.addWidget(graphwin, 0, 0, 0, 5)
+
+        # Create a combobox to determine x axis as time or number
+        self.x_axis = QComboBox()
+        self.x_axis.addItems(['Time', 'Number'])
+        self.x_axis.currentIndexChanged.connect(self.switch_x_axis)
+        g1layout.addWidget(self.x_axis, 1, 2)
 
         g2layout = QGridLayout(tab2)
         graphwin = pg.GraphicsWindow(show=True)
@@ -321,8 +408,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def update_volcano_data(self):
-        """Update the volcano data on combobox change"""
-
+        """Update the volcano data on combobox change."""
         volc = str(self.volcano.currentText())
 
         if volc != '--select--':
@@ -336,8 +422,7 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
     def import_data(self):
-        """Import the traverse data"""
-
+        """Import the traverse data."""
         logger.info('Importing traverse data...')
 
         # Ask to save any outstanding fluxes
@@ -360,6 +445,7 @@ class CalcFlux(QMainWindow):
 
         self.so2_time = np.array([t.hour + t.minute/60 + t.second/3600
                                   for t in so2_df['Time']])
+        self.so2_num = so2_df['Number'].to_numpy()
         self.so2_scd = so2_df['SO2'].to_numpy()
         self.so2_err = so2_df['SO2_err'].to_numpy()
 
@@ -388,16 +474,21 @@ class CalcFlux(QMainWindow):
                         ploty + self.so2_err/10**order]
             self.ax.setLabel('left', f'Fit value (1e{order})')
 
+        if self.x_axis.currentText() == 'Time':
+            plotx = self.so2_time
+        else:
+            plotx = self.so2_num
+
         # Update the graph
         self.ax.clear()
-        l1 = pg.PlotCurveItem(self.so2_time, plot_err[0], pen=None)
-        l2 = pg.PlotCurveItem(self.so2_time, plot_err[1], pen=None)
+        l1 = pg.PlotCurveItem(plotx, plot_err[0], pen=None)
+        l2 = pg.PlotCurveItem(plotx, plot_err[1], pen=None)
         pfill = pg.FillBetweenItem(l1, l2, pen=None, brush=self.b0)
         self.ax.addItem(pfill)
-        self.ax.plot(self.so2_time, ploty, pen=self.p0)
+        self.ax.plot(plotx, ploty, pen=self.p0)
 
         # Add the region selector
-        self.lr = pg.LinearRegionItem([self.so2_time[0], self.so2_time[-1]])
+        self.lr = pg.LinearRegionItem([plotx[0], plotx[-1]])
         self.lr.setZValue(-10)
         self.ax.addItem(self.lr)
 
@@ -413,13 +504,44 @@ class CalcFlux(QMainWindow):
 
         logger.info('Traverses imported!')
 
+    def switch_x_axis(self):
+        """Switch traverse x axis."""
+        try:
+            ploty = self.so2_scd
+
+            if np.nanmax(self.so2_scd) > 1e6:
+                order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
+                ploty = ploty / 10**order
+                plot_err = [ploty - self.so2_err/10**order,
+                            ploty + self.so2_err/10**order]
+                self.ax.setLabel('left', f'Fit value (1e{order})')
+
+            if self.x_axis.currentText() == 'Time':
+                plotx = self.so2_time
+            else:
+                plotx = self.so2_num
+
+            # Update the graph
+            self.ax.clear()
+            l1 = pg.PlotCurveItem(plotx, plot_err[0], pen=None)
+            l2 = pg.PlotCurveItem(plotx, plot_err[1], pen=None)
+            pfill = pg.FillBetweenItem(l1, l2, pen=None, brush=self.b0)
+            self.ax.addItem(pfill)
+            self.ax.plot(plotx, ploty, pen=self.p0)
+
+            # Add the region selector
+            self.lr = pg.LinearRegionItem([plotx[0], plotx[-1]])
+            self.lr.setZValue(-10)
+            self.ax.addItem(self.lr)
+        except AttributeError:
+            pass
+
 # =============================================================================
 # Calculate Flux
 # =============================================================================
 
     def calc_flux(self):
-        """Calculate the flux from the selected traverse"""
-
+        """Calculate the flux from the selected traverse."""
         logger.info('Calculating flux:')
 
         # Pull the relavant data from the GUI
@@ -514,7 +636,7 @@ class CalcFlux(QMainWindow):
 
         # Calculate the Flux Error
         so2_err[abs(so2_err) == np.inf] = np.nan
-        tot_so2_err = np.nansum(np.power(so2_err, 2)) ** 0.5
+        tot_so2_err = np.nansum(so2_err)
         frac_so2_err = tot_so2_err / np.nansum(so2_scd)
 
         # Combine with the wind speed error
@@ -565,7 +687,7 @@ class CalcFlux(QMainWindow):
         self.save_flag = True
 
     def del_trav(self):
-        """Delete the last traverse"""
+        """Delete the last traverse."""
         if self.trav_no > 0:
             logger.info('Removing last traverse')
             self.trav_no -= 1
@@ -575,8 +697,7 @@ class CalcFlux(QMainWindow):
             self.save_flag = False
 
     def save_fluxes(self):
-        """Output the flux results"""
-
+        """Output the flux results."""
         # Make sure the output directory exists, and create if not
         out_path = self.out_path.text()
         if not os.path.isdir(out_path):
@@ -622,7 +743,7 @@ class CalcFlux(QMainWindow):
         self.save_flag = False
 
     def closeEvent(self, event):
-        """Handle GUI closure"""
+        """Handle GUI closure."""
         if self.save_flag:
             options = QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
             reply = QMessageBox.question(self, 'Message',
@@ -643,7 +764,10 @@ class CalcFlux(QMainWindow):
 # =============================================================================
 
 class ILSWindow(QMainWindow):
+    """Opens ILS analysis window."""
+
     def __init__(self, parent=None):
+        """Initialise the ILS window."""
         super(ILSWindow, self).__init__(parent)
 
         # Set the window properties
@@ -741,8 +865,7 @@ class ILSWindow(QMainWindow):
         layout.addWidget(w, 0, 5, 5, 1)
 
     def import_spectra(self):
-        """Read in ILS spectra and display"""
-
+        """Read in ILS spectra and display."""
         # Read in the dark spectra
         files = self.dark_fnames.toPlainText()
         if files == '':
@@ -779,8 +902,7 @@ class ILSWindow(QMainWindow):
         self.ax0.addItem(self.lr)
 
     def measure_ils(self):
-        """Measure the ILS on the selected line"""
-
+        """Measure the ILS on the selected line."""
         # Get the highlighted region
         i0, i1 = self.lr.getRegion()
         idx = np.where(np.logical_and(self.x >= i0, self.x <= i1))
@@ -810,6 +932,7 @@ class ILSWindow(QMainWindow):
         self.ax1.plot(ngrid, fit, pen=pg.mkPen(color='#ff7f0e', width=1.0))
 
     def save_fit(self):
+        """Save the ILS fit parameters."""
         w, k, a_w, a_k, shift, amp, offset = self.popt
 
         fwem = 2*w
@@ -823,7 +946,10 @@ class ILSWindow(QMainWindow):
 # =============================================================================
 
 class FLATWindow(QMainWindow):
+    """Open a window for flat-field analysis."""
+
     def __init__(self, parent=None):
+        """Initialise the window."""
         super(FLATWindow, self).__init__(parent)
 
         # Set the window properties
@@ -923,7 +1049,7 @@ class FLATWindow(QMainWindow):
         layout.addWidget(w, 0, 5, 5, 1)
 
     def import_spectra(self):
-        """Read in ILS spectra and display"""
+        """Read in ILS spectra and display."""
         # Read in the dark spectra
         files = self.dark_fnames.toPlainText()
         if files == '':
@@ -962,8 +1088,7 @@ class FLATWindow(QMainWindow):
         self.ax0.addItem(self.lr)
 
     def measure_flat(self):
-        """Measure the flat spectrum across the selected region"""
-
+        """Measure the flat spectrum across the selected region."""
         width = 5
 
         # Get the highlighted region
@@ -997,14 +1122,429 @@ class FLATWindow(QMainWindow):
         self.ax2.plot(self.grid, self.flat, pen=pg.mkPen(color='#1f77b4'))
 
     def save_fit(self):
-
+        """Save the flat response."""
         data = np.column_stack([self.grid, self.flat])
         header = 'Flat spectrum\nWavelength (nm),       Flat Response'
         np.savetxt(self.save_path.text(), data, header=header)
 
 
-def browse(gui, widget, mode='single', filter=False):
+# =============================================================================
+# Measure Light Dilution
+# =============================================================================
 
+class LDFWindow(QMainWindow):
+    """Open a window for light dilution analysis."""
+
+    def __init__(self, widgetData, parent=None):
+        """Initialise the window."""
+        super(LDFWindow, self).__init__(parent)
+
+        # Set the window properties
+        self.setWindowTitle('Light Dilution Analysis')
+        self.statusBar().showMessage('Ready')
+        self.setGeometry(40, 40, 1200, 700)
+        self.setWindowIcon(QIcon('bin/icon.ico'))
+
+        # Generate the threadpool for launching background processes
+        self.threadpool = QThreadPool()
+
+        # Set the window layout
+        self.generalLayout = QGridLayout()
+        self._centralWidget = QScrollArea()
+        self.widget = QWidget()
+        self.setCentralWidget(self._centralWidget)
+        self.widget.setLayout(self.generalLayout)
+
+        # Scroll Area Properties
+        self._centralWidget.setWidgetResizable(True)
+        self._centralWidget.setWidget(self.widget)
+
+        # Save the main GUI widget data
+        self.widgetData = widgetData
+
+        self._createApp()
+
+    def _createApp(self):
+        """Create the main app widgets."""
+        # Create a frame to hold program controls
+        self.controlFrame = QFrame(self)
+        self.controlFrame.setFrameShape(QFrame.StyledPanel)
+
+        # Create a frame to hold program outputs
+        self.outputFrame = QFrame(self)
+        self.outputFrame.setFrameShape(QFrame.StyledPanel)
+
+        # Create a frame to hold graphs
+        self.graphFrame = QFrame(self)
+        self.graphFrame.setFrameShape(QFrame.StyledPanel)
+
+        # Add splitters to allow for adjustment
+        splitter1 = QSplitter(Qt.Vertical)
+        splitter1.addWidget(self.controlFrame)
+        splitter1.addWidget(self.outputFrame)
+
+        splitter2 = QSplitter(Qt.Horizontal)
+        splitter2.addWidget(splitter1)
+        splitter2.addWidget(self.graphFrame)
+
+        # Pack the Frames and splitters
+        self.generalLayout.addWidget(splitter2)
+
+        # Create the individual widgets
+        self._createControls()
+        self._createOutput()
+        self._createGraphs()
+
+# =============================================================================
+#   Program controls
+# =============================================================================
+
+    def _createControls(self):
+        """Create main analysis controls."""
+        # Setup tab layout
+        tablayout = QGridLayout(self.controlFrame)
+
+        # Generate tabs for the gaphs and settings
+        tab1 = QWidget()
+        tab2 = QWidget()
+
+        # Form the tab widget
+        tabwidget = QTabWidget()
+        tabwidget.addTab(tab1, 'Generate Curves')
+        tabwidget.addTab(tab2, 'Load Data')
+        tablayout.addWidget(tabwidget, 0, 0)
+
+        # Generate Curves =====================================================
+
+        # Setup the main layout
+        layout = QGridLayout(tab1)
+        layout.setAlignment(Qt.AlignTop)
+
+        # Create an option menu for the spectra format
+        layout.addWidget(QLabel('Format:'), 0, 0)
+        self.spec_type = QComboBox()
+        self.spec_type.addItems(['iFit',
+                                 'Master.Scope',
+                                 'Spectrasuite',
+                                 'mobileDOAS',
+                                 'Basic'])
+        self.spec_type.setFixedSize(100, 20)
+        layout.addWidget(self.spec_type, 0, 1)
+        index = self.spec_type.findText(self.widgetData['spec_type'],
+                                        Qt.MatchFixedString)
+        if index >= 0:
+            self.spec_type.setCurrentIndex(index)
+
+        # Add an input for the spectra selection
+        layout.addWidget(QLabel('Spectra:'), 1, 0)
+        self.spec_fnames = QTextEdit()
+        self.spec_fnames.setFixedHeight(75)
+        layout.addWidget(self.spec_fnames, 1, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.spec_fnames, 'multi'))
+        layout.addWidget(btn, 1, 4)
+
+        # Add an input for the dark selection
+        layout.addWidget(QLabel('Dark Spectra:'), 2, 0)
+        self.dark_fnames = QTextEdit()
+        self.dark_fnames.setFixedHeight(75)
+        layout.addWidget(self.dark_fnames, 2, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.dark_fnames, 'multi'))
+        layout.addWidget(btn, 2, 4)
+
+        # Add spinboxs for the fit windows
+        layout.addWidget(QLabel('Fit Window 1:\n    (nm)'), 3, 0, 2, 1)
+        self.wb1_lo = DSpinBox(306, [0, 10000], 0.1)
+        self.wb1_lo.setFixedSize(70, 20)
+        layout.addWidget(self.wb1_lo, 3, 1)
+        self.wb1_hi = DSpinBox(316, [0, 10000], 0.1)
+        self.wb1_hi.setFixedSize(70, 20)
+        layout.addWidget(self.wb1_hi, 4, 1)
+
+        layout.addWidget(QLabel('Fit Window 2:\n    (nm)'), 3, 2, 2, 1)
+        self.wb2_lo = DSpinBox(312, [0, 10000], 0.1)
+        self.wb2_lo.setFixedSize(70, 20)
+        layout.addWidget(self.wb2_lo, 3, 3)
+        self.wb2_hi = DSpinBox(322, [0, 10000], 0.1)
+        self.wb2_hi.setFixedSize(70, 20)
+        layout.addWidget(self.wb2_hi, 4, 3)
+
+        # Add entries for the SO2 grid
+        layout.addWidget(QLabel('SO<sub>2</sub> Grid Low:'), 5, 0)
+        self.so2_grid_lo = QLineEdit()
+        self.so2_grid_lo.setText('0.0')
+        self.so2_grid_lo.setFixedSize(100, 20)
+        layout.addWidget(self.so2_grid_lo, 5, 1)
+        layout.addWidget(QLabel('SO<sub>2</sub> Grid High:'), 6, 0)
+        self.so2_grid_hi = QLineEdit()
+        self.so2_grid_hi.setText('1.0e19')
+        self.so2_grid_hi.setFixedSize(100, 20)
+        layout.addWidget(self.so2_grid_hi, 6, 1)
+        layout.addWidget(QLabel('SO<sub>2</sub> Grid Step:'), 7, 0)
+        self.so2_grid_step = QLineEdit()
+        self.so2_grid_step.setText('5.0e17')
+        self.so2_grid_step.setFixedSize(100, 20)
+        layout.addWidget(self.so2_grid_step, 7, 1)
+
+        # Add entries for the LDF grid
+        layout.addWidget(QLabel('LDF Grid Low:'), 5, 2)
+        self.ldf_grid_lo = QLineEdit()
+        self.ldf_grid_lo.setText('0.0')
+        self.ldf_grid_lo.setFixedSize(100, 20)
+        layout.addWidget(self.ldf_grid_lo, 5, 3)
+        layout.addWidget(QLabel('LDF Grid High:'), 6, 2)
+        self.ldf_grid_hi = QLineEdit()
+        self.ldf_grid_hi.setText('0.9')
+        self.ldf_grid_hi.setFixedSize(100, 20)
+        layout.addWidget(self.ldf_grid_hi, 6, 3)
+        layout.addWidget(QLabel('LDF Grid Step:'), 7, 2)
+        self.ldf_grid_step = QLineEdit()
+        self.ldf_grid_step.setText('0.1')
+        self.ldf_grid_step.setFixedSize(100, 20)
+        layout.addWidget(self.ldf_grid_step, 7, 3)
+
+        # Add an input for the save selection
+        layout.addWidget(QLabel('Output File:'), 8, 0)
+        self.save_path = QLineEdit()
+        self.save_path.setFixedHeight(25)
+        layout.addWidget(self.save_path, 8, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.save_path,
+                                    'save', "Text (*.txt)"))
+        layout.addWidget(btn, 8, 4)
+
+        # Add button to begin analysis
+        self.start_btn = QPushButton('Begin!')
+        self.start_btn.clicked.connect(partial(self.calc_ld_curves))
+        self.start_btn.setFixedSize(90, 25)
+        layout.addWidget(self.start_btn, 9, 1)
+
+        # Add button to pause analysis
+        self.save_btn = QPushButton('Save')
+        self.save_btn.clicked.connect(partial(self.save_ld_curves))
+        self.save_btn.setFixedSize(90, 25)
+        self.save_btn.setEnabled(False)
+        layout.addWidget(self.save_btn, 9, 2)
+
+        # Load Curves =========================================================
+
+        # Setup the main layout
+        layout = QGridLayout(tab2)
+        layout.setAlignment(Qt.AlignTop)
+
+        # Add an input for the loading selection
+        layout.addWidget(QLabel('Light Dilution\nCurve File:'), 0, 0)
+        self.load_path = QLineEdit()
+        self.load_path.setFixedHeight(25)
+        layout.addWidget(self.load_path, 0, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.load_path,
+                                    'single', "Text (*.txt)"))
+        layout.addWidget(btn, 0, 4)
+        btn = QPushButton('Load')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(self.load_ld_curves)
+        layout.addWidget(btn, 0, 5)
+
+        layout.addWidget(QHLine(), 1, 0, 1, 5)
+
+        # Add an input for the iFit output files
+        layout.addWidget(QLabel('iFit Output:\n(W1):'), 2, 0)
+        self.ifit_1_path = QLineEdit()
+        self.ifit_1_path.setFixedHeight(25)
+        layout.addWidget(self.ifit_1_path, 2, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.ifit_1_path,
+                                    'single', "Comma separated (*.csv)"))
+        layout.addWidget(btn, 2, 4)
+
+        layout.addWidget(QLabel('iFit Output:\n(W2):'), 3, 0)
+        self.ifit_2_path = QLineEdit()
+        self.ifit_2_path.setFixedHeight(25)
+        layout.addWidget(self.ifit_2_path, 3, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.ifit_2_path,
+                                    'single', "Comma separated (*.csv)"))
+        layout.addWidget(btn, 3, 4)
+
+        btn = QPushButton('Load')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(self.load_ifit_data)
+        layout.addWidget(btn, 2, 5, 2, 1)
+
+# =============================================================================
+#   Program outputs
+# =============================================================================
+
+    def _createOutput(self):
+        """Create program output widgets."""
+        # Generate the layout
+        layout = QGridLayout(self.outputFrame)
+
+        # Create a textbox to display the program messages
+        self.logBox = QTextEditLogger(self)
+        self.logBox.setFormatter(logging.Formatter('%(message)s'))
+        logging.getLogger().addHandler(self.logBox)
+        logging.getLogger().setLevel(logging.INFO)
+        layout.addWidget(self.logBox.widget, 0, 0)
+
+# =============================================================================
+#   Graphs
+# =============================================================================
+
+    def _createGraphs(self):
+        """Generate the graphs."""
+        # Generate the graph layout and window
+        layout = QGridLayout(self.graphFrame)
+        pg.setConfigOptions(antialias=True)
+        graphwin = pg.GraphicsWindow(show=True)
+
+        # Make the graphs
+        self.ax = graphwin.addPlot()
+
+        self.ax.setDownsampling(mode='peak')
+        self.ax.setClipToView(True)
+        self.ax.showGrid(x=True, y=True)
+
+        # Add axis labels
+        self.ax.setLabel('left', 'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>)')
+        self.ax.setLabel('bottom', 'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>)')
+
+        # Add the graphs to the layout
+        layout.addWidget(graphwin, 0, 0, 0, 0)
+
+# =============================================================================
+#   Program functions
+# =============================================================================
+
+    def calc_ld_curves(self):
+        """Calculate Light Dilution curve data."""
+        # Disable buttons
+        self.start_btn.setEnabled(False)
+        self.save_btn.setEnabled(False)
+
+        # Pull the waveband data from the LD gui and pad for the initial fit
+        self.widgetData['fit_lo'] = self.wb1_lo.value() - 1
+        self.widgetData['fit_hi'] = self.wb2_hi.value() + 1
+
+        # Grab the spectra type from the GUI
+        self.widgetData['spec_type'] = self.spec_type.currentText()
+
+        # Pull the waveband, SO2 and LDF grid info from the GUI
+        ld_kwargs = {'wb1': [self.wb1_lo.value(), self.wb1_hi.value()],
+                     'wb2': [self.wb2_lo.value(), self.wb2_hi.value()],
+                     'so2_lims': [float(self.so2_grid_lo.text()),
+                                  float(self.so2_grid_hi.text())],
+                     'so2_step': float(self.so2_grid_step.text()),
+                     'ldf_lims': [float(self.ldf_grid_lo.text()),
+                                  float(self.ldf_grid_hi.text())],
+                     'ldf_step': float(self.ldf_grid_step.text())}
+
+        # Load the spectra to fit
+        spec_fnames = self.spec_fnames.toPlainText().split('\n')
+        dark_fnames = self.dark_fnames.toPlainText().split('\n')
+
+        # Initialise the analysis worker
+        self.worker = LDWorker(ld_launcher, spec_fnames, dark_fnames,
+                               self.widgetData, ld_kwargs)
+        self.worker.signals.finished.connect(self.analysis_complete)
+        self.worker.signals.data.connect(self.handle_data)
+        self.threadpool.start(self.worker)
+
+    def handle_data(self, ld_results):
+        """Handle the LD results."""
+        self.ld_results = ld_results
+        self.plot_ld_curves(ld_results)
+
+    def analysis_complete(self):
+        """Run when LD analysis is complete."""
+        self.start_btn.setEnabled(True)
+        self.save_btn.setEnabled(True)
+
+    def save_ld_curves(self):
+        """Save Light Dilution curve data."""
+        if self.save_path.text() == '':
+            filter = "Text (*.txt)"
+            fname, _ = QFileDialog.getSaveFileName(self, 'Save As', '', filter)
+        else:
+            fname = self.save_path.text()
+
+        header = 'LDF Curves generated by iFit. All SCDs in [molec/cm^2]\n' \
+                 + f'W1: {self.wb1_lo.value()} - {self.wb1_hi.value()} nm' \
+                 + f'W2: {self.wb2_lo.value()} - {self.wb2_hi.value()} nm' \
+                 + 'LDF\tModel SO2 SCD\tW1 SO2 SCD\t W1 SO2 Err\t' \
+                 + 'W2 SO2 SCD\t W2 SO2 Err'
+        np.savetxt(fname, self.ld_results, header=header)
+
+        logger.info('Light dilution curve data saved!')
+
+    def load_ld_curves(self):
+        """Load the light dilution curve data."""
+        if self.load_path.text() == '':
+            filter = "Text (*.txt)"
+            fname, _ = QFileDialog.getOpenFileName(self, 'Load', '', filter)
+        else:
+            fname = self.load_path.text()
+
+        self.ld_results = np.loadtxt(fname)
+        self.plot_ld_curves(self.ld_results)
+        logger.info('Light dilution curve data loaded!')
+
+    def load_ifit_data(self):
+        """Load the light dilution curve data."""
+        # Read in the iFit analysis results
+        df1 = pd.read_csv(self.ifit_1_path.text())
+        df2 = pd.read_csv(self.ifit_2_path.text())
+
+        # Plot on the graph
+        p0 = pg.mkPen(color='#1f77b4', width=0.5)
+        line = self.ax.plot(df1['SO2'], df2['SO2'], pen=None, symbolPen=p0,
+                            symbol='o', brush=None)
+        line.setAlpha(0.75, False)
+
+        logger.info('iFit data loaded!')
+
+    def plot_ld_curves(self, ld_results):
+        """Plot the light dilution curves."""
+        # Clear the plot
+        self.ax.clear()
+
+        # Pull out the unique LDF values
+        ldf_grid = np.unique(ld_results[:, 0])
+
+        # Makes pens to distinguish lines
+        p0 = pg.mkPen(color='#2ca02c', width=2.0)
+        p1 = pg.mkPen(color='#d62728', width=2.0)
+
+        # Get the curve data for each LDF value
+        for i, ldf in enumerate(ldf_grid):
+            row_idx = np.where(ld_results[:, 0] == ldf)[0]
+            so2_scd_1 = ld_results[row_idx, 2]
+            # so2_err_1 = ld_results[row_idx, 3]
+            so2_scd_2 = ld_results[row_idx, 4]
+            # so2_err_2 = ld_results[row_idx, 5]
+
+            if not i % 2:
+                pen = p0
+            else:
+                pen = p1
+            self.ax.plot(so2_scd_1, so2_scd_2, pen=pen, hoverable=True,
+                         name=f'{ldf:.02f}')
+
+
+# =============================================================================
+# Useful functions
+# =============================================================================
+
+def browse(gui, widget, mode='single', filter=False):
+    """Open file dialouge."""
     if not filter:
         filter = None
     else:
@@ -1033,9 +1573,18 @@ def browse(gui, widget, mode='single', filter=False):
             widget.setText(fname + '/')
 
 
+class QHLine(QFrame):
+    """Horizontal line widget."""
+
+    def __init__(self):
+        super(QHLine, self).__init__()
+        self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
+
+
 # Cliet Code
 def main():
-    """Main function"""
+    """Start the main function."""
     # Create an instance of QApplication
     app = QApplication(sys.argv)
 

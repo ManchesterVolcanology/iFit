@@ -8,35 +8,36 @@ from scipy.interpolate import griddata
 # =============================================================================
 
 def super_gaussian(grid, w, k, a_w, a_k, shift=0, amp=1, offset=0):
-    """Returns a super-Gaussian line shape"""
-
-    # Make model grid
-    mod_grid = np.linspace(grid[0]-2, grid[-1]+2, 100)
-
+    """Return a super-Gaussian line shape."""
     # Compute A
     A = k / (2 * w * gamma(1/k))
 
     # Form empty array
-    ils = np.zeros(len(mod_grid))
+    ils = np.zeros(len(grid))
 
     # Iterate over x grid. If negative do one thing, if positive do the other
-    for n, x in enumerate(mod_grid):
-
-        if x <= 0:
-            ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w - a_w)),
-                                                     k - a_k)))
-
-        else:
-            ils[n] = np.multiply(A, np.exp(-np.power(np.abs((x) / (w + a_w)),
-                                                     k + a_k)))
+    ils = np.array([left_func(x, w, k, a_w, a_k) if x <= 0
+                    else right_func(x, w, k, a_w, a_k)
+                    for x in grid])
 
     # Shift the lineshape
-    mod_grid = mod_grid + shift
+    if shift != 0:
+        mod_grid = grid + shift
 
-    # Interpolate onto the measurement grid
-    ils = griddata(mod_grid, ils, grid, method='cubic')
+        # Interpolate onto the measurement grid
+        ils = griddata(mod_grid, ils, grid, method='cubic')
 
-    return ils * amp + offset
+    return ils * A * amp + offset
+
+
+def left_func(x, w, k, a_w, a_k):
+    """Left function for asymetric Gaussian."""
+    return np.exp(-np.power(np.abs((x) / (w - a_w)), k - a_k))
+
+
+def right_func(x, w, k, a_w, a_k):
+    """Right function for asymetric Gaussian."""
+    return np.exp(-np.power(np.abs((x) / (w + a_w)), k + a_k))
 
 
 # =============================================================================
@@ -44,8 +45,9 @@ def super_gaussian(grid, w, k, a_w, a_k, shift=0, amp=1, offset=0):
 # =============================================================================
 
 def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
-    """Function to generate a synthetic instrument line shape based on a super
-    Gaussian function:
+    """Generate a synthetic instrument line shape.
+
+    Generates a lineshape based on the super-Gaussian function:
 
     .                { exp(-| x / (w-a_w) | ^ (k-a_k)) for x <= 0
     G(x) = A(w, k) * {
@@ -70,12 +72,11 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
         Controls the asymetry of the lineshape. Defaults are 0
 
     Returns
-    ----------
+    -------
     ils : numpy array
         The calculated ILS function on a wavelength grid of the given spacing
         and 5 times the width of the supplied FWEM
     """
-
     # Create a 4 nm grid
     grid = np.arange(-2, 2, interval)
 
