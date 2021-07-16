@@ -22,7 +22,7 @@ from ifit.gui_functions import (analysis_loop, acquire_spectra, Widgets,
 from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
 from ifit.spectrometers import Spectrometer
 
-__version__ = '3.3'
+__version__ = '3.4'
 __author__ = 'Ben Esse'
 
 # Set up logging
