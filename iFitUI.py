@@ -498,14 +498,26 @@ class MainWindow(QMainWindow):
         l3 = ax2.plot(pen=p0)
         l4 = ax3.plot(pen=p0)
         l5 = ax3.plot(pen=p1)
-        l6 = ax4.plot(pen=p0)
+        l6 = ax4.plot(pen=pg.mkPen(color='#1f77b4', width=2.0))
 
+        # Initialise the error plot
+        self.err_plot = pg.ErrorBarItem(pen=p0)
+        ax4.addItem(self.err_plot)
+
+        # Add legend to first axis
         ax0.addLegend()
 
-        self.plot_lines = [l0, l1, l2, l3, l4, l5, l6]
+        # Colate lines into a dictionary
+        self.plot_lines = {'spectrum': l0,
+                           'fit': l1,
+                           'measurement': l2,
+                           'residual': l3,
+                           'meas_od': l4,
+                           'fit_od': l5,
+                           'series': l6}
 
         # Add the graphs to the layout
-        glayout.addWidget(self.graphwin, 0, 0, 1, 7)
+        glayout.addWidget(self.graphwin, 0, 0, 1, 8)
 
 # =============================================================================
 #      Graph settings
@@ -513,6 +525,7 @@ class MainWindow(QMainWindow):
 
         # Create a checkbox to turn plotting on or off
         self.widgets['graph_flag'] = QCheckBox('Show Graphs?')
+        self.widgets['graph_flag'].setChecked(True)
         self.widgets['graph_flag'].setToolTip('Display graph plots (can slow '
                                               + 'analysis)')
         glayout.addWidget(self.widgets['graph_flag'], 1, 0)
@@ -525,27 +538,29 @@ class MainWindow(QMainWindow):
         glayout.addWidget(self.widgets['good_fit_flag'], 1, 1)
 
         # Add combo box for the graph parameter
-        glayout.addWidget(QLabel('Parameter to graph:'), 1, 2)
+        glayout.addWidget(QLabel('Target\nParameter:'), 1, 2)
         self.widgets['graph_param'] = QComboBox()
         self.widgets['graph_param'].addItems([''])
-        # self.widgets['graph_param'].setFixedSize(70, 20)
         glayout.addWidget(self.widgets['graph_param'], 1, 3)
+
+        # Create a checkbox to plot the fit error
+        self.widgets['graph_err_flag'] = QCheckBox('Show error?')
+        self.widgets['graph_err_flag'].setToolTip('Plot fit errors for the '
+                                                  + 'tarjet parameter')
+        glayout.addWidget(self.widgets['graph_err_flag'], 1, 4)
 
         # Create a checkbox to turn scrolling on or off
         self.widgets['scroll_flag'] = QCheckBox('Scroll Graphs?')
         self.widgets['scroll_flag'].setToolTip('Allow graphs to scroll\n'
                                                + '(limits no. spectra '
                                                + 'displayed)')
-        glayout.addWidget(self.widgets['scroll_flag'], 1, 4)
+        glayout.addWidget(self.widgets['scroll_flag'], 1, 5)
 
         # Add spinbox for the graph scroll amount
-        glayout.addWidget(QLabel('No. Spectra\nTo Display:'), 1, 5)
+        glayout.addWidget(QLabel('No. Spectra\nTo Display:'), 1, 6)
         self.widgets['scroll_amt'] = SpinBox(100, [1, 10000])
         # self.widgets['scroll_amt'].setFixedSize(70, 20)
-        glayout.addWidget(self.widgets['scroll_amt'], 1, 6)
-
-        vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        glayout.addItem(vspacer, 1, 6, 1, -1)
+        glayout.addWidget(self.widgets['scroll_amt'], 1, 7)
 
 # =============================================================================
 #      Set up the scope plot
@@ -1151,6 +1166,9 @@ class MainWindow(QMainWindow):
 
         self.update_plots()
 
+    def switch_plot_target(self):
+        """Switch what parameter is displayed on the plot."""
+
     def update_plots(self):
         """Update the plots."""
         # See if the graph data has been updated
@@ -1162,11 +1180,14 @@ class MainWindow(QMainWindow):
                 # Get the time series data
                 plotx = np.array(self.df['Number'].to_numpy(), dtype=float)
                 ploty = np.array(self.df[self.key].to_numpy(), dtype=float)
+                erry = np.array(self.df[self.key + '_err'].to_numpy(),
+                                dtype=float)
 
                 # Remove failed fits
                 fail_idx = np.where(~np.isnan(ploty))
                 plotx = plotx[fail_idx]
                 ploty = ploty[fail_idx]
+                erry = erry[fail_idx]
 
                 # Remove bad points if desired
                 if self.widgets.get('good_fit_flag'):
@@ -1174,6 +1195,7 @@ class MainWindow(QMainWindow):
                     qual_idx = np.where(fit_quality == 1)[0]
                     plotx = plotx[qual_idx]
                     ploty = ploty[qual_idx]
+                    erry = erry[qual_idx]
 
                 # Scroll the graphs if desired
                 if self.widgets.get('scroll_flag'):
@@ -1181,6 +1203,7 @@ class MainWindow(QMainWindow):
                     if len(plotx) > npts:
                         plotx = plotx[-npts:]
                         ploty = ploty[-npts:]
+                        erry = erry[-npts:]
 
                 # Check that there are data to plot
                 if len(plotx) != 0:
@@ -1191,24 +1214,35 @@ class MainWindow(QMainWindow):
                     if ~np.isnan(max_val) and max_val > 1e6:
                         order = int(np.ceil(np.log10(max_val))) - 1
                         ploty = ploty / 10**order
+                        erry = erry / 10**order
                         self.plot_axes[4].setLabel('left',
                                                    f'Fit value (1e{order})')
                     else:
                         self.plot_axes[4].setLabel('left', 'Fit value')
 
                 # Plot the data
-                self.plot_lines[0].setData(self.fit_result.grid,
-                                           self.fit_result.spec)
-                self.plot_lines[1].setData(self.fit_result.grid,
-                                           self.fit_result.fit)
-                self.plot_lines[2].setData(*self.spectrum)
-                self.plot_lines[3].setData(self.fit_result.grid,
-                                           self.fit_result.resid)
-                self.plot_lines[4].setData(self.fit_result.grid,
-                                           self.fit_result.meas_od[self.key])
-                self.plot_lines[5].setData(self.fit_result.grid,
-                                           self.fit_result.synth_od[self.key])
-                self.plot_lines[6].setData(plotx, ploty)
+                plot_data = {'spectrum': [self.fit_result.grid,
+                                          self.fit_result.spec],
+                             'fit': [self.fit_result.grid,
+                                     self.fit_result.fit],
+                             'measurement': self.spectrum,
+                             'residual': [self.fit_result.grid,
+                                          self.fit_result.resid],
+                             'meas_od': [self.fit_result.grid,
+                                         self.fit_result.meas_od[self.key]],
+                             'fit_od': [self.fit_result.grid,
+                                        self.fit_result.synth_od[self.key]],
+                             'series': [plotx, ploty]}
+                for key, data in plot_data.items():
+                    self.plot_lines[key].setData(*data)
+
+                # Show error plot if selected
+                if self.widgets.get('graph_err_flag'):
+                    self.err_plot.setVisible(True)
+                    self.err_plot.setData(x=plotx, y=ploty, top=erry,
+                                          bottom=erry)
+                else:
+                    self.err_plot.setVisible(False)
 
                 # Turn off autoscaling the x axis after the first plot
                 if self.autoscale_flag:
