@@ -85,9 +85,9 @@ class MainWindow(QMainWindow):
 
         # Update GUI theme
         if self.theme == 'Dark':
-            self.changeSkinDark()
+            self.changeThemeDark()
         elif self.theme == 'Light':
-            self.changeSkinLight()
+            self.changeThemeLight()
 
     def _createApp(self):
         """Build the main GUI."""
@@ -1543,14 +1543,14 @@ class MainWindow(QMainWindow):
     def change_theme(self):
         """Change the theme."""
         if self.theme == 'Light':
-            self.changeSkinDark()
+            self.changeThemeDark()
             self.theme = 'Dark'
         elif self.theme == 'Dark':
-            self.changeSkinLight()
+            self.changeThemeLight()
             self.theme = 'Light'
 
     @pyqtSlot()
-    def changeSkinDark(self):
+    def changeThemeDark(self):
         """Change theme to dark."""
         darkpalette = QPalette()
         darkpalette.setColor(QPalette.Window, QColor(53, 53, 53))
@@ -1590,7 +1590,7 @@ class MainWindow(QMainWindow):
         self.scope_ax.getAxis('bottom').setPen(pen)
 
     @pyqtSlot()
-    def changeSkinLight(self):
+    def changeThemeLight(self):
         """Change theme to light."""
         QApplication.instance().setPalette(self.style().standardPalette())
         self.graphwin.setBackground('w')
