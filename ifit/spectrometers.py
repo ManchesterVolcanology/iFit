@@ -111,20 +111,22 @@ class Spectrometer():
         # Create an empty array to hold the spectra data
         y_arr = np.zeros([self.coadds, len(x)])
 
+        # Measure spectra from the spectrometer
         for n in range(self.coadds):
             y_arr[n] = self.spectro.intensities(self.correct_dark_counts,
                                                 self.correct_nonlinearity)
 
+        # Average the coadded spectra
         y = np.average(y_arr, axis=0)
 
-        # Get the spectrum read time
-        spec_time = datetime.now()
+        # Get the spectrum timestamp
+        timestamp = datetime.now()
 
         # Form a dictionary of spectrum info
         info = {'serial_number': self.serial_number,
                 'integration_time': self.integration_time,
                 'coadds': self.coadds,
-                'time': spec_time,
+                'timestamp': timestamp,
                 'dark_correction': self.correct_dark_counts,
                 'nonlin_correction': self.correct_nonlinearity,
                 'fname': fname}
@@ -135,7 +137,7 @@ class Spectrometer():
                 f'Spectrometer: {self.serial_number}\n' +\
                 f'Integration time (ms): {self.integration_time}\n' +\
                 f'Number of coadds: {self.coadds}\n' +\
-                f'Date/Time: {spec_time}\n' +\
+                f'Timestamp: {timestamp}\n' +\
                 f'Electronic dark correction: {self.correct_dark_counts}\n' +\
                 f'Non-linearity correction: {self.correct_nonlinearity}\n' +\
                 'Wavelength (nm),       Intensity (arb)'
@@ -207,7 +209,7 @@ class VSpectrometer():
         info = {'serial_number': self.serial_number,
                 'integration_time': self.integration_time,
                 'coadds': self.coadds,
-                'time': spec_time,
+                'timestamp': spec_time,
                 'dark_correction': self.correct_dark_counts,
                 'nonlin_correction': self.correct_nonlinearity,
                 'fname': fname}
@@ -218,7 +220,7 @@ class VSpectrometer():
                 f'Spectrometer: {self.serial_number}\n' +\
                 f'Integration time (ms): {self.integration_time}\n' +\
                 f'Number of coadds: {self.coadds}\n' +\
-                f'Date/Time: {spec_time}\n' +\
+                f'Timestamp: {spec_time}\n' +\
                 f'Electronic dark correction: {self.correct_dark_counts}\n' +\
                 f'Non-linearity correction: {self.correct_nonlinearity}\n' +\
                 'Wavelength (nm),       Intensity (arb)'
@@ -232,4 +234,3 @@ class VSpectrometer():
     def close(self):
         """Close the connection to the spectrometer."""
         logger.info(f'Connection to spectrometer {self.serial_number} closed')
-        pass

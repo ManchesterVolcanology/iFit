@@ -58,18 +58,10 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
 
     # Read the spectrum
     try:
-        grid, spec, spec_no, date_time = read_func(fname, wl_calib_file)
+        grid, spec, metadata = read_func(fname, wl_calib_file)
 
         # Report no error
         read_err = False, 'No Error'
-
-        # Unpack date and time separately
-        date = date_time.date()
-        time = date_time.time()
-
-        spec_info = {'date':    date,
-                     'time':    time,
-                     'spec_no': spec_no}
 
     # Report if the read fails
     except Exception as e:
@@ -77,13 +69,13 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
         # Something wrong with reading
         logger.warning(f'Error reading file {fname}:\n{e}')
         grid, spec = np.row_stack([[], []])
-        spec_info = {}
+        metadata = {}
         read_err = True, e
 
         if stop_on_err:
             raise Exception
 
-    return grid, spec, spec_info, read_err
+    return grid, spec, metadata, read_err
 
 
 # =============================================================================
@@ -275,15 +267,19 @@ def load_ifit(*args):
     # Load data into a numpy array
     grid, spec = np.loadtxt(fname, unpack=True)
 
-    # Extract date and time string
-    date_time = linecache.getline(fname, 5).strip().split(': ')[-1]
-
-    # Unpack date_time string
-    try:
-        date_time = datetime.strptime(date_time,
-                                      '%Y-%m-%d %H:%M:%S.%f')
-    except ValueError:
-        date_time = datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S')
+    # Extract metadata from the header
+    with open(fname, 'r') as r:
+        lines = r.readlines()
+        serial_number = lines[1].strip().split(': ')[-1]
+        integration_time = int(lines[2].strip().split(': ')[-1])
+        coadds = int(lines[3].strip().split(': ')[-1])
+        time_string = lines[4].strip().split(': ')[-1]
+        try:
+            timestamp = datetime.strptime(time_string, '%Y-%m-%d %H:%M:%S.%f')
+        except ValueError:
+            timestamp = datetime.strptime(time_string, '%Y-%m-%d %H:%M:%S')
+        elecdk_correction = bool(lines[5].strip().split(': ')[-1])
+        nonlin_correction = bool(lines[6].strip().split(': ')[-1])
 
     # Get spectrum number
     try:
@@ -291,7 +287,15 @@ def load_ifit(*args):
     except ValueError:
         spec_no = 0
 
-    return grid, spec, spec_no, date_time
+    metadata = {'spectrum_number': spec_no,
+                'serial_number': serial_number,
+                'integration_time': integration_time,
+                'coadds': coadds,
+                'timestamp': timestamp,
+                'elecdk_correction': elecdk_correction,
+                'nonlin_correction': nonlin_correction}
+
+    return grid, spec, metadata
 
 
 def load_master_scope(*args):
@@ -303,11 +307,19 @@ def load_master_scope(*args):
     grid, spec = np.genfromtxt(fname, unpack=True, skip_header=19,
                                skip_footer=1)
 
-    # Extract date and time string
-    date_time = linecache.getline(fname, 3)[6:].strip()
-
-    # Unpack date_time string
-    date_time = datetime.strptime(date_time, '%m-%d-%Y, %H:%M:%S')
+    # Extract metadata from the header
+    with open(fname, 'r') as r:
+        lines = r.readlines()
+        serial_number = lines[4].strip().split(': ')[-1]
+        integration_time = int(lines[6].strip().split(': ')[-1])
+        coadds = int(lines[7].strip().split(': ')[-1])
+        time_string = lines[2].strip().split(': ')[-1]
+        timestamp = datetime.strptime(time_string, '%m-%d-%Y, %H:%M:%S')
+        elecdk_correction = lines[9].strip().split(': ')[-1]
+        if elecdk_correction == 'Disabled':
+            elecdk_correction = False
+        else:
+            elecdk_correction = True
 
     # Get spectrum number
     try:
@@ -315,11 +327,19 @@ def load_master_scope(*args):
     except ValueError:
         spec_no = 0
 
-    return grid, spec, spec_no, date_time
+    metadata = {'spectrum_number': spec_no,
+                'serial_number': serial_number,
+                'integration_time': integration_time,
+                'coadds': coadds,
+                'timestamp': timestamp,
+                'elecdk_correction': elecdk_correction}
+
+    return grid, spec, metadata
 
 
 def load_spectrasuite(*args):
     """Load Spectrasuite file."""
+    raise Exception('Need to re-write spectrasuite read function!')
     # Unpack arguments
     fname = args[0]
 
@@ -327,16 +347,31 @@ def load_spectrasuite(*args):
     grid, spec = np.genfromtxt(fname, unpack=True, skip_header=17,
                                skip_footer=2)
 
-    # Extract date and time string
-    date_time = linecache.getline(fname, 3).strip()
-
-    # Unpack date_time string
-    date_time = datetime.strptime(date_time, '%a %b %Y %H:%M:%S')
+    # Extract metadata from the header
+    with open(fname, 'r') as r:
+        lines = r.readlines()
+        serial_number = lines[4].strip().split(': ')[-1]
+        integration_time = int(lines[6].strip().split(': ')[-1])
+        coadds = int(lines[7].strip().split(': ')[-1])
+        time_string = lines[2].strip().split(': ')[-1]
+        timestamp = datetime.strptime(time_string, '%a %b %Y %H:%M:%S')
+        elecdk_correction = lines[9].strip().split(': ')[-1]
+        if elecdk_correction == 'Disabled':
+            elecdk_correction = False
+        else:
+            elecdk_correction = True
 
     # Get spectrum number
     spec_no = int(fname[-9:-4])
 
-    return grid, spec, spec_no, date_time
+    metadata = {'spectrum_number': spec_no,
+                'serial_number': serial_number,
+                'integration_time': integration_time,
+                'coadds': coadds,
+                'timestamp': timestamp,
+                'elecdk_correction': elecdk_correction}
+
+    return grid, spec, metadata
 
 
 def load_mobile_doas(*args):
@@ -373,14 +408,27 @@ def load_mobile_doas(*args):
         spec = np.array([float(y) for y in lines[3:3+npixels]])
 
         # Pull out the metadata
-        metadata = lines[npixels+3:]
+        mlines = lines[npixels+3:]
 
-        # Get the date
-        year, month, day = [int(n) for n in metadata[3].split('.')]
-        hour, minute, second = [int(n) for n in metadata[4].split(':')]
-        date_time = datetime(year, month, day, hour, minute, second)
+        # Get the timestamp
+        year, month, day = [int(n) for n in mlines[3].split('.')]
+        hour, minute, second = [int(n) for n in mlines[4].split(':')]
+        timestamp = datetime(year, month, day, hour, minute, second)
 
-    return grid, spec, spec_no, date_time
+        metadata = {'spectrum_number': spec_no,
+                    'filename': mlines[0],
+                    'serial_number': mlines[1],
+                    'timestamp': timestamp,
+                    'unknown1': float(mlines[6]),
+                    'unknown2': float(mlines[7]),
+                    'coadds': int(mlines[8].split(' ')[-1]),
+                    'integration_time': int(mlines[9].split(' ')[-1]),
+                    'site': mlines[10].split(' ')[-1],
+                    'lon': float(mlines[11].split(' ')[-1]),
+                    'lat': float(mlines[12].split(' ')[-1]),
+                    'alt': float(mlines[12].split(' ')[-1])}
+
+    return grid, spec, metadata
 
 
 def load_basic(*args):
@@ -396,6 +444,9 @@ def load_basic(*args):
     spec_no = int(linecache.getline(fname, 2).strip())
 
     # Get the date
-    date_time = datetime.strptime(read_date, '%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.strptime(read_date, '%Y-%m-%d %H:%M:%S')
 
-    return grid, spec, spec_no, date_time
+    metadata = {'spectrum_number': spec_no,
+                'timestamp': timestamp}
+
+    return grid, spec, metadata
