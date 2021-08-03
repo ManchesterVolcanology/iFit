@@ -1,10 +1,10 @@
 # Ocean optics spectrum file
 # Spectrometer: FLMS02101
-# Integration time: ????? (ms)
-# Number of coadds: ?????
+# Integration time (ms): 100
+# Number of coadds: 10
 # Date/Time (end of read): 2018-01-14 10:05:06
-# Electronic dark correction: ?????
-# Non-linearity correction: ?????
+# Electronic dark correction: False
+# Non-linearity correction: False
 # Wavelength (nm),       Intensity (arb)
 2.548429999999999893e+02 1.638370000000000104e+01
 2.549319999999999879e+02 2.637079999999999927e+04
