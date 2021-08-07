@@ -10,15 +10,18 @@ from functools import partial
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
 from PyQt5.QtGui import QIcon, QPalette, QColor
-from PyQt5.QtCore import Qt, QThreadPool, QRunnable, pyqtSlot
+from PyQt5.QtCore import Qt, QThreadPool, QObject, pyqtSignal, QThread
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QLabel, QTextEdit, QLineEdit, QPushButton, QFrame,
                              QFileDialog, QScrollArea, QCheckBox, QSplitter,
                              QComboBox, QDoubleSpinBox, QTableWidget,
                              QTableWidgetItem, QTabWidget, QMessageBox)
 
-from ifit.gui_functions import QTextEditLogger, DSpinBox, WorkerSignals
-from ifit.light_dilution import ld_launcher
+from ifit.gui_functions import QTextEditLogger, DSpinBox
+from ifit.parameters import Parameters
+from ifit.spectral_analysis import Analyser
+from ifit.load_spectra import average_spectra
+from ifit.light_dilution import generate_ld_curves
 
 try:
     from .make_ils import super_gaussian
@@ -32,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 # Create a worker to handle QThreads for light dilution analysis
-class LDWorker(QRunnable):
+class LDWorker(QObject):
     """Worker thread.
 
     Inherits from QRunnable to handler worker thread setup, signals and wrap-up
@@ -61,38 +64,123 @@ class LDWorker(QRunnable):
         File path to the last measured spectrum
     """
 
-    def __init__(self, fn, *args, **kwargs):
-        super(LDWorker, self).__init__()
+    # Define signals
+    finished = pyqtSignal()
+    data = pyqtSignal(np.ndarray)
+    error = pyqtSignal(tuple)
 
-        # Store constructor arguments (re-used for processing)
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
+    def __init__(self, spec_fnames, dark_fnames, widgetData, ld_kwargs):
+        super(QObject, self).__init__()
 
-        # Set killed and paused flags
+        # Create stopped and paused flags
         self.is_paused = False
         self.is_killed = False
 
         # Create a holder for the spectrum filepath
-        self.spec_fname = None
+        self.spec_fnames = spec_fnames
+        self.dark_fnames = dark_fnames
+        self.widgetData = widgetData
+        self.ld_kwargs = ld_kwargs
 
-        # Add the callbacks to our kwargs
-        self.kwargs['data_callback'] = self.signals.data
-
-    @pyqtSlot()
     def run(self):
-        """Initialise the runner function with passed args and kwargs."""
-        # Retrieve args/kwargs here; and fire processing using them
         try:
-            self.fn(self, *self.args, **self.kwargs)
+            self._run()
         except Exception:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
+            self.error.emit((exctype, value, traceback.format_exc()))
+        self.finished.emit()
 
-        # Done
-        self.signals.finished.emit()
+    def _run(self):
+        """Launch LD analysis from the GUI."""
+        # Read in the spectra
+        spectrum = average_spectra(self.spec_fnames,
+                                   self.widgetData['spec_type'],
+                                   self.widgetData['wl_calib'])
+
+        if self.widgetData['dark_flag']:
+            x, dark = average_spectra(self.dark_fnames,
+                                      self.widgetData['spec_type'],
+                                      self.widgetData['wl_calib'])
+        else:
+            dark = 0
+
+        # Generate the analyser
+        logger.info('Generating the iFit analyser...')
+        self.analyser = self.generate_analyser()
+        self.analyser.dark_spec = dark
+
+        # Generate the light dilution curves
+        logger.info('Beginning light dilution calculations')
+        ld_results = generate_ld_curves(self.analyser, spectrum,
+                                        **self.ld_kwargs)
+
+        self.data.emit(ld_results)
+
+    def generate_analyser(self):
+        """Generate iFit analyser."""
+        # Initialise the Parameters
+        logger.info('Generating model analyser')
+        self.params = Parameters()
+
+        # Pull the parameters from the parameter table
+        for line in self.widgetData['gas_params']:
+            self.params.add(name=line[0], value=line[1], vary=line[2],
+                            xpath=line[4], plume_gas=line[3])
+        for i, line in enumerate(self.widgetData['bgpoly_params']):
+            self.params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
+        for i, line in enumerate(self.widgetData['offset_params']):
+            self.params.add(name=f'offset{i}', value=line[0], vary=line[1])
+        for i, line in enumerate(self.widgetData['shift_params']):
+            self.params.add(name=f'shift{i}', value=line[0], vary=line[1])
+
+        # Check if ILS is in the fit
+        if self.widgetData['ils_mode'] == 'Manual':
+            self.params.add('fwem', value=float(self.widgetData['fwem']),
+                            vary=self.widgetData['fwem_fit'])
+            self.params.add('k', value=float(self.widgetData['k']),
+                            vary=self.widgetData['k_fit'])
+            self.params.add('a_w', value=float(self.widgetData['a_w']),
+                            vary=self.widgetData['a_w_fit'])
+            self.params.add('a_k', value=float(self.widgetData['a_k']),
+                            vary=self.widgetData['a_k_fit'])
+
+        # Add the light dilution factor
+        if self.widgetData['ldf_fit'] or self.widgetData['ldf'] != 0.0:
+            self.params.add('LDF', value=float(self.widgetData['ldf']),
+                            vary=self.widgetData['ldf_fit'])
+
+        # Report fitting parameters
+        logger.info(self.params.pretty_print(cols=['name', 'value', 'vary',
+                                                   'xpath']))
+
+        # Get the bad pixels
+        if self.widgetData['bad_pixels'] != '':
+            bad_pixels = [int(i) for i
+                          in self.widgetData['bad_pixels'].split(',')]
+        else:
+            bad_pixels = []
+
+        # Generate the analyser
+        analyser = Analyser(params=self.params,
+                            fit_window=[self.widgetData['fit_lo'],
+                                        self.widgetData['fit_hi']],
+                            frs_path=self.widgetData['frs_path'],
+                            model_padding=self.widgetData['model_padding'],
+                            model_spacing=self.widgetData['model_spacing'],
+                            flat_flag=self.widgetData['flat_flag'],
+                            flat_path=self.widgetData['flat_path'],
+                            stray_flag=self.widgetData['stray_flag'],
+                            stray_window=[self.widgetData['stray_lo'],
+                                          self.widgetData['stray_hi']],
+                            dark_flag=self.widgetData['dark_flag'],
+                            ils_type=self.widgetData['ils_mode'],
+                            ils_path=self.widgetData['ils_path'],
+                            despike_flag=self.widgetData['despike_flag'],
+                            spike_limit=self.widgetData['spike_limit'],
+                            bad_pixels=bad_pixels)
+
+        return analyser
 
     def pause(self):
         """Pause the analysis/acquisition."""
@@ -105,11 +193,11 @@ class LDWorker(QRunnable):
         """Resume the analysis/acquisition."""
         self.is_paused = False
 
-    def kill(self):
+    def stop(self):
         """Terminate the analysis/acquisition."""
         if self.is_paused:
             self.is_paused = False
-        self.is_killed = True
+        self.is_stopped = True
 
 
 # =============================================================================
@@ -1452,11 +1540,17 @@ class LDFWindow(QMainWindow):
         dark_fnames = self.dark_fnames.toPlainText().split('\n')
 
         # Initialise the analysis worker
-        self.worker = LDWorker(ld_launcher, spec_fnames, dark_fnames,
-                               self.widgetData, ld_kwargs)
-        self.worker.signals.finished.connect(self.analysis_complete)
-        self.worker.signals.data.connect(self.handle_data)
-        self.threadpool.start(self.worker)
+        self.ldThread = QThread()
+        self.ldWorker = LDWorker(spec_fnames, dark_fnames, self.widgetData,
+                                 ld_kwargs)
+        self.ldWorker.moveToThread(self.ldThread)
+        self.ldThread.started.connect(self.ldWorker.run)
+        self.ldWorker.finished.connect(self.analysis_complete)
+        self.ldWorker.data.connect(self.handle_data)
+        self.ldWorker.finished.connect(self.ldThread.quit)
+        self.ldWorker.finished.connect(self.ldWorker.deleteLater)
+        self.ldThread.finished.connect(self.ldThread.deleteLater)
+        self.ldThread.start()
 
     def handle_data(self, ld_results):
         """Handle the LD results."""

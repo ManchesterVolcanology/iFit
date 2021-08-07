@@ -1,35 +1,7 @@
 import logging
 import numpy as np
 
-from ifit.load_spectra import average_spectra
-from ifit.gui_functions import generate_analyser
-
 logger = logging.getLogger(__name__)
-
-
-def ld_launcher(worker, spec_fnames, dark_fnames, widgetData, ld_kwargs,
-                data_callback):
-    """Launch LD analysis from the GUI."""
-    # Read in the spectra
-    spectrum = average_spectra(spec_fnames, widgetData['spec_type'],
-                               widgetData['wl_calib'])
-
-    if widgetData['dark_flag']:
-        x, dark = average_spectra(dark_fnames, widgetData['spec_type'],
-                                  widgetData['wl_calib'])
-    else:
-        dark = 0
-
-    # Generate the analyser
-    logger.info('Generating the iFit analyser...')
-    analyser = generate_analyser(widgetData)
-    analyser.dark_spec = dark
-
-    # Generate the light dilution curves
-    logger.info('Beginning light dilution calculations')
-    ld_results = generate_ld_curves(analyser, spectrum, **ld_kwargs)
-
-    data_callback.emit(ld_results)
 
 
 def generate_ld_curves(analyser, spectrum, wb1=[306, 316], wb2=[312, 322],
