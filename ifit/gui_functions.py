@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 from functools import partial
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QObject, QRunnable, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QSpinBox, QCheckBox, QFileDialog, QPushButton,
                              QTableWidgetItem, QMenu, QTableWidget,
@@ -16,11 +16,15 @@ from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
-from ifit.load_spectra import read_spectrum, average_spectra
+from ifit.load_spectra import read_spectrum
 
 
 logger = logging.getLogger(__name__)
 
+
+# =============================================================================
+# Logging text box
+# =============================================================================
 
 class QTextEditLogger(logging.Handler, QObject):
     """Record logs to the GUI."""
@@ -41,106 +45,184 @@ class QTextEditLogger(logging.Handler, QObject):
         self.appendPlainText.emit(msg)
 
 
-# Create a worker signals object to handle worker signals
-class WorkerSignals(QObject):
-    """Defines the signals available from a running worker thread.
+# =============================================================================
+# Scope acquisition worker
+# =============================================================================
 
-    Supported signals are:
+class AcqScopeWorker(QObject):
+    """Handle continuous scope acquisition."""
 
-    finished
-        No data
-    progress
-        `int` indicating % progress
-    plotter
-        `list` data to be plotted on the analysis graphs
-    error
-        `tuple` (exctype, value, traceback.format_exc() )
-    status
-        'str' status message for the GUI
-    spectrum
-        `tuple` spectrum to be displayed on the scope graph
-    """
+    # Define Signals
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    plotSpec = pyqtSignal(np.ndarray)
 
+    def __init__(self, spectrometer):
+        super(QObject, self).__init__()
+        self.spectrometer = spectrometer
+        self.is_stopped = False
+
+    def run(self):
+        while not self.is_stopped:
+            spectrum, info = self.spectrometer.get_spectrum()
+            self.plotSpec.emit(spectrum)
+
+        self.finished.emit()
+
+    def stop(self):
+        """Terminate the acquisition."""
+        self.is_stopped = True
+
+
+# =============================================================================
+# Measurement acquisition worker
+# =============================================================================
+
+class AcqSpecWorker(QObject):
+
+    # Define Signals
     finished = pyqtSignal()
     progress = pyqtSignal(int)
-    plotter = pyqtSignal(list)
-    error = pyqtSignal(tuple)
     status = pyqtSignal(str)
-    spectrum = pyqtSignal(tuple)
-    data = pyqtSignal(np.ndarray)
+    error = pyqtSignal(tuple)
+    plotSpec = pyqtSignal(np.ndarray)
+    setDark = pyqtSignal(np.ndarray)
+    setSpec = pyqtSignal(tuple)
 
-
-# Create a worker to handle QThreads
-class Worker(QRunnable):
-    """Worker thread.
-
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up
-
-    Parameters
-    ----------
-    fn : function
-        The function to run on the worker thread
-    mode : str
-        Flags which signals to use. Must be one of 'analyse' or 'acquire', for
-        a spectral analysis or acquisition thread respectively
-
-    Attributes
-    ----------
-    args : list
-        Arguments to  pass to the function
-    kwargs : dict
-        Keyword arguments to pass to the function
-    signals : WorkerSignals object
-        The worker signals
-    is_paused : bool
-        State to show if the worker has been paused
-    is_killed : bool
-        State to show if the worker has been killed
-    spec_fname : str
-        File path to the last measured spectrum
-    """
-
-    def __init__(self, fn, mode, *args, **kwargs):
-        super(Worker, self).__init__()
-
-        # Store constructor arguments (re-used for processing)
-        self.fn = fn
-        self.mode = mode
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
-
-        # Set killed and paused flags
+    def __init__(self, spectrometer, widgetData):
+        super(QObject, self).__init__()
+        self.spectrometer = spectrometer
+        self.widgetData = widgetData
         self.is_paused = False
-        self.is_killed = False
+        self.is_stopped = False
 
-        # Create a holder for the spectrum filepath
-        self.spec_fname = None
+#   Acquire Dark Spectra ======================================================
 
-        # Add the callbacks to our kwargs
-        if 'analyse' in mode:
-            self.kwargs['progress_callback'] = self.signals.progress
-            self.kwargs['status_callback'] = self.signals.status
-            self.kwargs['plot_callback'] = self.signals.plotter
-
-        if 'acquire' in mode:
-            self.kwargs['spectrum_callback'] = self.signals.spectrum
-            self.kwargs['progress_callback'] = self.signals.progress
-            self.kwargs['status_callback'] = self.signals.status
-
-    @pyqtSlot()
-    def run(self):
-        """Initialise the runner function with passed args and kwargs."""
-        # Retrieve args/kwargs here; and fire processing using them
+    def acquire_dark(self):
         try:
-            self.fn(self, self.mode, *self.args, **self.kwargs)
+            # Log start of acquisition
+            logger.info(f'Reading {self.widgetData["ndarks"]} dark spectra')
+
+            # Set the save path location
+            save_path = f'{self.widgetData["rt_save_path"]}/dark/'
+
+            # Check the output folder exists and generate it if not
+            if not os.path.isdir(save_path):
+                os.makedirs(save_path)
+
+            # If it exists create a new folder to avoid overwriting the old one
+            else:
+                n = 0
+                while os.path.isdir(save_path):
+                    n += 1
+                    if n == 1:
+                        save_path = save_path[:-1] + f'({n})/'
+                    else:
+                        save_path = save_path.split('(')[0] + f'({n})/'
+                os.makedirs(save_path)
+
+            # Create an empty array to hold the dark spectra
+            dark_arr = np.full([self.widgetData["ndarks"],
+                                self.spectrometer.pixels],
+                               np.nan)
+
+            for i in range(self.widgetData["ndarks"]):
+
+                # Check if the loop is paused
+                while self.is_paused:
+                    time.sleep(0.01)
+
+                # Read the spectrum and add to the array
+                fname = f'{save_path}spectrum_{i:05d}.txt'
+                spectrum, info = self.spectrometer.get_spectrum(fname=fname)
+                dark_arr[i] = spectrum[1]
+
+                # Display the spectrum
+                self.plotSpec.emit(spectrum)
+
+                # Update the progress bar
+                self.progress.emit(((i+1)/self.widgetData["ndarks"])*100)
+
+                # Get if the worker is killed
+                if self.is_stopped:
+                    logger.info('Dark spectra acquisition interupted')
+                    break
+
+            # Record the dark spectrum in the GUI
+            dark_spec = np.nanmean(dark_arr, axis=0)
+            self.setDark.emit(dark_spec)
+
         except Exception:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
+            self.error.emit((exctype, value, traceback.format_exc()))
 
-        # Done
-        self.signals.finished.emit()
+        self.finished.emit()
+
+#   Acquire Measurement Spectra ===============================================
+
+    def acquire_spec(self):
+        try:
+            # Set the save location for the spectra
+            save_path = self.widgetData['rt_save_path'] + '/spectra/'
+
+            # Check the output folder exists and generate it if not
+            if not os.path.isdir(save_path):
+                os.makedirs(save_path)
+
+            logger.info('Beginning spectra acquisition')
+
+            # Create a spectrum number parameter
+            nspec = 0
+
+            while not self.is_stopped:
+
+                # Check if the loop is paused
+                while self.is_paused:
+                    time.sleep(0.01)
+
+                # Generate the spectrum filename
+                spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
+
+                # Check the file doesn't already exist
+                while os.path.isfile(spec_fname):
+                    nspec += 1
+                    if nspec <= 99999:
+                        spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
+
+                    # If max spectrum number is readed (99999) then start a new
+                    # folder
+                    else:
+                        logger.warning('Maximum spectrum number reached, '
+                                       + 'creatinga new folder...')
+                        count = 1
+                        while os.path.isdir(save_path):
+                            save_path = f'{self.widgetData["rt_save_path"]}' \
+                                        + f'/spectra{count}/'
+                            count += 1
+
+                        # Restart the counter
+                        nspec = 0
+                        spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
+
+                # Measure the spectrum
+                spec, info = self.spectrometer.get_spectrum(fname=spec_fname)
+
+                # Add the spectrum number to the metadata
+                info['spectrum_number'] = nspec
+
+                # Display the spectrum
+                self.plotSpec.emit(spec)
+                self.setSpec.emit((spec, info, spec_fname))
+
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.error.emit((exctype, value, traceback.format_exc()))
+
+        self.finished.emit()
+
+#   Controls ==================================================================
 
     def pause(self):
         """Pause the analysis/acquisition."""
@@ -153,423 +235,272 @@ class Worker(QRunnable):
         """Resume the analysis/acquisition."""
         self.is_paused = False
 
-    def kill(self):
-        """Terminate the analysis/acquisition."""
+    def stop(self):
+        """Terminate the acquisition."""
+        self.is_stopped = True
+
+
+# =============================================================================
+# Analysis worker
+# =============================================================================
+
+class AnalysisWorker(QObject):
+
+    # Define Signals
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+    status = pyqtSignal(str)
+    error = pyqtSignal(tuple)
+    plotData = pyqtSignal(list)
+
+    def __init__(self, mode, widgetData, dark_spec):
+        super(QObject, self).__init__()
+        self.mode = mode
+        self.widgetData = widgetData
+        self.dark_spec = dark_spec
+        self.is_paused = False
+        self.is_stopped = False
+        self.spectrum = None
+
+#   Run analysis ==============================================================
+
+    def run(self):
+        try:
+            self._run()
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.error.emit((exctype, value, traceback.format_exc()))
+        self.finished.emit()
+
+    def _run(self):
+        """Run analysis."""
+        # Create a loop counter
+        loop = 0
+
+        # Update the status
+        self.status.emit('Loading')
+
+        # Generate the anlyser
+        self.analyser = self.generate_analyser()
+
+        # Pull processing settings
+        update_flag = self.widgetData['update_flag']
+        resid_limit = self.widgetData['resid_limit']
+        resid_type = self.widgetData['resid_type']
+        int_limit = [self.widgetData['lo_int_limit'],
+                     self.widgetData['hi_int_limit']]
+        graph_p = [r[0] for r in self.widgetData['gas_params']]
+        interp_meth = self.widgetData['interp_method']
+
+        # Make a list of the fit parameters to form the buffer columns
+        buffer_cols = ['Number']
+        [buffer_cols.extend([par, f'{par}_err'])
+         for par in self.analyser.params]
+        buffer_cols += ['fit_quality']
+
+        # Set write mode
+        write_mode = 'w'
+
+        # Pull analysis parameters for post analysis
+        if self.mode == 'post_analyse':
+            spec_fnames = self.widgetData['spec_fnames'].split('\n')
+            nspec = len(spec_fnames)
+            spec_type = self.widgetData['spec_type']
+            wl_calib_file = self.widgetData['wl_calib']
+            buffer = Buffer(len(spec_fnames), buffer_cols)
+            save_path = self.widgetData['save_path']
+            self.status.emit('Analysing')
+
+        # Pull analysis parameters for real time analysis
+        elif self.mode == 'rt_analyse':
+            spec_fnames = None
+            spec_type = 'iFit'
+            wl_calib_file = None
+            buffer = Buffer(2000, buffer_cols)
+            date_str = datetime.strftime(datetime.now(), "%Y-%m-%d_%H%M%S")
+            save_path = f'{self.widgetData["rt_save_path"]}/' \
+                        + f'{date_str}_iFit_output.csv'
+            if os.path.isfile(save_path):
+                write_mode = 'a'
+            self.status.emit('Acquiring')
+
+        # Set status
+        logger.info('Beginning analysis loop')
+
+        # Open the output file
+        with open(save_path, write_mode) as w:
+
+            # If writing a new file, add the columns
+            if write_mode == 'w':
+
+                # Make a list of column names
+                cols = ['File', 'Number', 'Time']
+                for par in self.analyser.params:
+                    cols += [par, f'{par}_err']
+                cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
+
+                # Write the header
+                w.write(cols[0])
+                [w.write(f',{c}') for c in cols[1:]]
+                w.write('\n')
+
+            # Begin the analysis loop
+            while not self.is_stopped:
+
+                # Check if analysis is paused
+                while self.is_paused:
+                    time.sleep(0.01)
+
+                # Get the spectrum filename for post analysis
+                if self.mode == 'post_analyse':
+                    # Read in the spectrum
+                    fname = spec_fnames[loop]
+                    x, y, metadata, read_err = read_spectrum(fname, spec_type,
+                                                             wl_calib_file)
+                # Pull the spectrum for real time analysis
+                elif self.mode == 'rt_analyse':
+                    while self.spectrum is None:
+                        time.sleep(0.01)
+                    [x, y], metadata, fname = self.spectrum
+
+                # Fit the spectrum
+                fit_result = self.analyser.fit_spectrum(
+                    spectrum=[x, y],
+                    update_params=update_flag,
+                    resid_limit=resid_limit,
+                    resid_type=resid_type,
+                    int_limit=int_limit,
+                    calc_od=graph_p,
+                    interp_method=interp_meth)
+
+                # Write spectrum info to file
+                w.write(f'{fname},{metadata["spectrum_number"]},'
+                        + f'{metadata["timestamp"]}')
+
+                # Add results to the buffer dataframe and write to file
+                row = [metadata["spectrum_number"]]
+                for par in fit_result.params.values():
+                    row += [par.fit_val, par.fit_err]
+                    w.write(f',{par.fit_val},{par.fit_err}')
+                row += [fit_result.nerr]
+                buffer.update(row)
+
+                # Write fit quality info and start a new line
+                w.write(f',{fit_result.nerr},{fit_result.int_lo},'
+                        + f'{fit_result.int_hi},{fit_result.int_av}')
+                w.write('\n')
+
+                # Emit the progress
+                if self.mode == 'post_analyse':
+                    self.progress.emit(((loop+1)/nspec)*100)
+
+                # Emit graph data
+                self.plotData.emit([fit_result, [x, y], buffer.df,
+                                    metadata["spectrum_number"]])
+
+                # Check if analysis is finished
+                if self.mode == 'post_analyse' and loop == nspec-1:
+                    logger.info('Analysis finished!')
+                    self.stop()
+
+                # Update loop counter
+                loop += 1
+
+#   Generate Analyser =========================================================
+
+    def generate_analyser(self):
+        """Generate iFit analyser."""
+        # Initialise the Parameters
+        logger.info('Generating model analyser')
+        self.params = Parameters()
+
+        # Pull the parameters from the parameter table
+        for line in self.widgetData['gas_params']:
+            self.params.add(name=line[0], value=line[1], vary=line[2],
+                            xpath=line[4], plume_gas=line[3])
+        for i, line in enumerate(self.widgetData['bgpoly_params']):
+            self.params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
+        for i, line in enumerate(self.widgetData['offset_params']):
+            self.params.add(name=f'offset{i}', value=line[0], vary=line[1])
+        for i, line in enumerate(self.widgetData['shift_params']):
+            self.params.add(name=f'shift{i}', value=line[0], vary=line[1])
+
+        # Check if ILS is in the fit
+        if self.widgetData['ils_mode'] == 'Manual':
+            self.params.add('fwem', value=float(self.widgetData['fwem']),
+                            vary=self.widgetData['fwem_fit'])
+            self.params.add('k', value=float(self.widgetData['k']),
+                            vary=self.widgetData['k_fit'])
+            self.params.add('a_w', value=float(self.widgetData['a_w']),
+                            vary=self.widgetData['a_w_fit'])
+            self.params.add('a_k', value=float(self.widgetData['a_k']),
+                            vary=self.widgetData['a_k_fit'])
+
+        # Add the light dilution factor
+        if self.widgetData['ldf_fit'] or self.widgetData['ldf'] != 0.0:
+            self.params.add('LDF', value=float(self.widgetData['ldf']),
+                            vary=self.widgetData['ldf_fit'])
+
+        # Report fitting parameters
+        logger.info(self.params.pretty_print(cols=['name', 'value', 'vary',
+                                                   'xpath']))
+
+        # Get the bad pixels
+        if self.widgetData['bad_pixels'] != '':
+            bad_pixels = [int(i) for i
+                          in self.widgetData['bad_pixels'].split(',')]
+        else:
+            bad_pixels = []
+
+        # Generate the analyser
+        analyser = Analyser(params=self.params,
+                            fit_window=[self.widgetData['fit_lo'],
+                                        self.widgetData['fit_hi']],
+                            frs_path=self.widgetData['frs_path'],
+                            model_padding=self.widgetData['model_padding'],
+                            model_spacing=self.widgetData['model_spacing'],
+                            flat_flag=self.widgetData['flat_flag'],
+                            flat_path=self.widgetData['flat_path'],
+                            stray_flag=self.widgetData['stray_flag'],
+                            stray_window=[self.widgetData['stray_lo'],
+                                          self.widgetData['stray_hi']],
+                            dark_flag=self.widgetData['dark_flag'],
+                            ils_type=self.widgetData['ils_mode'],
+                            ils_path=self.widgetData['ils_path'],
+                            despike_flag=self.widgetData['despike_flag'],
+                            spike_limit=self.widgetData['spike_limit'],
+                            bad_pixels=bad_pixels)
+
+        # Add the dark spectrum
+        if self.dark_spec is not None:
+            analyser.dark_spec = self.dark_spec
+        else:
+            logger.warning('No dark spectrum, deactivating dark correction')
+            analyser.dark_flag = False
+
+        return analyser
+
+#   Controls ==================================================================
+
+    def pause(self):
+        """Pause the analysis."""
         if self.is_paused:
             self.is_paused = False
-        self.is_killed = True
+        else:
+            self.is_paused = True
 
-    def set_spectrum(self, spec_fname):
+    def resume(self):
+        """Resume the analysis."""
+        self.is_paused = False
+
+    def stop(self):
+        """Terminate the analysis."""
+        self.is_stopped = True
+
+    def set_spectrum(self, spectrum):
         """Set the spectrum file to be analysed in real time analysis."""
-        self.spec_fname = spec_fname
-
-
-# =============================================================================
-# Generate analyser
-# =============================================================================
-
-def generate_analyser(widgetData):
-    """Generate the iFit analyser.
-
-    Parameters
-    ----------
-    widgetData : dict
-        Contains the program settings from the GUI
-
-    Returns
-    -------
-    analyser : Analyser
-        Returns the constructed iFit analyser
-    """
-    # Pull the parameters from the parameter table
-    params = Parameters()
-    logger.info('Generating model parameters')
-
-    # Build the parameters from GUI tables
-    for line in widgetData['gas_params']:
-        params.add(name=line[0], value=line[1], vary=line[2], xpath=line[4],
-                   plume_gas=line[3])
-    for i, line in enumerate(widgetData['bgpoly_params']):
-        params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
-    for i, line in enumerate(widgetData['offset_params']):
-        params.add(name=f'offset{i}', value=line[0], vary=line[1])
-    for i, line in enumerate(widgetData['shift_params']):
-        params.add(name=f'shift{i}', value=line[0], vary=line[1])
-
-    # Check if ILS is in the fit
-    if widgetData['ils_mode'] == 'Manual':
-        params.add('fwem', value=float(widgetData['fwem']),
-                   vary=widgetData['fwem_fit'])
-        params.add('k', value=float(widgetData['k']),
-                   vary=widgetData['k_fit'])
-        params.add('a_w', value=float(widgetData['a_w']),
-                   vary=widgetData['a_w_fit'])
-        params.add('a_k', value=float(widgetData['a_k']),
-                   vary=widgetData['a_k_fit'])
-
-    # Add the light dilution factor
-    if widgetData['ldf_fit'] or widgetData['ldf'] != 0.0:
-        params.add('LDF', value=float(widgetData['ldf']),
-                   vary=widgetData['ldf_fit'])
-
-    # Get the bad pixels
-    if widgetData['bad_pixels'] != '':
-        bad_pixels = [int(i) for i in widgetData['bad_pixels'].split(',')]
-    else:
-        bad_pixels = []
-
-    # Generate the analyser
-    analyser = Analyser(params=params,
-                        fit_window=[widgetData['fit_lo'],
-                                    widgetData['fit_hi']],
-                        frs_path=widgetData['frs_path'],
-                        model_padding=widgetData['model_padding'],
-                        model_spacing=widgetData['model_spacing'],
-                        flat_flag=widgetData['flat_flag'],
-                        flat_path=widgetData['flat_path'],
-                        stray_flag=widgetData['stray_flag'],
-                        stray_window=[widgetData['stray_lo'],
-                                      widgetData['stray_hi']],
-                        dark_flag=widgetData['dark_flag'],
-                        ils_type=widgetData['ils_mode'],
-                        ils_path=widgetData['ils_path'],
-                        despike_flag=widgetData['despike_flag'],
-                        spike_limit=widgetData['spike_limit'],
-                        bad_pixels=bad_pixels)
-
-    # Report fitting parameters
-    logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
-
-    return analyser
-
-
-# =============================================================================
-# Analysis setup
-# =============================================================================
-
-def analysis_setup(worker, analysis_mode, widgetData, buffer_cols):
-    """Set up the mode dependant analysis settings."""
-    # By default there is no dark spectrum
-    dark_spec = None
-
-    if analysis_mode == 'post_analyse':
-
-        # Set acquisition parameters
-        spec_fnames = widgetData['spec_fnames'].split('\n')
-        dark_fnames = widgetData['dark_fnames'].split('\n')
-        spec_type = widgetData['spec_type']
-        wl_calib_file = widgetData['wl_calib']
-        buffer = Buffer(len(spec_fnames), buffer_cols)
-        save_path = widgetData['save_path']
-        write_mode = 'w'
-        worker.signals.status.emit('Analysing')
-
-        # Read the dark spectrum
-        if widgetData['dark_flag']:
-
-            if len(dark_fnames) == 0:
-                logger.warning('No dark spectra selected, disabling dark '
-                               + 'correction')
-
-            else:
-                x, dark_spec = average_spectra(dark_fnames, spec_type,
-                                               wl_calib_file)
-
-    elif analysis_mode == 'rt_analyse':
-
-        # Set acquisition parameters
-        spec_fnames = None
-        dark_fnames = ['bin/.dark']
-        spec_type = 'iFit'
-        wl_calib_file = ''
-        buffer = Buffer(2000, buffer_cols)
-        date_str = datetime.strftime(datetime.now(), "%Y-%m-%d_%H%M%S")
-        save_path = f'{widgetData["rt_save_path"]}/{date_str}_iFit_output.csv'
-        worker.signals.status.emit('Acquiring')
-
-        # Read the dark spectrum
-        if widgetData['dark_flag']:
-
-            try:
-                dark_spec = np.loadtxt('bin/.dark')
-            except OSError:
-                logger.warning('No dark spectrum found, disabling dark '
-                               + 'correction')
-
-        # Set the output write format
-        if os.path.isfile(save_path):
-            write_mode = 'a'
-        else:
-            write_mode = 'w'
-
-    return (spec_fnames, dark_spec, spec_type, wl_calib_file, buffer,
-            save_path, write_mode)
-
-
-# =============================================================================
-# Spectra analysis loop
-# =============================================================================
-
-def analysis_loop(worker, analysis_mode, widgetData, progress_callback,
-                  plot_callback, status_callback):
-    """Control loop for spectral analysis.
-
-    Parameters
-    ----------
-    worker : Worker
-        The worker running the thread
-    analysis_mode : str
-        Controls how the analysis is handled based on whether performing real
-        time or post-analysis. Must be either 'post_analyse' or rt_analyse
-    widgetData : dict
-        Contains the program settings from the GUI
-    progrss_callback : Signal
-        Reports progress to the progress bar
-    plot_callback : Signal
-        Reports the data to display on the analysis plots
-    status_callback : Signal
-        Reports the status of the program
-
-    Returns
-    -------
-    None
-    """
-    # Create a loop counter
-    loop = 0
-
-    # Update the status
-    status_callback.emit('Loading')
-
-    # Generate the anlyser
-    analyser = generate_analyser(widgetData)
-
-    # Pull processing settings
-    update_flag = widgetData['update_flag']
-    resid_limit = widgetData['resid_limit']
-    resid_type = widgetData['resid_type']
-    int_limit = [widgetData['lo_int_limit'],
-                 widgetData['hi_int_limit']]
-    graph_p = [r[0] for r in widgetData['gas_params']]
-    interp_meth = widgetData['interp_method']
-
-    # Make a list of the fit parameters to form the columns in the buffer
-    buffer_cols = ['Number']
-    for par in analyser.params:
-        buffer_cols += [par, f'{par}_err']
-    buffer_cols += ['fit_quality']
-
-    # Set mode dependent settings
-    [spec_fnames, dark_spec, spec_type, wl_calib_file, buffer, save_path,
-     write_mode] = analysis_setup(worker,
-                                  analysis_mode,
-                                  widgetData,
-                                  buffer_cols)
-
-    # Set the dark spectrum
-    if analyser.dark_flag and dark_spec is not None:
-        analyser.dark_spec = dark_spec
-    else:
-        analyser.dark_flag = False
-
-    # Set status
-    logger.info('Beginning analysis loop')
-
-    # Open the output file
-    with open(save_path, write_mode) as w:
-
-        # If writing a new file, add the columns
-        if write_mode == 'w':
-
-            # Make a list of column names
-            cols = ['File', 'Number', 'Time']
-            for par in analyser.params:
-                cols += [par, f'{par}_err']
-            cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
-
-            # Write the header
-            w.write(cols[0])
-            for c in cols[1:]:
-                w.write(f',{c}')
-            w.write('\n')
-
-        # Begin the analysis loop
-        while not worker.is_killed:
-
-            # Check if analysis is paused
-            while worker.is_paused:
-                time.sleep(0.01)
-
-            # Get the spectrum filename
-            if analysis_mode == 'post_analyse':
-                fname = spec_fnames[loop]
-            elif analysis_mode == 'rt_analyse':
-                fname = worker.spec_fname
-                while fname is None:
-                    fname = worker.spec_fname
-                worker.spec_fname = None
-
-            # Read in the spectrum
-            x, y, info, read_err = read_spectrum(fname, spec_type,
-                                                 wl_calib_file)
-
-            # Fit the spectrum
-            fit_result = analyser.fit_spectrum(spectrum=[x, y],
-                                               update_params=update_flag,
-                                               resid_limit=resid_limit,
-                                               resid_type=resid_type,
-                                               int_limit=int_limit,
-                                               calc_od=graph_p,
-                                               interp_method=interp_meth)
-
-            # Write spectrum info to file
-            w.write(f'{fname},{info["spec_no"]},{info["time"]}')
-
-            # Add results to the buffer dataframe and write results to file
-            row = [info["spec_no"]]
-            for par in fit_result.params.values():
-                row += [par.fit_val, par.fit_err]
-                w.write(f',{par.fit_val},{par.fit_err}')
-            row += [fit_result.nerr]
-            buffer.update(row)
-
-            # Write fit quality info and start a new line
-            w.write(f',{fit_result.nerr},{fit_result.int_lo},'
-                    + f'{fit_result.int_hi},{fit_result.int_av}')
-            w.write('\n')
-
-            # Emit the progress
-            if analysis_mode == 'post_analyse':
-                progress_callback.emit(((loop+1)/len(spec_fnames))*100)
-
-            # Emit graph data
-            plot_callback.emit([fit_result, [x, y], buffer.df,
-                                info["spec_no"]])
-
-            # Check if analysis is finished
-            if analysis_mode == 'post_analyse' and loop == len(spec_fnames)-1:
-                logger.info('Analysis finished!')
-                worker.kill()
-
-            # Update loop counter
-            loop += 1
-
-
-# =============================================================================
-# Acquisition loop
-# =============================================================================
-
-def acquire_spectra(worker, acquisition_mode, widgetData, spectrometer,
-                    spectrum_callback, progress_callback, status_callback):
-    """Loop to handle spectra acquisition.
-
-    Parameters
-    ----------
-    worker : Worker
-        The worker running the thread
-    aquisition_mode : str
-        How spectra acquisition is run:
-            - acquire_darks: measure dark spectra
-            - acquire_cont: continuous acquisition with saving/analysis
-            - acquire_scope: continuous acquisition without saving/analysis
-    widgetData : dict
-        Contains the program settings from the GUI
-    spectrum_callback : Signal
-        Reports the measured spectrum to plot on the scope plot
-    progrss_callback : Signal
-        Reports progress to the progress bar
-    status_callback : Signal
-        Reports the status of the program
-
-    Returns
-    -------
-    None
-    """
-    # Update the status
-    status_callback.emit('Acquiring')
-
-    # Read dark spectra
-    if acquisition_mode == 'acquire_darks':
-
-        ndarks = widgetData['ndarks']
-        logger.info(f'Reading {ndarks} dark spectra')
-
-        # Set the save location for the dark spectra
-        save_path = widgetData['rt_save_path'] + '/dark/'
-
-        # Check the output folder exists and generate it if not
-        if not os.path.isdir(save_path):
-            os.makedirs(save_path)
-
-        # If it exists, create a new folder to avoid overwriting the old one
-        else:
-            n = 0
-            while os.path.isdir(save_path):
-                n += 1
-                if n == 1:
-                    save_path = save_path[:-1] + f'({n})/'
-                else:
-                    save_path = save_path.split('(')[0] + f'({n})/'
-            os.makedirs(save_path)
-
-        # Create an empty array to hold the dark spectra
-        dark_arr = np.zeros([ndarks, spectrometer.pixels])
-
-        for i in range(ndarks):
-            fname = f'{save_path}spectrum_{i:05d}.txt'
-            spectrum, info = spectrometer.get_spectrum(fname=fname)
-            dark_arr[i] = spectrum[1]
-
-            # Display the spectrum
-            spectrum_callback.emit((spectrum, info, True, False))
-
-            # Update the progress bar
-            progress_callback.emit(((i+1)/ndarks)*100)
-
-            # Get if the worker is killed
-            if worker.is_killed:
-                logger.info('Dark spectra acquisition interupted')
-
-        dark_spec = np.average(dark_arr, axis=0)
-        np.savetxt('bin/.dark', dark_spec)
-
-    if acquisition_mode == 'acquire_cont':
-
-        # Set the save location for the dark spectra
-        save_path = widgetData['rt_save_path'] + '/spectra/'
-
-        # Check the output folder exists and generate it if not
-        if not os.path.isdir(save_path):
-            os.makedirs(save_path)
-
-        logger.info('Beginning spectra acquisition')
-
-        # Create a spectrum number parameter
-        nspec = 0
-
-        while not worker.is_killed:
-
-            # Check if the loop is paused
-            while worker.is_paused:
-                time.sleep(0.01)
-
-            # Generate the spectrum filename
-            spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
-
-            # Check the file doesn't already exist
-            while os.path.isfile(spec_fname):
-                nspec += 1
-                spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
-
-            # Measure the spectrum
-            spectrum, info = spectrometer.get_spectrum(fname=spec_fname)
-
-            # Display the spectrum
-            spectrum_callback.emit((spectrum, info, True, True))
-
-    if acquisition_mode == 'acquire_scope':
-        while not worker.is_killed:
-            spectrum, info = spectrometer.get_spectrum()
-            spectrum_callback.emit((spectrum, info, True, False))
+        self.spectrum = spectrum
 
 
 # =============================================================================
@@ -818,5 +749,7 @@ class Table(QTableWidget):
                     data.append(row)
         except AttributeError:
             pass
+
+        return data
 
         return data
