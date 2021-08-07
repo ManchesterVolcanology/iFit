@@ -8,7 +8,7 @@ from datetime import datetime
 from functools import partial
 from logging.handlers import RotatingFileHandler
 from PyQt5.QtGui import QIcon, QPalette, QColor, QFont
-from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot
+from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot, QThread
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QComboBox, QTextEdit,
                              QLineEdit, QPushButton, QProgressBar, QFrame,
@@ -16,11 +16,12 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QTabWidget, QAction, QFileDialog, QScrollArea,
                              QToolBar)
 
-from ifit.gui_functions import (analysis_loop, acquire_spectra, Widgets,
-                                SpinBox, DSpinBox, Table, Worker,
-                                QTextEditLogger)
+from ifit.gui_functions import (Widgets, SpinBox, DSpinBox, Table,
+                                AnalysisWorker, QTextEditLogger,
+                                AcqScopeWorker, AcqSpecWorker)
 from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
 from ifit.spectrometers import Spectrometer
+from ifit.load_spectra import average_spectra
 
 __version__ = '3.4'
 __author__ = 'Ben Esse'
@@ -98,8 +99,7 @@ class MainWindow(QMainWindow):
         saveAct.triggered.connect(partial(self.save_config, False))
 
         # Save As action
-        saveasAct = QAction(QIcon('bin/icons/saveas.png'), '&Save As',
-                            self)
+        saveasAct = QAction(QIcon('bin/icons/saveas.png'), '&Save As', self)
         saveasAct.setShortcut('Ctrl+Shift+S')
         saveasAct.triggered.connect(partial(self.save_config, True))
 
@@ -260,7 +260,7 @@ class MainWindow(QMainWindow):
         self.acquire_darks_btn = QPushButton('Acquire')
         self.acquire_darks_btn.setToolTip('Measure Dark Spectra')
         self.acquire_darks_btn.clicked.connect(partial(self.begin_acquisition,
-                                               'acquire_darks'))
+                                                       'acquire_darks'))
         self.acquire_darks_btn.setEnabled(False)
         layout.addWidget(self.acquire_darks_btn, 3, 2)
 
@@ -1132,6 +1132,40 @@ class MainWindow(QMainWindow):
         exctype, value, trace = error
         logger.warning(f'Uncaught exception!\n{trace}')
 
+    def pause(self):
+        """Pause the worker loop."""
+        # Update button text
+        if self.rt_pause_btn.text() == 'Pause':
+            self.rt_pause_btn.setText('Continue')
+        else:
+            self.rt_pause_btn.setText('Pause')
+        if self.pause_btn.text() == 'Pause':
+            self.pause_btn.setText('Continue')
+        else:
+            self.pause_btn.setText('Pause')
+
+        try:
+            self.analysisWorker.pause()
+        except (AttributeError, RuntimeError):
+            pass
+        try:
+            self.specWorker.pause()
+        except (AttributeError, RuntimeError):
+            pass
+
+    def stop(self):
+        """Kill the worker loop."""
+        try:
+            self.analysisWorker.stop()
+            logger.info('Analysis stopped')
+        except (AttributeError, RuntimeError):
+            pass
+        try:
+            self.specWorker.stop()
+            logger.info('Acquisition stopped')
+        except (AttributeError, RuntimeError):
+            pass
+
 # =============================================================================
 #   Analysis Loop Setup
 # =============================================================================
@@ -1145,7 +1179,7 @@ class MainWindow(QMainWindow):
         self.pause_btn.setText('Pause')
 
         # Set the status bar
-        self.statusBar().showMessage('Ready')
+        self.update_status('Ready')
 
     def get_plot_data(self, plot_info):
         """Catch plot info emitted by the analysis loop."""
@@ -1166,16 +1200,15 @@ class MainWindow(QMainWindow):
 
         self.update_plots()
 
-    def switch_plot_target(self):
-        """Switch what parameter is displayed on the plot."""
-
     def update_plots(self):
         """Update the plots."""
         # See if the graph data has been updated
         if self.update_graph_flag:
 
             # Plot the data
-            if self.widgets.get('graph_flag') and not self.worker.is_paused:
+            t1 = self.widgets.get('graph_flag')
+            t2 = self.analysisWorker.is_paused
+            if t1 and not t2:
 
                 # Get the time series data
                 plotx = np.array(self.df['Number'].to_numpy(), dtype=float)
@@ -1253,24 +1286,46 @@ class MainWindow(QMainWindow):
                 self.update_graph_flag = False
 
     def begin_analysis(self, analysis_mode):
-        """Set up and start the analysis worker."""
+        """Run spectral analysis."""
         # Pull the plotting data from the GUI
         widgetData = {'gas_params':    self.gas_table.getData(),
                       'bgpoly_params': self.bgpoly_table.getData(),
                       'offset_params': self.offset_table.getData(),
                       'shift_params':  self.shift_table.getData()}
-
         for label in self.widgets:
             widgetData[label] = self.widgets.get(label)
 
+        # Read the dark spectra or assign from the GUI
+        if widgetData['dark_flag'] and analysis_mode == 'rt_analyse':
+            dark_spec = self.dark_spectrum
+        elif widgetData['dark_flag'] and analysis_mode == 'post_analyse':
+            dark_fnames = widgetData['dark_fnames'].split('\n')
+            if len(dark_fnames) == 0:
+                logger.warning('No dark spectra selected, disabling dark '
+                               + 'correction')
+
+            else:
+                x, dark_spec = average_spectra(dark_fnames,
+                                               widgetData['spec_type'],
+                                               widgetData['wl_calib'])
+
+        else:
+            dark_spec = None
+
         # Initialise the analysis worker
-        self.worker = Worker(analysis_loop, analysis_mode, widgetData)
-        self.worker.signals.finished.connect(self.analysis_complete)
-        self.worker.signals.progress.connect(self.update_progress)
-        self.worker.signals.status.connect(self.update_status)
-        self.worker.signals.plotter.connect(self.get_plot_data)
-        self.worker.signals.error.connect(self.update_error)
-        self.threadpool.start(self.worker)
+        self.analysisThread = QThread()
+        self.analysisWorker = AnalysisWorker(analysis_mode, widgetData,
+                                             dark_spec)
+        self.analysisWorker.moveToThread(self.analysisThread)
+        self.analysisThread.started.connect(self.analysisWorker.run)
+        self.analysisWorker.progress.connect(self.update_progress)
+        self.analysisWorker.error.connect(self.update_error)
+        self.analysisWorker.plotData.connect(self.get_plot_data)
+        self.analysisWorker.finished.connect(self.analysis_complete)
+        self.analysisWorker.finished.connect(self.analysisThread.quit)
+        self.analysisWorker.finished.connect(self.analysisWorker.deleteLater)
+        self.analysisThread.finished.connect(self.analysisThread.deleteLater)
+        self.analysisThread.start()
 
         # Disable the start button and enable the pause/stop buttons
         self.start_btn.setEnabled(False)
@@ -1324,12 +1379,14 @@ class MainWindow(QMainWindow):
                     self.widgets[k].setStyleSheet("color: darkGray")
 
                 # Begin scope acquisition
-                self.scope_acquisition()
+                self.start_scope_acquisition()
 
         else:
 
             # Kill scope acquisition
-            self.scope_worker.kill()
+            self.scopeWorker.stop()
+            self.scopeThread.quit()
+            self.scopeThread.wait()
 
             # Disconnect the spectrometer
             self.spectrometer.close()
@@ -1348,6 +1405,28 @@ class MainWindow(QMainWindow):
             for k in ["nonlin_flag", "eldark_flag"]:
                 self.widgets[k].setEnabled(True)
                 self.widgets[k].setStyleSheet("color: white")
+
+    def update_int_time(self):
+        """Update the spectrometer integration time."""
+        self.spectrometer.update_integration_time(self.widgets.get('int_time'))
+
+    def update_coadds(self):
+        """Update the spectrometer coadds."""
+        self.spectrometer.update_coadds(self.widgets.get('coadds'))
+
+    def toggle_fitting(self):
+        """Toggle real time fitting on and off."""
+        if self.rt_fitting_flag:
+            self.rt_fitting_flag = False
+            self.rt_flag_btn.setStyleSheet("background-color: red")
+            self.rt_flag_btn.setText('Fitting OFF')
+            logger.info('Fitting turned off')
+
+        else:
+            self.rt_fitting_flag = True
+            self.rt_flag_btn.setStyleSheet("background-color: green")
+            self.rt_flag_btn.setText('Fitting ON')
+            logger.info('Fitting turned on')
 
 # =============================================================================
 #   Acquisition Loop Setup
@@ -1374,48 +1453,48 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage('Ready')
 
         # Begin background measurements
-        self.scope_acquisition()
+        self.start_scope_acquisition()
 
-    def catch_spectrum(self, spec_data):
-        """Slot to catch the spectra acquired by the acquisition loop."""
-        self.last_spectrum, self.last_info, plot_flag, save_flag = spec_data
+    def plot_spectrum(self, spectrum):
+        """Display measured spectrum."""
+        self.scope_line.setData(*spectrum)
 
-        if plot_flag:
-            self.scope_line.setData(*self.last_spectrum)
+    def set_meas_spectrum(self, spectrum):
+        """Update the spectrum to fit."""
+        try:
+            self.analysisWorker.set_spectrum(spectrum)
+        except AttributeError:
+            pass
 
-        if save_flag:
-            try:
-                self.worker.set_spectrum(self.last_info['fname'])
-            except AttributeError:
-                pass
+    def set_dark_spectrum(self, dark_spec):
+        """Update program dark spectrum."""
+        self.dark_spectrum = dark_spec
 
-    def scope_acquisition(self):
+    def start_scope_acquisition(self):
         """Set up scope acquisition."""
         # This section is for testing with a virtual spectrometer
         #######################################################################
         # self.spectrometer.fpath = 'Example/spectrum_00000.txt'
         #######################################################################
 
-        # Pull the plotting data from the GUI
-        widgetData = {'gas_params':    self.gas_table.getData(),
-                      'bgpoly_params': self.bgpoly_table.getData(),
-                      'offset_params': self.offset_table.getData(),
-                      'shift_params':  self.shift_table.getData()}
-
-        for label in self.widgets:
-            widgetData[label] = self.widgets.get(label)
-
         # Initialise the acquisition worker
-        self.scope_worker = Worker(acquire_spectra, 'acquire_scope',
-                                   widgetData, self.spectrometer)
-        self.scope_worker.signals.spectrum.connect(self.catch_spectrum)
-        self.scope_worker.signals.error.connect(self.update_error)
-        self.threadpool.start(self.scope_worker)
+        self.scopeThread = QThread()
+        self.scopeWorker = AcqScopeWorker(self.spectrometer)
+        self.scopeWorker.moveToThread(self.scopeThread)
+        self.scopeThread.started.connect(self.scopeWorker.run)
+        self.scopeWorker.plotSpec.connect(self.plot_spectrum)
+        self.scopeWorker.error.connect(self.update_error)
+        self.scopeWorker.finished.connect(self.scopeThread.quit)
+        self.scopeWorker.finished.connect(self.scopeWorker.deleteLater)
+        self.scopeThread.finished.connect(self.scopeThread.deleteLater)
+        self.scopeThread.start()
 
-    def begin_acquisition(self, acquisition_mode):
-        """Set up and start the acquisition worker."""
-        # Kill the background acquisition
-        self.scope_worker.kill()
+    def begin_acquisition(self, mode):
+        """Set up spectra acquisition."""
+        # Stop the background acquisition
+        self.scopeWorker.stop()
+        self.scopeThread.quit()
+        self.scopeThread.wait()
 
         # Check a results folder has been chosen
         if self.widgets.get("rt_save_path") == '':
@@ -1445,28 +1524,39 @@ class MainWindow(QMainWindow):
         #     self.spectrometer.fpath = 'Example/spectrum_00366.txt'
         #######################################################################
 
-        # Set the progress bar to busy
-        if acquisition_mode != 'acquire_darks':
-            self.progress.setRange(0, 0)
-
         # Pull the plotting data from the GUI
         widgetData = {'gas_params':    self.gas_table.getData(),
                       'bgpoly_params': self.bgpoly_table.getData(),
                       'offset_params': self.offset_table.getData(),
                       'shift_params':  self.shift_table.getData()}
-
         for label in self.widgets:
             widgetData[label] = self.widgets.get(label)
 
-        # Initialise the acquisition worker
-        self.acq_worker = Worker(acquire_spectra, acquisition_mode, widgetData,
-                                 self.spectrometer)
-        self.acq_worker.signals.finished.connect(self.acquisition_complete)
-        self.acq_worker.signals.spectrum.connect(self.catch_spectrum)
-        self.acq_worker.signals.progress.connect(self.update_progress)
-        self.acq_worker.signals.status.connect(self.update_status)
-        self.acq_worker.signals.error.connect(self.update_error)
-        self.threadpool.start(self.acq_worker)
+        # Initialise the acquisition thread and worker
+        self.specThread = QThread()
+        self.specWorker = AcqSpecWorker(self.spectrometer, widgetData)
+        self.specWorker.moveToThread(self.specThread)
+
+        # Assign signals depending on mode
+        if mode == 'acquire_darks':
+            self.specThread.started.connect(self.specWorker.acquire_dark)
+            self.progress.setRange(0, 100)
+            self.specWorker.setDark.connect(self.set_dark_spectrum)
+
+        else:
+            self.specThread.started.connect(self.specWorker.acquire_spec)
+            self.progress.setRange(0, 0)
+            self.specWorker.setSpec.connect(self.set_meas_spectrum)
+
+        # Assign signals
+        self.specWorker.plotSpec.connect(self.plot_spectrum)
+        self.specWorker.progress.connect(self.update_progress)
+        self.specWorker.error.connect(self.update_error)
+        self.specWorker.finished.connect(self.acquisition_complete)
+        self.specWorker.finished.connect(self.specThread.quit)
+        self.specWorker.finished.connect(self.specWorker.deleteLater)
+        self.specThread.finished.connect(self.specThread.deleteLater)
+        self.specThread.start()
 
         # Disable the start/acquisition buttons and enable the pause/stop
         # buttons
@@ -1478,67 +1568,15 @@ class MainWindow(QMainWindow):
         self.rt_flag_btn.setEnabled(False)
 
         # If running real time, launch the analyser loop
-        if acquisition_mode == 'acquire_cont' and self.rt_fitting_flag:
+        if mode == 'acquire_cont' and self.rt_fitting_flag:
             self.begin_analysis('rt_analyse')
 
         # Set plot x limits where known
         self.autoscale_flag = True
 
-    def update_int_time(self):
-        """Update the spectrometer integration time."""
-        self.spectrometer.update_integration_time(self.widgets.get('int_time'))
-
-    def update_coadds(self):
-        """Update the spectrometer coadds."""
-        self.spectrometer.update_coadds(self.widgets.get('coadds'))
-
-    def toggle_fitting(self):
-        """Toggle real time fitting on and off."""
-        if self.rt_fitting_flag:
-            self.rt_fitting_flag = False
-            self.rt_flag_btn.setStyleSheet("background-color: red")
-            self.rt_flag_btn.setText('Fitting OFF')
-            logger.info('Fitting turned off')
-
-        else:
-            self.rt_fitting_flag = True
-            self.rt_flag_btn.setStyleSheet("background-color: green")
-            self.rt_flag_btn.setText('Fitting ON')
-            logger.info('Fitting turned on')
-
-    def pause(self):
-        """Pause the worker loop."""
-        # Update button text
-        if self.rt_pause_btn.text() == 'Pause':
-            self.rt_pause_btn.setText('Continue')
-        else:
-            self.rt_pause_btn.setText('Pause')
-        if self.pause_btn.text() == 'Pause':
-            self.pause_btn.setText('Continue')
-        else:
-            self.pause_btn.setText('Pause')
-
-        try:
-            self.worker.pause()
-        except AttributeError:
-            pass
-        try:
-            self.acq_worker.pause()
-        except AttributeError:
-            pass
-
-    def stop(self):
-        """Kill the worker loop."""
-        try:
-            self.worker.kill()
-            logger.info('Analysis stopped')
-        except AttributeError:
-            pass
-        try:
-            self.acq_worker.kill()
-            logger.info('Acquisition stopped')
-        except AttributeError:
-            pass
+# =============================================================================
+#   Gui Theme
+# =============================================================================
 
     def change_theme(self):
         """Change the theme."""
