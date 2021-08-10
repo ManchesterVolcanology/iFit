@@ -1491,11 +1491,6 @@ class MainWindow(QMainWindow):
 
     def begin_acquisition(self, mode):
         """Set up spectra acquisition."""
-        # Stop the background acquisition
-        self.scopeWorker.stop()
-        self.scopeThread.quit()
-        self.scopeThread.wait()
-
         # Check a results folder has been chosen
         if self.widgets.get("rt_save_path") == '':
             logger.error('Please select an output folder!')
@@ -1531,6 +1526,11 @@ class MainWindow(QMainWindow):
                       'shift_params':  self.shift_table.getData()}
         for label in self.widgets:
             widgetData[label] = self.widgets.get(label)
+
+        # Stop the background acquisition
+        self.scopeWorker.stop()
+        self.scopeThread.quit()
+        self.scopeThread.wait()
 
         # Initialise the acquisition thread and worker
         self.specThread = QThread()
