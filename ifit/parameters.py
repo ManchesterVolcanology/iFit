@@ -1,3 +1,8 @@
+"""Contains Parameter objects for non-linear fitting.
+
+Parameters form basis of fitting in iFit. The format is based on the lmfit
+library: https://github.com/lmfit/lmfit-py/.
+"""
 import copy
 import numpy as np
 from collections import OrderedDict

@@ -1,3 +1,4 @@
+"""Contains functions for geometrical calculations on a globe."""
 import numpy as np
 from math import sin, cos, atan2, asin, pi
 

@@ -1,3 +1,8 @@
+"""Assorted functions for the iFit GUI.
+
+Contains functions for acquiring/analysing spectra in the background and
+bespoke widgets for table features in the front end.
+"""
 import os
 import sys
 import time
@@ -32,6 +37,7 @@ class QTextEditLogger(logging.Handler, QObject):
     appendPlainText = pyqtSignal(str)
 
     def __init__(self, parent):
+        """Initialise."""
         super().__init__()
         QObject.__init__(self)
         self.widget = QPlainTextEdit(parent)
@@ -58,11 +64,13 @@ class AcqScopeWorker(QObject):
     plotSpec = pyqtSignal(np.ndarray)
 
     def __init__(self, spectrometer):
+        """Initialise."""
         super(QObject, self).__init__()
         self.spectrometer = spectrometer
         self.is_stopped = False
 
     def run(self):
+        """Launch worker task."""
         while not self.is_stopped:
             spectrum, info = self.spectrometer.get_spectrum()
             self.plotSpec.emit(spectrum)
@@ -79,6 +87,7 @@ class AcqScopeWorker(QObject):
 # =============================================================================
 
 class AcqSpecWorker(QObject):
+    """Handle targeted acquisition and saving of spectra."""
 
     # Define Signals
     finished = pyqtSignal()
@@ -90,6 +99,7 @@ class AcqSpecWorker(QObject):
     setSpec = pyqtSignal(tuple)
 
     def __init__(self, spectrometer, widgetData):
+        """Initialise."""
         super(QObject, self).__init__()
         self.spectrometer = spectrometer
         self.widgetData = widgetData
@@ -99,6 +109,7 @@ class AcqSpecWorker(QObject):
 #   Acquire Dark Spectra ======================================================
 
     def acquire_dark(self):
+        """Acquire dark spectra."""
         try:
             # Log start of acquisition
             logger.info(f'Reading {self.widgetData["ndarks"]} dark spectra')
@@ -162,6 +173,7 @@ class AcqSpecWorker(QObject):
 #   Acquire Measurement Spectra ===============================================
 
     def acquire_spec(self):
+        """Acquire measurement spectra."""
         try:
             # Set the save location for the spectra
             save_path = self.widgetData['rt_save_path'] + '/spectra/'
@@ -245,6 +257,7 @@ class AcqSpecWorker(QObject):
 # =============================================================================
 
 class AnalysisWorker(QObject):
+    """Handle analysis of measured spectra."""
 
     # Define Signals
     finished = pyqtSignal()
@@ -254,6 +267,7 @@ class AnalysisWorker(QObject):
     plotData = pyqtSignal(list)
 
     def __init__(self, mode, widgetData, dark_spec):
+        """Initialise."""
         super(QObject, self).__init__()
         self.mode = mode
         self.widgetData = widgetData
@@ -265,6 +279,7 @@ class AnalysisWorker(QObject):
 #   Run analysis ==============================================================
 
     def run(self):
+        """Launch the worker function."""
         try:
             self._run()
         except Exception:
@@ -526,7 +541,7 @@ class Buffer:
     """
 
     def __init__(self, size, columns):
-
+        """Initialise."""
         self.df = pd.DataFrame(index=np.arange(size), columns=columns)
         self.fill = 0
         self.size = size
@@ -562,6 +577,7 @@ class Widgets(dict):
     """Object to allow easy config/info transfer with PyQT Widgets."""
 
     def __init__(self):
+        """Initialise."""
         super().__init__()
 
     def get(self, key):
@@ -600,6 +616,7 @@ class DSpinBox(QDoubleSpinBox):
     """Object for generating custom float spinboxes."""
 
     def __init__(self, value, range=None, step=1.0):
+        """Initialise."""
         super().__init__()
         if range is not None:
             self.setRange(*range)
@@ -611,6 +628,7 @@ class SpinBox(QSpinBox):
     """Object for generating custom integer spinboxes."""
 
     def __init__(self, value, range):
+        """Initialise."""
         super().__init__()
         self.setRange(*range)
         self.setValue(value)
@@ -624,6 +642,7 @@ class Table(QTableWidget):
     """Object to build parameter tables."""
 
     def __init__(self, parent, type, width, height, pname=None):
+        """Initialise."""
         super().__init__(parent)
 
         self._width = width

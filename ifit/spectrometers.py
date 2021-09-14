@@ -1,3 +1,4 @@
+"""Wrapper around python-seabreeze library."""
 import time
 import logging
 import numpy as np
@@ -55,7 +56,7 @@ class Spectrometer():
 
     def __init__(self, serial=None, integration_time=100, coadds=10,
                  correct_dark_counts=True, correct_nonlinearity=True):
-
+        """Initialize."""
         # Connect to the spectrometer
         try:
             self.spectro = sb.Spectrometer.from_serial_number(serial=serial)
@@ -159,7 +160,7 @@ class VSpectrometer():
 
     def __init__(self, serial=None, integration_time=100, coadds=10,
                  correct_dark_counts=True, correct_nonlinearity=True):
-
+        """Initialize."""
         # Connect to the spectrometer:
         self.spectro = None
 

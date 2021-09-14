@@ -1,3 +1,4 @@
+"""Read in spectra from different file formats."""
 import os
 import logging
 import linecache

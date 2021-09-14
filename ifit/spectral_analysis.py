@@ -1,3 +1,4 @@
+"""Contains functions for fitting spectra."""
 import logging
 import numpy as np
 from scipy.optimize import curve_fit
@@ -635,7 +636,7 @@ class FitResult():
 
     def __init__(self, analyser, spectrum, popt, perr, nerr, fwd_model,
                  params, resid_type, resid_limit, int_limit, calc_od):
-
+        """Initialize."""
         # Make a copy of the parameters
         self.params = params.make_copy()
 

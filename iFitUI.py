@@ -1,3 +1,4 @@
+"""Main script for iFit graphical user interface."""
 import os
 import sys
 import yaml
@@ -1690,6 +1691,7 @@ class QHLine(QFrame):
     """Horizontal line widget."""
 
     def __init__(self):
+        """Initialise."""
         super(QHLine, self).__init__()
         self.setFrameShape(QFrame.HLine)
         self.setFrameShadow(QFrame.Sunken)
@@ -1699,6 +1701,7 @@ class QVLine(QFrame):
     """Vertical line widget."""
 
     def __init__(self):
+        """Initialise."""
         super(QVLine, self).__init__()
         self.setFrameShape(QFrame.VLine)
         self.setFrameShadow(QFrame.Sunken)

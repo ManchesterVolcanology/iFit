@@ -1,3 +1,4 @@
+"""Contains functions to calculate light dilution curves."""
 import logging
 import numpy as np
 

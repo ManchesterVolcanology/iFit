@@ -1,3 +1,11 @@
+"""Contains scripts to launch GUI tools.
+
+These functions laucnch new windows for tasks outside the standard GUI,
+including:
+    - Calculate light dilution
+    - Characterise the flat spectrum and instrument line shape
+    - Measure fluxes from traverse measurements
+"""
 import os
 import sys
 import yaml
@@ -70,6 +78,7 @@ class LDWorker(QObject):
     error = pyqtSignal(tuple)
 
     def __init__(self, spec_fnames, dark_fnames, widgetData, ld_kwargs):
+        """Initialise."""
         super(QObject, self).__init__()
 
         # Create stopped and paused flags
@@ -83,6 +92,7 @@ class LDWorker(QObject):
         self.ld_kwargs = ld_kwargs
 
     def run(self):
+        """Launch worker function."""
         try:
             self._run()
         except Exception:
@@ -1671,6 +1681,7 @@ class QHLine(QFrame):
     """Horizontal line widget."""
 
     def __init__(self):
+        """Initialise."""
         super(QHLine, self).__init__()
         self.setFrameShape(QFrame.HLine)
         self.setFrameShadow(QFrame.Sunken)

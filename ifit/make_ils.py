@@ -1,3 +1,4 @@
+"""Contains functions to characterise and generate an instrument line shape."""
 import numpy as np
 from scipy.special import gamma
 from scipy.interpolate import griddata
