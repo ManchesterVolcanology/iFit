@@ -378,6 +378,7 @@ class AnalysisWorker(QObject):
                     while self.spectrum is None:
                         time.sleep(0.01)
                     [x, y], metadata, fname = self.spectrum
+                    self.spectrum = None
 
                 # Fit the spectrum
                 fit_result = self.analyser.fit_spectrum(
