@@ -33,7 +33,12 @@ This should allow the use of the basic code as well as the GUI. If wanting to ac
 
 ```
 conda install -c conda-forge seabreeze
+```
+
+To install `python-seabreeze`, the library for cotrolly Ocean Optics (or Ocean Insight) spectrometers. To install the relevant drivers shut the terminal, reopen a new one and run
+
+```
 seabreeze_os_setup
 ```
 
-To install `python-seabreeze` and install the relevant drivers. See the [`python-seabreeze docs`](https://python-seabreeze.readthedocs.io/en/latest/) for more details. Massive thanks to Andreas Poehlmann for creating and maintaining python-seabreeze, without which I would have spent an inordinate amount of time trying (and likely failing) to talk to spectrometers.
+after activating the environment. See the [`python-seabreeze docs`](https://python-seabreeze.readthedocs.io/en/latest/) for more details. Massive thanks to Andreas Poehlmann for creating and maintaining python-seabreeze, without which I would have spent an inordinate amount of time trying (and likely failing) to talk to spectrometers.
