@@ -891,50 +891,62 @@ class ILSWindow(QMainWindow):
 
         layout = QGridLayout(self._centralWidget)
 
+        # Add option for spectra type
+        layout.addWidget(QLabel('Format:'), 0, 0)
+        self.spec_type = QComboBox()
+        self.spec_type.setToolTip('Choose spectrum format')
+        self.spec_type.addItems(['iFit',
+                                 'Master.Scope',
+                                 'Spectrasuite',
+                                 'mobileDOAS',
+                                 'Basic'])
+        self.spec_type.setFixedSize(100, 20)
+        layout.addWidget(self.spec_type, 0, 1)
+
         # Add an input for the spectra selection
-        layout.addWidget(QLabel('Spectra:'), 0, 0)
+        layout.addWidget(QLabel('Spectra:'), 1, 0)
         self.spec_fnames = QTextEdit()
         self.spec_fnames.setFixedSize(300, 150)
-        layout.addWidget(self.spec_fnames, 0, 1, 1, 3)
+        layout.addWidget(self.spec_fnames, 1, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(partial(browse, self, self.spec_fnames, 'multi'))
-        layout.addWidget(btn, 0, 4)
+        layout.addWidget(btn, 1, 4)
 
         # Add an input for the dark spectra selection
-        layout.addWidget(QLabel('Dark\nSpectra:'), 1, 0)
+        layout.addWidget(QLabel('Dark\nSpectra:'), 2, 0)
         self.dark_fnames = QTextEdit()
         self.dark_fnames.setFixedSize(300, 150)
-        layout.addWidget(self.dark_fnames, 1, 1, 1, 3)
+        layout.addWidget(self.dark_fnames, 2, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(partial(browse, self, self.dark_fnames, 'multi'))
-        layout.addWidget(btn, 1, 4)
+        layout.addWidget(btn, 2, 4)
 
         # Add an input for the save selection
-        layout.addWidget(QLabel('Save:'), 2, 0)
+        layout.addWidget(QLabel('Save:'), 3, 0)
         self.save_path = QLineEdit()
-        layout.addWidget(self.save_path, 2, 1, 1, 3)
+        layout.addWidget(self.save_path, 3, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(partial(browse, self, self.save_path,
                                     'save'))
-        layout.addWidget(btn, 2, 4)
+        layout.addWidget(btn, 3, 4)
 
         btn = QPushButton('Import')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(self.import_spectra)
-        layout.addWidget(btn, 3, 1)
+        layout.addWidget(btn, 4, 1)
 
         btn = QPushButton('Fit')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(self.measure_ils)
-        layout.addWidget(btn, 3, 2)
+        layout.addWidget(btn, 4, 2)
 
         btn = QPushButton('Save')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(self.save_fit)
-        layout.addWidget(btn, 3, 3)
+        layout.addWidget(btn, 4, 3)
 
         graphwin = pg.GraphicsWindow(show=True)
         pg.setConfigOptions(antialias=True)
@@ -969,14 +981,16 @@ class ILSWindow(QMainWindow):
         if files == '':
             dark = 0
         else:
-            for i, fname in enumerate(files.split('\n')):
-                x, y = np.loadtxt(fname, unpack=True)
-                if i == 0:
-                    spec = y
-                else:
-                    spec += y
-
-                dark = np.divide(spec, i+1)
+            x, dark = average_spectra(files.split('\n'),
+                                      self.spec_type.currentText())
+            # for i, fname in enumerate(files.split('\n')):
+            #     x, y = np.loadtxt(fname, unpack=True)
+            #     if i == 0:
+            #         spec = y
+            #     else:
+            #         spec += y
+            #
+            #     dark = np.divide(spec, i+1)
 
         # Read in the measurement spectra
         for i, fname in enumerate(self.spec_fnames.toPlainText().split('\n')):
