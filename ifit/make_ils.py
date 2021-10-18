@@ -26,7 +26,7 @@ def super_gaussian(grid, w, k, a_w, a_k, shift=0, amp=1, offset=0):
         mod_grid = grid + shift
 
         # Interpolate onto the measurement grid
-        ils = griddata(mod_grid, ils, grid, method='cubic')
+        ils = griddata(mod_grid, ils, grid, method='cubic', fill_value=0.0)
 
     return ils * A * amp + offset
 
