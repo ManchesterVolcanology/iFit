@@ -1641,6 +1641,29 @@ class LDFWindow(QMainWindow):
         p0 = pg.mkPen(color='#2ca02c', width=2.0)
         p1 = pg.mkPen(color='#d62728', width=2.0)
 
+        # Check for large number in the time series. This is due to
+        # a bug in pyqtgraph not displaying large numbers
+        max_val = np.max([np.nanmax(np.abs(ld_results[:, 2])),
+                          np.nanmax(np.abs(ld_results[:, 4]))])
+
+        # Calculate the required order and update the axes labels
+        if ~np.isnan(max_val) and max_val > 1e6:
+            order = int(np.ceil(np.log10(max_val))) - 1
+            self.ax.setLabel(
+                'left',
+                'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>) ' + f'(1e{order})'
+                )
+            self.ax.setLabel(
+                'bottom',
+                'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>) ' + f'(1e{order})'
+                )
+        else:
+            order = None
+            self.ax.setLabel(
+                'left', 'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>)')
+            self.ax.setLabel(
+                'bottom', 'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>)')
+
         # Get the curve data for each LDF value
         for i, ldf in enumerate(ldf_grid):
             row_idx = np.where(ld_results[:, 0] == ldf)[0]
@@ -1653,6 +1676,13 @@ class LDFWindow(QMainWindow):
                 pen = p0
             else:
                 pen = p1
+
+            # Adjust for large numbers if neccissary
+            if order is not None:
+                so2_scd_1 = so2_scd_1 / 10**order
+                so2_scd_2 = so2_scd_2 / 10**order
+
+            # Plot!
             self.ax.plot(so2_scd_1, so2_scd_2, pen=pen, hoverable=True,
                          name=f'{ldf:.02f}')
 
