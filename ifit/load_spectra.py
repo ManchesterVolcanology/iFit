@@ -340,7 +340,6 @@ def load_master_scope(*args):
 
 def load_spectrasuite(*args):
     """Load Spectrasuite file."""
-    raise Exception('Need to re-write spectrasuite read function!')
     # Unpack arguments
     fname = args[0]
 
@@ -351,7 +350,7 @@ def load_spectrasuite(*args):
     # Extract metadata from the header
     with open(fname, 'r') as r:
         lines = r.readlines()
-        serial_number = lines[4].strip().split(': ')[-1]
+        serial_number = lines[7].strip().split(': ')[-1]
         integration_time = int(lines[6].strip().split(': ')[-1])
         coadds = int(lines[7].strip().split(': ')[-1])
         time_string = lines[2].strip().split(': ')[-1]
@@ -363,7 +362,10 @@ def load_spectrasuite(*args):
             elecdk_correction = True
 
     # Get spectrum number
-    spec_no = int(fname[-9:-4])
+    try:
+        spec_no = int(fname[-9:-4])
+    except ValueError:
+        spec_no = 0
 
     metadata = {'spectrum_number': spec_no,
                 'serial_number': serial_number,
