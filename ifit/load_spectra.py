@@ -414,7 +414,7 @@ def load_mobile_doas(*args):
         mlines = lines[npixels+3:]
 
         # Get the timestamp
-        year, month, day = [int(n) for n in mlines[3].split('.')]
+        day, month, year = [int(n) for n in mlines[3].split('.')]
         hour, minute, second = [int(n) for n in mlines[4].split(':')]
         timestamp = datetime(year, month, day, hour, minute, second)
 
