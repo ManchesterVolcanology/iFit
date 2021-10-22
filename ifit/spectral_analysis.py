@@ -382,7 +382,7 @@ class Analyser():
             b = fit_window[1] > self.init_fit_window[1]
             if a or b:
                 logger.error('New fit window must be within initial fit'
-                             + 'window!')
+                             + ' window!')
                 raise ValueError
 
             # Pad the fit window
