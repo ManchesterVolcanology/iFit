@@ -592,11 +592,13 @@ class MainWindow(QMainWindow):
         stab1 = QWidget()
         stab2 = QWidget()
         stab3 = QWidget()
+        stab4 = QWidget()
 
         tabwidget = QTabWidget()
         tabwidget.addTab(stab1, 'Model')
         tabwidget.addTab(stab2, 'Spectrometer')
         tabwidget.addTab(stab3, 'Parameters')
+        tabwidget.addTab(stab4, 'Outputs')
         slayout.addWidget(tabwidget, 0, 0)
 
 # =============================================================================
@@ -940,6 +942,39 @@ class MainWindow(QMainWindow):
         ld_layout.addWidget(self.widgets['ldf_fit'], 1, 2)
 
 # =============================================================================
+#   Output Settings
+# =============================================================================
+
+        # Setup the layout
+        layout = QGridLayout(stab4)
+        layout.setAlignment(Qt.AlignTop)
+        nrow = 0
+        ncol = 0
+
+        # Add a header
+        header = QLabel('Output File Parameters')
+        header.setAlignment(Qt.AlignLeft)
+        header.setFont(QFont('Ariel', 12))
+        layout.addWidget(header, nrow, 0, 1, 4)
+        nrow += 1
+
+        # Set the possible parameters
+        output_params = {'outp_lat':     ['Latitude', 1, 1],
+                         'outp_lon':     ['Longitude', 2, 1],
+                         'outp_alt':     ['Altitude', 3, 1],
+                         'outp_intlo':   ['Low Fit\nIntensity', 1, 2],
+                         'outp_inthi':   ['High Fit\nIntensity', 2, 2],
+                         'outp_intav':   ['Average Fit\nIntensity', 3, 2],
+                         'outp_resmax':  ['Maximum\nResidual', 1, 3],
+                         'outp_resstd':  ['Stdev.\nResidual', 2, 3],
+                         'outp_fitqual': ['Fit Quality', 3, 3]}
+
+        # Genertae the widgets
+        for key, [label, row, col] in output_params.items():
+            self.widgets[key] = QCheckBox(label)
+            layout.addWidget(self.widgets[key], row, col)
+
+# =============================================================================
 # Tool Windows
 # =============================================================================
 
@@ -1198,94 +1233,81 @@ class MainWindow(QMainWindow):
         self.last_amt.setText(f'{amt:.03g}')
         self.last_err.setText(f'{err:.03g}')
 
-        self.update_graph_flag = True
-
         self.update_plots()
 
     def update_plots(self):
         """Update the plots."""
-        # See if the graph data has been updated
-        if self.update_graph_flag:
+        # Plot the data
+        t1 = self.widgets.get('graph_flag')
+        t2 = self.analysisWorker.is_paused
+        if t1 and not t2:
+
+            # Get the time series data
+            plotx = np.array(self.df['Number'].to_numpy(), dtype=float)
+            ploty = np.array(self.df[self.key].to_numpy(), dtype=float)
+            erry = np.array(self.df[self.key + '_err'].to_numpy(),
+                            dtype=float)
+
+            # Remove failed fits
+            fail_idx = np.where(~np.isnan(ploty))
+            plotx = plotx[fail_idx]
+            ploty = ploty[fail_idx]
+            erry = erry[fail_idx]
+
+            # Remove bad points if desired
+            if self.widgets.get('good_fit_flag'):
+                fit_quality = self.df['fit_quality'].to_numpy()[fail_idx]
+                qual_idx = np.where(fit_quality == 1)[0]
+                plotx = plotx[qual_idx]
+                ploty = ploty[qual_idx]
+                erry = erry[qual_idx]
+
+            # Scroll the graphs if desired
+            if self.widgets.get('scroll_flag'):
+                npts = self.widgets.get('scroll_amt')
+                if len(plotx) > npts:
+                    plotx = plotx[-npts:]
+                    ploty = ploty[-npts:]
+                    erry = erry[-npts:]
+
+            # Check that there are data to plot
+            if len(plotx) != 0:
+
+                # Check for large number in the time series. This is due to
+                # a bug in pyqtgraph not displaying large numbers
+                max_val = np.nanmax(np.abs(ploty))
+                if ~np.isnan(max_val) and max_val > 1e6:
+                    order = int(np.ceil(np.log10(max_val))) - 1
+                    ploty = ploty / 10**order
+                    erry = erry / 10**order
+                    self.plot_axes[4].setLabel('left',
+                                               f'Fit value (1e{order})')
+                else:
+                    self.plot_axes[4].setLabel('left', 'Fit value')
 
             # Plot the data
-            t1 = self.widgets.get('graph_flag')
-            t2 = self.analysisWorker.is_paused
-            if t1 and not t2:
+            plot_data = {'spectrum': [self.fit_result.grid,
+                                      self.fit_result.spec],
+                         'fit': [self.fit_result.grid,
+                                 self.fit_result.fit],
+                         'measurement': self.spectrum,
+                         'residual': [self.fit_result.grid,
+                                      self.fit_result.resid],
+                         'meas_od': [self.fit_result.grid,
+                                     self.fit_result.meas_od[self.key]],
+                         'fit_od': [self.fit_result.grid,
+                                    self.fit_result.synth_od[self.key]],
+                         'series': [plotx, ploty]}
+            for key, data in plot_data.items():
+                self.plot_lines[key].setData(*data)
 
-                # Get the time series data
-                plotx = np.array(self.df['Number'].to_numpy(), dtype=float)
-                ploty = np.array(self.df[self.key].to_numpy(), dtype=float)
-                erry = np.array(self.df[self.key + '_err'].to_numpy(),
-                                dtype=float)
-
-                # Remove failed fits
-                fail_idx = np.where(~np.isnan(ploty))
-                plotx = plotx[fail_idx]
-                ploty = ploty[fail_idx]
-                erry = erry[fail_idx]
-
-                # Remove bad points if desired
-                if self.widgets.get('good_fit_flag'):
-                    fit_quality = self.df['fit_quality'].to_numpy()[fail_idx]
-                    qual_idx = np.where(fit_quality == 1)[0]
-                    plotx = plotx[qual_idx]
-                    ploty = ploty[qual_idx]
-                    erry = erry[qual_idx]
-
-                # Scroll the graphs if desired
-                if self.widgets.get('scroll_flag'):
-                    npts = self.widgets.get('scroll_amt')
-                    if len(plotx) > npts:
-                        plotx = plotx[-npts:]
-                        ploty = ploty[-npts:]
-                        erry = erry[-npts:]
-
-                # Check that there are data to plot
-                if len(plotx) != 0:
-
-                    # Check for large number in the time series. This is due to
-                    # a bug in pyqtgraph not displaying large numbers
-                    max_val = np.nanmax(np.abs(ploty))
-                    if ~np.isnan(max_val) and max_val > 1e6:
-                        order = int(np.ceil(np.log10(max_val))) - 1
-                        ploty = ploty / 10**order
-                        erry = erry / 10**order
-                        self.plot_axes[4].setLabel('left',
-                                                   f'Fit value (1e{order})')
-                    else:
-                        self.plot_axes[4].setLabel('left', 'Fit value')
-
-                # Plot the data
-                plot_data = {'spectrum': [self.fit_result.grid,
-                                          self.fit_result.spec],
-                             'fit': [self.fit_result.grid,
-                                     self.fit_result.fit],
-                             'measurement': self.spectrum,
-                             'residual': [self.fit_result.grid,
-                                          self.fit_result.resid],
-                             'meas_od': [self.fit_result.grid,
-                                         self.fit_result.meas_od[self.key]],
-                             'fit_od': [self.fit_result.grid,
-                                        self.fit_result.synth_od[self.key]],
-                             'series': [plotx, ploty]}
-                for key, data in plot_data.items():
-                    self.plot_lines[key].setData(*data)
-
-                # Show error plot if selected
-                if self.widgets.get('graph_err_flag'):
-                    self.err_plot.setVisible(True)
-                    self.err_plot.setData(x=plotx, y=ploty, top=erry,
-                                          bottom=erry)
-                else:
-                    self.err_plot.setVisible(False)
-
-                # Turn off autoscaling the x axis after the first plot
-                if self.autoscale_flag:
-                    self.autoscale_flag = False
-                    for i in [0, 1, 2, 3]:
-                        self.plot_axes[i].enableAutoRange('x', False)
-
-                self.update_graph_flag = False
+            # Show error plot if selected
+            if self.widgets.get('graph_err_flag'):
+                self.err_plot.setVisible(True)
+                self.err_plot.setData(x=plotx, y=ploty, top=erry,
+                                      bottom=erry)
+            else:
+                self.err_plot.setVisible(False)
 
     def begin_analysis(self, analysis_mode):
         """Run spectral analysis."""
@@ -1333,12 +1355,6 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(False)
         self.pause_btn.setEnabled(True)
         self.stop_btn.setEnabled(True)
-
-        # Set plot x limits where known
-        self.autoscale_flag = True
-
-        # Initialise the plotting timer
-        self.update_graph_flag = False
 
 # =============================================================================
 # Connect to spectrometer
@@ -1572,9 +1588,6 @@ class MainWindow(QMainWindow):
         # If running real time, launch the analyser loop
         if mode == 'acquire_cont' and self.rt_fitting_flag:
             self.begin_analysis('rt_analyse')
-
-        # Set plot x limits where known
-        self.autoscale_flag = True
 
 # =============================================================================
 #   Gui Theme

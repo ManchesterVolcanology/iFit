@@ -678,6 +678,10 @@ class FitResult():
             elif resid_type == 'Percentage':
                 self.resid = (self.spec - self.fit)/self.spec * 100
 
+            # Calculate residual values
+            self.resid_max = np.nanmax(np.abs(self.resid))
+            self.resid_std = np.nanstd(self.resid)
+
             # Check the fit quality
             if resid_limit is not None and max(abs(self.resid)) > resid_limit:
                 logger.info('High residual detected')

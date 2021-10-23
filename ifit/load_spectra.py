@@ -51,6 +51,18 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
                  'mobileDOAS': load_mobile_doas,
                  'Basic': load_basic}
 
+    # Generate the baseline metadata dictionary
+    base_metadata = {'spectrum_number': -1,
+                     'serial_number': '',
+                     'integration_time': -1,
+                     'coadds': -1,
+                     'timestamp': datetime(2000, 1, 1, 12, 0, 0),
+                     'elecdk_correction': False,
+                     'nonlin_correction': False,
+                     'lat': 0,
+                     'lon': 0,
+                     'alt': 0}
+
     # Select the desired function
     try:
         read_func = func_dict[spec_type]
@@ -75,6 +87,8 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
 
         if stop_on_err:
             raise Exception
+
+    metadata = {**base_metadata, **metadata}
 
     return grid, spec, metadata, read_err
 
@@ -414,9 +428,8 @@ def load_mobile_doas(*args):
         mlines = lines[npixels+3:]
 
         # Get the timestamp
-        day, month, year = [int(n) for n in mlines[3].split('.')]
-        hour, minute, second = [int(n) for n in mlines[4].split(':')]
-        timestamp = datetime(year, month, day, hour, minute, second)
+        dt_str = f'{mlines[3]} {mlines[4]}'
+        timestamp = datetime.strptime(dt_str, '%d.%m.%y %H:%M:%S')
 
         metadata = {'spectrum_number': spec_no,
                     'filename': mlines[0],

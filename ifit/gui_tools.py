@@ -303,24 +303,32 @@ class CalcFlux(QMainWindow):
 
         # Add checkbox to remove bad fits
         self.despike_flag = QCheckBox('Remove\nBad fits?')
-        layout.addWidget(self.despike_flag, 0, 3, 1, 2)
+        layout.addWidget(self.despike_flag, 0, 3)
 
         # Create input for GPS intput
         layout.addWidget(QLabel('GPS File:'), 1, 0)
         self.gps_path = QLineEdit()
         self.gps_path.setFixedSize(200, 25)
         layout.addWidget(self.gps_path, 1, 1)
-        btn = QPushButton('Browse')
-        btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.gps_path, 'single',
-                                    "GPS File (*.txt)"))
-        layout.addWidget(btn, 1, 2)
+        gps_btn = QPushButton('Browse')
+        gps_btn.setFixedSize(70, 25)
+        gps_btn.clicked.connect(partial(browse, self, self.gps_path, 'single',
+                                        "GPS File (*.txt)"))
+        layout.addWidget(gps_btn, 1, 2)
+
+        # Add checkbox to remove bad fits
+        def gps_toggle(state):
+            self.gps_path.setReadOnly(state != Qt.Unchecked)
+            gps_btn.setEnabled(state == Qt.Unchecked)
+        self.gps_file_flag = QCheckBox('Use Separate\nGPS File?')
+        self.gps_file_flag.stateChanged.connect(lambda s: gps_toggle(s))
+        layout.addWidget(self.gps_file_flag, 1, 3)
 
         # Make a button to read in the data
         btn = QPushButton('Import')
         btn.setFixedSize(100, 25)
         btn.clicked.connect(self.import_data)
-        layout.addWidget(btn, 1, 3, 1, 2)
+        layout.addWidget(btn, 0, 4, 2, 1)
 
         # Create input for output
         layout.addWidget(QLabel('Output\nFolder:'), 2, 0)
@@ -542,7 +550,8 @@ class CalcFlux(QMainWindow):
 
         # Read in the SO2 results
         logger.info('Importing gas data...')
-        so2_df = pd.read_csv(self.so2_path.text(), parse_dates=['Time'])
+        so2_df = pd.read_csv(self.so2_path.text(), parse_dates=['Time'],
+                             comment='#')
 
         self.so2_time = np.array([t.hour + t.minute/60 + t.second/3600
                                   for t in so2_df['Time']])
@@ -551,20 +560,31 @@ class CalcFlux(QMainWindow):
         self.so2_err = so2_df['SO2_err'].to_numpy()
 
         if self.despike_flag.isChecked():
-            mask = so2_df['fit_quality'] != 1
-            self.so2_scd = np.ma.masked_where(mask, self.so2_scd)
-            self.so2_err = np.ma.masked_where(mask, self.so2_err)
+            try:
+                mask = so2_df['fit_quality'] != 1
+                self.so2_scd = np.ma.masked_where(mask, self.so2_scd)
+                self.so2_err = np.ma.masked_where(mask, self.so2_err)
+            except KeyError:
+                logger.warning('Fit quality not found in iFit file!')
 
-        # Read in the GPS data
-        logger.info('Importing GPS data...')
-        gps_df = pd.read_table(self.gps_path.text(), sep='\t',
-                               parse_dates=['time'])
+        if self.gps_file_flag.isChecked():
 
-        self.gps_time = np.array([t.hour + t.minute/60 + t.second/3600
-                                  for t in gps_df['time']])
-        self.lat = gps_df['latitude'].to_numpy()
-        self.lon = gps_df['longitude'].to_numpy()
-        self.alt = gps_df['altitude (m)'].to_numpy()
+            # Read in the GPS data
+            logger.info('Importing GPS data...')
+            gps_df = pd.read_table(self.gps_path.text(), sep='\t',
+                                   parse_dates=['time'])
+
+            self.gps_time = np.array([t.hour + t.minute/60 + t.second/3600
+                                      for t in gps_df['time']])
+            self.lat = gps_df['latitude'].to_numpy()
+            self.lon = gps_df['longitude'].to_numpy()
+            self.alt = gps_df['altitude (m)'].to_numpy()
+
+        else:
+            self.gps_time = self.so2_time
+            self.lat = so2_df['Lat'].to_numpy()
+            self.lon = so2_df['Lon'].to_numpy()
+            self.alt = so2_df['Alt'].to_numpy()
 
         ploty = self.so2_scd
 
@@ -592,6 +612,11 @@ class CalcFlux(QMainWindow):
         self.lr = pg.LinearRegionItem([plotx[0], plotx[-1]])
         self.lr.setZValue(-10)
         self.ax.addItem(self.lr)
+
+        # Plot the traverse graphs
+        self.mapax.clear()
+        self.mapax.addLegend()
+        self.mapax.plot(self.lon, self.lat, pen=self.p0)
 
         # Create a traverse counter and dictionary to hold the results
         self.flux_data = {}
@@ -1624,8 +1649,8 @@ class LDFWindow(QMainWindow):
     def load_ifit_data(self):
         """Load the light dilution curve data."""
         # Read in the iFit analysis results
-        df1 = pd.read_csv(self.ifit_1_path.text())
-        df2 = pd.read_csv(self.ifit_2_path.text())
+        df1 = pd.read_csv(self.ifit_1_path.text(), comment='#')
+        df2 = pd.read_csv(self.ifit_2_path.text(), comment='#')
 
         if self.order is None:
             max_val = np.max([np.nanmax(df1['SO2']), np.nanmax(df2['SO2'])])
@@ -1636,12 +1661,12 @@ class LDFWindow(QMainWindow):
                     'left',
                     'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>) '
                     + f'(1e{self.order})'
-                    )
+                )
                 self.ax.setLabel(
                     'bottom',
                     'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>) '
                     + f'(1e{self.order})'
-                    )
+                )
 
             else:
                 self.order = 0
@@ -1683,12 +1708,12 @@ class LDFWindow(QMainWindow):
                     'left',
                     'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>) '
                     + f'(1e{self.order})'
-                    )
+                )
                 self.ax.setLabel(
                     'bottom',
                     'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>) '
                     + f'(1e{self.order})'
-                    )
+                )
             else:
                 self.order = 0
                 self.ax.setLabel(

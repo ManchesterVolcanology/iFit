@@ -346,14 +346,42 @@ class AnalysisWorker(QObject):
         # Open the output file
         with open(save_path, write_mode) as w:
 
-            # If writing a new file, add the columns
+            # If writing a new file, add the metadata and columns
             if write_mode == 'w':
 
+                # Write the analysis metaddata
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                w.write('# iFit output file\n'
+                        + f'# Analysis Time,{timestamp}\n'
+                        + f'# Fit Window Low,{self.widgetData["fit_lo"]}\n'
+                        + f'# Fit Window High,{self.widgetData["fit_hi"]}\n'
+                        + f'# Flat corr.,{self.widgetData["flat_flag"]}\n'
+                        + f'# Dark corr.,{self.widgetData["dark_flag"]}\n'
+                        + f'# Stray corr.,{self.widgetData["stray_flag"]}\n')
+
                 # Make a list of column names
+                pre_cols = [['outp_lat', 'Lat'],
+                            ['outp_lon', 'Lon'],
+                            ['outp_alt', 'Alt']]
+                post_cols = [['outp_intlo', 'int_lo'],
+                             ['outp_inthi', 'int_hi'],
+                             ['outp_intav', 'int_av'],
+                             ['outp_resmax', 'max_resid'],
+                             ['outp_resstd', 'std_resid'],
+                             ['outp_fitqual', 'fit_quality']]
+
+                # Add pre columns
                 cols = ['File', 'Number', 'Time']
+                [cols.append(name) for [key, name] in pre_cols
+                 if self.widgetData[key]]
+
+                # Add analysis parameter columns
                 for par in self.analyser.params:
                     cols += [par, f'{par}_err']
-                cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
+
+                # Add post columns
+                [cols.append(name) for [key, name] in post_cols
+                 if self.widgetData[key]]
 
                 # Write the header
                 w.write(cols[0])
@@ -394,6 +422,13 @@ class AnalysisWorker(QObject):
                 w.write(f'{fname},{metadata["spectrum_number"]},'
                         + f'{metadata["timestamp"]}')
 
+                if self.widgetData['outp_lat']:
+                    w.write(f',{metadata["lat"]}')
+                if self.widgetData['outp_lon']:
+                    w.write(f',{metadata["lon"]}')
+                if self.widgetData['outp_alt']:
+                    w.write(f',{metadata["alt"]}')
+
                 # Add results to the buffer dataframe and write to file
                 row = [metadata["spectrum_number"]]
                 for par in fit_result.params.values():
@@ -403,13 +438,22 @@ class AnalysisWorker(QObject):
                 buffer.update(row)
 
                 # Write fit quality info and start a new line
-                w.write(f',{fit_result.nerr},{fit_result.int_lo},'
-                        + f'{fit_result.int_hi},{fit_result.int_av}')
+                if self.widgetData['outp_intlo']:
+                    w.write(f',{fit_result.int_lo}')
+                if self.widgetData['outp_inthi']:
+                    w.write(f',{fit_result.int_hi}')
+                if self.widgetData['outp_intav']:
+                    w.write(f',{fit_result.int_av}')
+                if self.widgetData['outp_resmax']:
+                    w.write(f',{fit_result.resid_max}')
+                if self.widgetData['outp_resstd']:
+                    w.write(f',{fit_result.resid_std}')
+                if self.widgetData['outp_fitqual']:
+                    w.write(f',{fit_result.nerr}')
                 w.write('\n')
 
                 # Emit the progress
-                if self.mode == 'post_analyse':
-                    self.progress.emit(((loop+1)/nspec)*100)
+                self.progress.emit(((loop+1)/nspec)*100)
 
                 # Emit graph data
                 self.plotData.emit([fit_result, [x, y], buffer.df,
