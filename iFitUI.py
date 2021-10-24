@@ -959,15 +959,15 @@ class MainWindow(QMainWindow):
         nrow += 1
 
         # Set the possible parameters
-        output_params = {'outp_lat':     ['Latitude', 1, 1],
-                         'outp_lon':     ['Longitude', 2, 1],
-                         'outp_alt':     ['Altitude', 3, 1],
-                         'outp_intlo':   ['Low Fit\nIntensity', 1, 2],
-                         'outp_inthi':   ['High Fit\nIntensity', 2, 2],
-                         'outp_intav':   ['Average Fit\nIntensity', 3, 2],
-                         'outp_resmax':  ['Maximum\nResidual', 1, 3],
-                         'outp_resstd':  ['Stdev.\nResidual', 2, 3],
-                         'outp_fitqual': ['Fit Quality', 3, 3]}
+        output_params = {'outp_lat':     ['Latitude', 1, 0],
+                         'outp_lon':     ['Longitude', 2, 0],
+                         'outp_alt':     ['Altitude', 3, 0],
+                         'outp_intlo':   ['Low Fit\nIntensity', 1, 1],
+                         'outp_inthi':   ['High Fit\nIntensity', 2, 1],
+                         'outp_intav':   ['Average Fit\nIntensity', 3, 1],
+                         'outp_resmax':  ['Maximum\nResidual', 1, 2],
+                         'outp_resstd':  ['Stdev.\nResidual', 2, 2],
+                         'outp_fitqual': ['Fit Quality', 3, 2]}
 
         # Genertae the widgets
         for key, [label, row, col] in output_params.items():
