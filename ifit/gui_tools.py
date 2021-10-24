@@ -228,7 +228,7 @@ class CalcFlux(QMainWindow):
         self.setWindowTitle('Calculate Flux')
         self.statusBar().showMessage('Ready')
         self.setGeometry(40, 40, 1000, 500)
-        self.setWindowIcon(QIcon('bin/icon.ico'))
+        self.setWindowIcon(QIcon('bin/icons/flux.png'))
 
         # Set the window layout
         self.generalLayout = QGridLayout()
@@ -900,7 +900,7 @@ class ILSWindow(QMainWindow):
         self.setWindowTitle('Measure ILS')
         self.statusBar().showMessage('Ready')
         self.setGeometry(40, 40, 1000, 600)
-        self.setWindowIcon(QIcon('bin/icon.ico'))
+        self.setWindowIcon(QIcon('bin/icons/ils.png'))
 
         # Set the window layout
         self.generalLayout = QGridLayout()
@@ -1096,7 +1096,7 @@ class FLATWindow(QMainWindow):
         self.setWindowTitle('Measure Flat Field')
         self.statusBar().showMessage('Ready')
         self.setGeometry(40, 40, 1000, 500)
-        self.setWindowIcon(QIcon('bin/icon.ico'))
+        self.setWindowIcon(QIcon('bin/icons/flat.png'))
 
         # Set the window layout
         self.generalLayout = QGridLayout()
@@ -1283,7 +1283,7 @@ class LDFWindow(QMainWindow):
         self.setWindowTitle('Light Dilution Analysis')
         self.statusBar().showMessage('Ready')
         self.setGeometry(40, 40, 1200, 700)
-        self.setWindowIcon(QIcon('bin/icon.ico'))
+        self.setWindowIcon(QIcon('bin/icons/ldf.png'))
 
         # Generate the threadpool for launching background processes
         self.threadpool = QThreadPool()
