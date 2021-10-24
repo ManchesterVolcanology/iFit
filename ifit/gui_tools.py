@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QComboBox, QDoubleSpinBox, QTableWidget,
                              QTableWidgetItem, QTabWidget, QMessageBox)
 
-from ifit.gui_functions import QTextEditLogger, DSpinBox
+from ifit.gui_functions import QTextEditLogger, DSpinBox, Widgets
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import average_spectra
@@ -43,174 +43,6 @@ COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
           '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
 logger = logging.getLogger(__name__)
-
-
-# Create a worker to handle QThreads for light dilution analysis
-class LDWorker(QObject):
-    """Worker thread.
-
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up
-
-    Parameters
-    ----------
-    fn : function
-        The function to run on the worker thread
-    mode : str
-        Flags which signals to use. Must be one of 'analyse' or 'acquire', for
-        a spectral analysis or acquisition thread respectively
-
-    Attributes
-    ----------
-    args : list
-        Arguments to  pass to the function
-    kwargs : dict
-        Keyword arguments to pass to the function
-    signals : WorkerSignals object
-        The worker signals
-    is_paused : bool
-        State to show if the worker has been paused
-    is_killed : bool
-        State to show if the worker has been killed
-    spec_fname : str
-        File path to the last measured spectrum
-    """
-
-    # Define signals
-    finished = pyqtSignal()
-    data = pyqtSignal(np.ndarray)
-    error = pyqtSignal(tuple)
-
-    def __init__(self, spec_fnames, dark_fnames, widgetData, ld_kwargs):
-        """Initialise."""
-        super(QObject, self).__init__()
-
-        # Create stopped and paused flags
-        self.is_paused = False
-        self.is_killed = False
-
-        # Create a holder for the spectrum filepath
-        self.spec_fnames = spec_fnames
-        self.dark_fnames = dark_fnames
-        self.widgetData = widgetData
-        self.ld_kwargs = ld_kwargs
-
-    def run(self):
-        """Launch worker function."""
-        try:
-            self._run()
-        except Exception:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.error.emit((exctype, value, traceback.format_exc()))
-        self.finished.emit()
-
-    def _run(self):
-        """Launch LD analysis from the GUI."""
-        # Read in the spectra
-        spectrum = average_spectra(self.spec_fnames,
-                                   self.widgetData['spec_type'],
-                                   self.widgetData['wl_calib'])
-
-        if self.widgetData['dark_flag']:
-            x, dark = average_spectra(self.dark_fnames,
-                                      self.widgetData['spec_type'],
-                                      self.widgetData['wl_calib'])
-        else:
-            dark = 0
-
-        # Generate the analyser
-        logger.info('Generating the iFit analyser...')
-        self.analyser = self.generate_analyser()
-        self.analyser.dark_spec = dark
-
-        # Generate the light dilution curves
-        logger.info('Beginning light dilution calculations')
-        ld_results = generate_ld_curves(self.analyser, spectrum,
-                                        **self.ld_kwargs)
-
-        self.data.emit(ld_results)
-
-    def generate_analyser(self):
-        """Generate iFit analyser."""
-        # Initialise the Parameters
-        logger.info('Generating model analyser')
-        self.params = Parameters()
-
-        # Pull the parameters from the parameter table
-        for line in self.widgetData['gas_params']:
-            self.params.add(name=line[0], value=line[1], vary=line[2],
-                            xpath=line[4], plume_gas=line[3])
-        for i, line in enumerate(self.widgetData['bgpoly_params']):
-            self.params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
-        for i, line in enumerate(self.widgetData['offset_params']):
-            self.params.add(name=f'offset{i}', value=line[0], vary=line[1])
-        for i, line in enumerate(self.widgetData['shift_params']):
-            self.params.add(name=f'shift{i}', value=line[0], vary=line[1])
-
-        # Check if ILS is in the fit
-        if self.widgetData['ils_mode'] == 'Manual':
-            self.params.add('fwem', value=float(self.widgetData['fwem']),
-                            vary=self.widgetData['fwem_fit'])
-            self.params.add('k', value=float(self.widgetData['k']),
-                            vary=self.widgetData['k_fit'])
-            self.params.add('a_w', value=float(self.widgetData['a_w']),
-                            vary=self.widgetData['a_w_fit'])
-            self.params.add('a_k', value=float(self.widgetData['a_k']),
-                            vary=self.widgetData['a_k_fit'])
-
-        # Add the light dilution factor
-        if self.widgetData['ldf_fit'] or self.widgetData['ldf'] != 0.0:
-            self.params.add('LDF', value=float(self.widgetData['ldf']),
-                            vary=self.widgetData['ldf_fit'])
-
-        # Report fitting parameters
-        logger.info(self.params.pretty_print(cols=['name', 'value', 'vary',
-                                                   'xpath']))
-
-        # Get the bad pixels
-        if self.widgetData['bad_pixels'] != '':
-            bad_pixels = [int(i) for i
-                          in self.widgetData['bad_pixels'].split(',')]
-        else:
-            bad_pixels = []
-
-        # Generate the analyser
-        analyser = Analyser(params=self.params,
-                            fit_window=[self.widgetData['fit_lo'],
-                                        self.widgetData['fit_hi']],
-                            frs_path=self.widgetData['frs_path'],
-                            model_padding=self.widgetData['model_padding'],
-                            model_spacing=self.widgetData['model_spacing'],
-                            flat_flag=self.widgetData['flat_flag'],
-                            flat_path=self.widgetData['flat_path'],
-                            stray_flag=self.widgetData['stray_flag'],
-                            stray_window=[self.widgetData['stray_lo'],
-                                          self.widgetData['stray_hi']],
-                            dark_flag=self.widgetData['dark_flag'],
-                            ils_type=self.widgetData['ils_mode'],
-                            ils_path=self.widgetData['ils_path'],
-                            despike_flag=self.widgetData['despike_flag'],
-                            spike_limit=self.widgetData['spike_limit'],
-                            bad_pixels=bad_pixels)
-
-        return analyser
-
-    def pause(self):
-        """Pause the analysis/acquisition."""
-        if self.is_paused:
-            self.is_paused = False
-        else:
-            self.is_paused = True
-
-    def resume(self):
-        """Resume the analysis/acquisition."""
-        self.is_paused = False
-
-    def stop(self):
-        """Terminate the analysis/acquisition."""
-        if self.is_paused:
-            self.is_paused = False
-        self.is_stopped = True
 
 
 # =============================================================================
@@ -243,7 +75,10 @@ class CalcFlux(QMainWindow):
 
         self.save_flag = False
 
+        self.widgets = Widgets()
+
         self._createApp()
+        self.load_config()
 
     def _createApp(self):
         """Create the app widgets."""
@@ -292,37 +127,39 @@ class CalcFlux(QMainWindow):
 
         # Create input for iFit output
         layout.addWidget(QLabel('iFit File:'), 0, 0)
-        self.so2_path = QLineEdit()
-        self.so2_path.setFixedSize(200, 25)
-        layout.addWidget(self.so2_path, 0, 1)
+        self.widgets['so2_path'] = QLineEdit()
+        self.widgets['so2_path'].setFixedSize(200, 25)
+        layout.addWidget(self.widgets['so2_path'], 0, 1)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.so2_path, 'single',
-                                    "Comma Separated (*.csv)"))
+        btn.clicked.connect(partial(browse, self, self.widgets['so2_path'],
+                                    'single', "Comma Separated (*.csv)"))
         layout.addWidget(btn, 0, 2)
 
         # Add checkbox to remove bad fits
-        self.despike_flag = QCheckBox('Remove\nBad fits?')
-        layout.addWidget(self.despike_flag, 0, 3)
+        self.widgets['despike_flag'] = QCheckBox('Remove\nBad fits?')
+        layout.addWidget(self.widgets['despike_flag'], 0, 3)
 
         # Create input for GPS intput
         layout.addWidget(QLabel('GPS File:'), 1, 0)
-        self.gps_path = QLineEdit()
-        self.gps_path.setFixedSize(200, 25)
-        layout.addWidget(self.gps_path, 1, 1)
+        self.widgets['gps_path'] = QLineEdit()
+        self.widgets['gps_path'].setFixedSize(200, 25)
+        layout.addWidget(self.widgets['gps_path'], 1, 1)
         gps_btn = QPushButton('Browse')
         gps_btn.setFixedSize(70, 25)
-        gps_btn.clicked.connect(partial(browse, self, self.gps_path, 'single',
-                                        "GPS File (*.txt)"))
+        gps_btn.clicked.connect(partial(browse, self, self.widgets['gps_path'],
+                                        'single', "GPS File (*.txt)"))
         layout.addWidget(gps_btn, 1, 2)
 
         # Add checkbox to remove bad fits
-        def gps_toggle(state):
-            self.gps_path.setReadOnly(state != Qt.Unchecked)
-            gps_btn.setEnabled(state == Qt.Unchecked)
-        self.gps_file_flag = QCheckBox('Use Separate\nGPS File?')
-        self.gps_file_flag.stateChanged.connect(lambda s: gps_toggle(s))
-        layout.addWidget(self.gps_file_flag, 1, 3)
+        def gps_toggle():
+            state = self.widgets['gps_file_flag'].isChecked()
+            self.widgets['gps_path'].setReadOnly(state)
+            gps_btn.setEnabled(state)
+        self.widgets['gps_file_flag'] = QCheckBox('Use Separate\nGPS File?')
+        self.widgets['gps_file_flag'].stateChanged.connect(gps_toggle)
+        layout.addWidget(self.widgets['gps_file_flag'], 1, 3)
+        gps_toggle()
 
         # Make a button to read in the data
         btn = QPushButton('Import')
@@ -332,19 +169,14 @@ class CalcFlux(QMainWindow):
 
         # Create input for output
         layout.addWidget(QLabel('Output\nFolder:'), 2, 0)
-        self.out_path = QLineEdit()
-        self.out_path.setFixedSize(200, 25)
-        layout.addWidget(self.out_path, 2, 1)
+        self.widgets['out_path'] = QLineEdit()
+        self.widgets['out_path'].setFixedSize(200, 25)
+        layout.addWidget(self.widgets['out_path'], 2, 1)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.out_path, 'folder'))
+        btn.clicked.connect(partial(browse, self, self.widgets['out_path'],
+                                    'folder'))
         layout.addWidget(btn, 2, 2)
-
-        # Create a combobox to hold the pre-saved volcano data
-        layout.addWidget(QLabel('Flux Units:'), 2, 3)
-        self.flux_units = QComboBox()
-        self.flux_units.addItems(['kg/s', 't/day'])
-        layout.addWidget(self.flux_units, 2, 4)
 
 # =============================================================================
 #   Volcano Data
@@ -363,10 +195,12 @@ class CalcFlux(QMainWindow):
 
         # Create a combobox to hold the pre-saved volcano data
         layout.addWidget(QLabel('Volcano:'), 0, 0)
-        self.volcano = QComboBox()
-        self.volcano.addItems(['--select--'] + list(self.volcano_data.keys()))
-        self.volcano.currentIndexChanged.connect(self.update_volcano_data)
-        layout.addWidget(self.volcano, 0, 1)
+        self.widgets['volcano'] = QComboBox()
+        self.widgets['volcano'].addItems(
+            ['--select--'] + list(self.volcano_data.keys()))
+        self.widgets['volcano'].currentIndexChanged.connect(
+            self.update_volcano_data)
+        layout.addWidget(self.widgets['volcano'], 0, 1)
 
         # Create inputs for the volcano latitude
         layout.addWidget(QLabel('Volcano\nLatitude:'), 1, 0)
@@ -385,26 +219,32 @@ class CalcFlux(QMainWindow):
 
         # Create inputs for the wind speed
         layout.addWidget(QLabel('Wind\nSpeed:'), 1, 2)
-        self.wind_speed = QDoubleSpinBox()
-        self.wind_speed.setRange(0, 100)
-        self.wind_speed.setValue(1.0)
-        layout.addWidget(self.wind_speed, 1, 3)
+        self.widgets['wind_speed'] = QDoubleSpinBox()
+        self.widgets['wind_speed'].setRange(0, 100)
+        self.widgets['wind_speed'].setValue(1.0)
+        layout.addWidget(self.widgets['wind_speed'], 1, 3)
 
         # Create input for wind units
-        self.wind_units = QComboBox()
-        self.wind_units.addItems(['m/s', 'knots'])
-        layout.addWidget(self.wind_units, 1, 4)
+        self.widgets['wind_units'] = QComboBox()
+        self.widgets['wind_units'].addItems(['m/s', 'knots'])
+        layout.addWidget(self.widgets['wind_units'], 1, 4)
 
         # Create inputs for the wind speed
         layout.addWidget(QLabel('Wind\nError:'), 2, 2)
-        self.wind_error = QDoubleSpinBox()
-        self.wind_error.setRange(0, 1000)
-        layout.addWidget(self.wind_error, 2, 3)
+        self.widgets['wind_error'] = QDoubleSpinBox()
+        self.widgets['wind_error'].setRange(0, 1000)
+        layout.addWidget(self.widgets['wind_error'], 2, 3)
 
         # Create input for wind units
-        self.err_units = QComboBox()
-        self.err_units.addItems(['%', 'abs'])
-        layout.addWidget(self.err_units, 2, 4)
+        self.widgets['err_units'] = QComboBox()
+        self.widgets['err_units'].addItems(['%', 'abs'])
+        layout.addWidget(self.widgets['err_units'], 2, 4)
+
+        # Create a combobox to hold the pre-saved volcano data
+        layout.addWidget(QLabel('Flux\nUnits:'), 3, 2)
+        self.widgets['flux_units'] = QComboBox()
+        self.widgets['flux_units'].addItems(['kg/s', 't/day'])
+        layout.addWidget(self.widgets['flux_units'], 3, 3)
 
 # =============================================================================
 #   Create outputs
@@ -484,10 +324,10 @@ class CalcFlux(QMainWindow):
         g1layout.addWidget(graphwin, 0, 0, 0, 5)
 
         # Create a combobox to determine x axis as time or number
-        self.x_axis = QComboBox()
-        self.x_axis.addItems(['Time', 'Number'])
-        self.x_axis.currentIndexChanged.connect(self.switch_x_axis)
-        g1layout.addWidget(self.x_axis, 1, 2)
+        self.widgets['x_axis'] = QComboBox()
+        self.widgets['x_axis'].addItems(['Time', 'Number'])
+        self.widgets['x_axis'].currentIndexChanged.connect(self.switch_x_axis)
+        g1layout.addWidget(self.widgets['x_axis'], 1, 2)
 
         g2layout = QGridLayout(tab2)
         graphwin = pg.GraphicsWindow(show=True)
@@ -518,7 +358,7 @@ class CalcFlux(QMainWindow):
 
     def update_volcano_data(self):
         """Update the volcano data on combobox change."""
-        volc = str(self.volcano.currentText())
+        volc = str(self.widgets.get('volcano'))
 
         if volc != '--select--':
             data = self.volcano_data[volc]
@@ -550,8 +390,8 @@ class CalcFlux(QMainWindow):
 
         # Read in the SO2 results
         logger.info('Importing gas data...')
-        so2_df = pd.read_csv(self.so2_path.text(), parse_dates=['Time'],
-                             comment='#')
+        so2_df = pd.read_csv(self.widgets.get('so2_path'),
+                             parse_dates=['Time'], comment='#')
 
         self.so2_time = np.array([t.hour + t.minute/60 + t.second/3600
                                   for t in so2_df['Time']])
@@ -559,7 +399,7 @@ class CalcFlux(QMainWindow):
         self.so2_scd = so2_df['SO2'].to_numpy()
         self.so2_err = so2_df['SO2_err'].to_numpy()
 
-        if self.despike_flag.isChecked():
+        if self.widgets['despike_flag'].isChecked():
             try:
                 mask = so2_df['fit_quality'] != 1
                 self.so2_scd = np.ma.masked_where(mask, self.so2_scd)
@@ -567,11 +407,11 @@ class CalcFlux(QMainWindow):
             except KeyError:
                 logger.warning('Fit quality not found in iFit file!')
 
-        if self.gps_file_flag.isChecked():
+        if self.widgets['gps_file_flag'].isChecked():
 
             # Read in the GPS data
             logger.info('Importing GPS data...')
-            gps_df = pd.read_table(self.gps_path.text(), sep='\t',
+            gps_df = pd.read_table(self.widgets.get('gps_path'), sep='\t',
                                    parse_dates=['time'])
 
             self.gps_time = np.array([t.hour + t.minute/60 + t.second/3600
@@ -589,13 +429,13 @@ class CalcFlux(QMainWindow):
         ploty = self.so2_scd
 
         if np.nanmax(self.so2_scd) > 1e6:
-            order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
-            ploty = ploty / 10**order
-            plot_err = [ploty - self.so2_err/10**order,
-                        ploty + self.so2_err/10**order]
-            self.ax.setLabel('left', f'Fit value (1e{order})')
+            self.order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
+            ploty = ploty / 10**self.order
+            plot_err = [ploty - self.so2_err/10**self.order,
+                        ploty + self.so2_err/10**self.order]
+            self.ax.setLabel('left', f'Fit value (1e{self.order})')
 
-        if self.x_axis.currentText() == 'Time':
+        if self.widgets.get('x_axis') == 'Time':
             plotx = self.so2_time
         else:
             plotx = self.so2_num
@@ -613,9 +453,19 @@ class CalcFlux(QMainWindow):
         self.lr.setZValue(-10)
         self.ax.addItem(self.lr)
 
+        # Add the baseline
+        self.baseline = pg.InfiniteLine(0, angle=0, movable=True)
+        self.ax.addItem(self.baseline)
+
         # Plot the traverse graphs
         self.mapax.clear()
         self.mapax.addLegend()
+        cm = pg.colormap.get('magma', source='matplotlib')
+        pens = [pg.mkPen(color=cm.map(val)) for val in ploty]
+        brushes = [pg.mkBrush(color=cm.map(val)) for val in ploty]
+        scatter = pg.ScatterPlotItem(
+            x=self.lon, y=self.lat, pen=pens, brush=brushes)
+        self.mapax.addItem(scatter)
         self.mapax.plot(self.lon, self.lat, pen=self.p0)
 
         # Create a traverse counter and dictionary to hold the results
@@ -636,13 +486,13 @@ class CalcFlux(QMainWindow):
             ploty = self.so2_scd
 
             if np.nanmax(self.so2_scd) > 1e6:
-                order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
-                ploty = ploty / 10**order
-                plot_err = [ploty - self.so2_err/10**order,
-                            ploty + self.so2_err/10**order]
-                self.ax.setLabel('left', f'Fit value (1e{order})')
+                self.order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
+                ploty = ploty / 10**self.order
+                plot_err = [ploty - self.so2_err/10**self.order,
+                            ploty + self.so2_err/10**self.order]
+                self.ax.setLabel('left', f'Fit value (1e{self.order})')
 
-            if self.x_axis.currentText() == 'Time':
+            if self.widgets.get('x_axis') == 'Time':
                 plotx = self.so2_time
             else:
                 plotx = self.so2_num
@@ -659,6 +509,11 @@ class CalcFlux(QMainWindow):
             self.lr = pg.LinearRegionItem([plotx[0], plotx[-1]])
             self.lr.setZValue(-10)
             self.ax.addItem(self.lr)
+
+            # Add the baseline
+            self.baseline = pg.InfiniteLine(0, angle=0, movable=True)
+            self.ax.addItem(self.baseline)
+
         except AttributeError:
             pass
 
@@ -674,11 +529,11 @@ class CalcFlux(QMainWindow):
         vlat = float(self.vlat.text())
         vlon = float(self.vlon.text())
         tdiff = float(self.tdiff.text())
-        wind_speed = float(self.wind_speed.value())
-        wind_error = float(self.wind_error.value())
-        flux_units = self.flux_units.currentText()
-        wind_units = self.wind_units.currentText()
-        err_units = self.err_units.currentText()
+        wind_speed = float(self.widgets.get('wind_speed'))
+        wind_error = float(self.widgets.get('wind_error'))
+        flux_units = self.widgets.get('flux_units')
+        wind_units = self.widgets.get('wind_units')
+        err_units = self.widgets.get('err_units')
 
         # Change units if required
         if err_units == 'abs':
@@ -703,6 +558,9 @@ class CalcFlux(QMainWindow):
         so2_time = self.so2_time[idx]
         so2_scd = self.so2_scd[idx]
         so2_err = self.so2_err[idx]
+
+        # Correct the baseline in SO2
+        so2_scd = np.subtract(so2_scd, self.baseline.value()*(10**self.order))
 
         # Find the centre of mass of the plume
         cum_so2_scd = np.nancumsum(so2_scd)
@@ -779,10 +637,19 @@ class CalcFlux(QMainWindow):
         # Plot the traverse graphs
         self.mapax.clear()
         self.mapax.addLegend()
+
+        cm = pg.colormap.get('magma', source='matplotlib')
+        ploty = self.so2_scd/np.nanmax(self.so2_scd)
+        pens = [pg.mkPen(color=cm.map(val)) for val in ploty]
+        brushes = [pg.mkBrush(color=cm.map(val)) for val in ploty]
+        scatter = pg.ScatterPlotItem(
+            x=self.lon, y=self.lat, pen=pens, brush=brushes)
+        self.mapax.addItem(scatter)
+
         self.mapax.plot(self.lon, self.lat, pen=self.p0)
-        self.mapax.plot(lon, lat, pen=self.p1)
+        self.mapax.plot(lon, lat, pen=pg.mkPen(color='g', width=2))
         self.mapax.plot([vlon], [vlat], pen=None, symbol='o', symbolPen=None,
-                        symbolSize=10, symbolBrush=(255, 255, 255),
+                        symbolSize=10, symbolBrush=pg.mkBrush(color='r'),
                         name='Vent')
         self.mapax.plot([lon[0]], [lat[0]], pen=None, symbol='t1',
                         symbolPen=None, symbolSize=10, name='Plume Start',
@@ -825,7 +692,7 @@ class CalcFlux(QMainWindow):
     def save_fluxes(self):
         """Output the flux results."""
         # Make sure the output directory exists, and create if not
-        out_path = self.out_path.text()
+        out_path = self.widgets.get('out_path')
         if not os.path.isdir(out_path):
             os.makedirs(out_path)
 
@@ -878,11 +745,40 @@ class CalcFlux(QMainWindow):
 
             if reply == QMessageBox.Yes:
                 self.save_fluxes()
+                self.save_config()
                 event.accept()
             elif reply == QMessageBox.No:
                 event.accept()
+                self.save_config()
             else:
                 event.ignore()
+        else:
+            self.save_config()
+
+    def load_config(self):
+        """Load previous session settings."""
+        # Open the config file
+        try:
+            with open('bin/.calc_flux_config.yml', 'r') as ymlfile:
+                config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+            for key, item in config.items():
+                try:
+                    self.widgets.set(key, item)
+                except Exception:
+                    logger.warning(f'Failed to load {key} from config file')
+        except FileNotFoundError:
+            logger.warning('Unable to load config file!')
+
+    def save_config(self):
+        """Save session settings."""
+        config = {}
+        for key in self.widgets:
+            config[key] = self.widgets.get(key)
+
+        # Write the config
+        with open('bin/.calc_flux_config.yml', 'w') as outfile:
+            yaml.dump(config, outfile)
 
 
 # =============================================================================
@@ -1775,6 +1671,174 @@ def browse(gui, widget, mode='single', filter=False):
             widget.setText(fname + '/')
 
 
+# Create a worker to handle QThreads for light dilution analysis
+class LDWorker(QObject):
+    """Worker thread.
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up
+
+    Parameters
+    ----------
+    fn : function
+        The function to run on the worker thread
+    mode : str
+        Flags which signals to use. Must be one of 'analyse' or 'acquire', for
+        a spectral analysis or acquisition thread respectively
+
+    Attributes
+    ----------
+    args : list
+        Arguments to  pass to the function
+    kwargs : dict
+        Keyword arguments to pass to the function
+    signals : WorkerSignals object
+        The worker signals
+    is_paused : bool
+        State to show if the worker has been paused
+    is_killed : bool
+        State to show if the worker has been killed
+    spec_fname : str
+        File path to the last measured spectrum
+    """
+
+    # Define signals
+    finished = pyqtSignal()
+    data = pyqtSignal(np.ndarray)
+    error = pyqtSignal(tuple)
+
+    def __init__(self, spec_fnames, dark_fnames, widgetData, ld_kwargs):
+        """Initialise."""
+        super(QObject, self).__init__()
+
+        # Create stopped and paused flags
+        self.is_paused = False
+        self.is_killed = False
+
+        # Create a holder for the spectrum filepath
+        self.spec_fnames = spec_fnames
+        self.dark_fnames = dark_fnames
+        self.widgetData = widgetData
+        self.ld_kwargs = ld_kwargs
+
+    def run(self):
+        """Launch worker function."""
+        try:
+            self._run()
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.error.emit((exctype, value, traceback.format_exc()))
+        self.finished.emit()
+
+    def _run(self):
+        """Launch LD analysis from the GUI."""
+        # Read in the spectra
+        spectrum = average_spectra(self.spec_fnames,
+                                   self.widgetData['spec_type'],
+                                   self.widgetData['wl_calib'])
+
+        if self.widgetData['dark_flag']:
+            x, dark = average_spectra(self.dark_fnames,
+                                      self.widgetData['spec_type'],
+                                      self.widgetData['wl_calib'])
+        else:
+            dark = 0
+
+        # Generate the analyser
+        logger.info('Generating the iFit analyser...')
+        self.analyser = self.generate_analyser()
+        self.analyser.dark_spec = dark
+
+        # Generate the light dilution curves
+        logger.info('Beginning light dilution calculations')
+        ld_results = generate_ld_curves(self.analyser, spectrum,
+                                        **self.ld_kwargs)
+
+        self.data.emit(ld_results)
+
+    def generate_analyser(self):
+        """Generate iFit analyser."""
+        # Initialise the Parameters
+        logger.info('Generating model analyser')
+        self.params = Parameters()
+
+        # Pull the parameters from the parameter table
+        for line in self.widgetData['gas_params']:
+            self.params.add(name=line[0], value=line[1], vary=line[2],
+                            xpath=line[4], plume_gas=line[3])
+        for i, line in enumerate(self.widgetData['bgpoly_params']):
+            self.params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
+        for i, line in enumerate(self.widgetData['offset_params']):
+            self.params.add(name=f'offset{i}', value=line[0], vary=line[1])
+        for i, line in enumerate(self.widgetData['shift_params']):
+            self.params.add(name=f'shift{i}', value=line[0], vary=line[1])
+
+        # Check if ILS is in the fit
+        if self.widgetData['ils_mode'] == 'Manual':
+            self.params.add('fwem', value=float(self.widgetData['fwem']),
+                            vary=self.widgetData['fwem_fit'])
+            self.params.add('k', value=float(self.widgetData['k']),
+                            vary=self.widgetData['k_fit'])
+            self.params.add('a_w', value=float(self.widgetData['a_w']),
+                            vary=self.widgetData['a_w_fit'])
+            self.params.add('a_k', value=float(self.widgetData['a_k']),
+                            vary=self.widgetData['a_k_fit'])
+
+        # Add the light dilution factor
+        if self.widgetData['ldf_fit'] or self.widgetData['ldf'] != 0.0:
+            self.params.add('LDF', value=float(self.widgetData['ldf']),
+                            vary=self.widgetData['ldf_fit'])
+
+        # Report fitting parameters
+        logger.info(self.params.pretty_print(cols=['name', 'value', 'vary',
+                                                   'xpath']))
+
+        # Get the bad pixels
+        if self.widgetData['bad_pixels'] != '':
+            bad_pixels = [int(i) for i
+                          in self.widgetData['bad_pixels'].split(',')]
+        else:
+            bad_pixels = []
+
+        # Generate the analyser
+        analyser = Analyser(params=self.params,
+                            fit_window=[self.widgetData['fit_lo'],
+                                        self.widgetData['fit_hi']],
+                            frs_path=self.widgetData['frs_path'],
+                            model_padding=self.widgetData['model_padding'],
+                            model_spacing=self.widgetData['model_spacing'],
+                            flat_flag=self.widgetData['flat_flag'],
+                            flat_path=self.widgetData['flat_path'],
+                            stray_flag=self.widgetData['stray_flag'],
+                            stray_window=[self.widgetData['stray_lo'],
+                                          self.widgetData['stray_hi']],
+                            dark_flag=self.widgetData['dark_flag'],
+                            ils_type=self.widgetData['ils_mode'],
+                            ils_path=self.widgetData['ils_path'],
+                            despike_flag=self.widgetData['despike_flag'],
+                            spike_limit=self.widgetData['spike_limit'],
+                            bad_pixels=bad_pixels)
+
+        return analyser
+
+    def pause(self):
+        """Pause the analysis/acquisition."""
+        if self.is_paused:
+            self.is_paused = False
+        else:
+            self.is_paused = True
+
+    def resume(self):
+        """Resume the analysis/acquisition."""
+        self.is_paused = False
+
+    def stop(self):
+        """Terminate the analysis/acquisition."""
+        if self.is_paused:
+            self.is_paused = False
+        self.is_stopped = True
+
+
 class QHLine(QFrame):
     """Horizontal line widget."""
 
@@ -1821,4 +1885,5 @@ def main():
 
 
 if __name__ == '__main__':
+    main()
     main()
