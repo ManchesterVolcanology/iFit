@@ -161,22 +161,29 @@ class CalcFlux(QMainWindow):
         layout.addWidget(self.widgets['gps_file_flag'], 1, 3)
         gps_toggle()
 
+        # Create inputs for the time difference
+        layout.addWidget(QLabel('GPS Time\nDifference:'), 2, 0)
+        self.widgets['tdiff'] = QDoubleSpinBox()
+        self.widgets['tdiff'].setRange(-24, 24)
+        self.widgets['tdiff'].setValue(0.0)
+        layout.addWidget(self.widgets['tdiff'], 2, 1)
+
         # Make a button to read in the data
         btn = QPushButton('Import')
         btn.setFixedSize(100, 25)
         btn.clicked.connect(self.import_data)
-        layout.addWidget(btn, 0, 4, 2, 1)
+        layout.addWidget(btn, 3, 3)
 
         # Create input for output
-        layout.addWidget(QLabel('Output\nFolder:'), 2, 0)
+        layout.addWidget(QLabel('Output\nFolder:'), 3, 0)
         self.widgets['out_path'] = QLineEdit()
         self.widgets['out_path'].setFixedSize(200, 25)
-        layout.addWidget(self.widgets['out_path'], 2, 1)
+        layout.addWidget(self.widgets['out_path'], 3, 1)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
         btn.clicked.connect(partial(browse, self, self.widgets['out_path'],
                                     'folder'))
-        layout.addWidget(btn, 2, 2)
+        layout.addWidget(btn, 3, 2)
 
 # =============================================================================
 #   Volcano Data
@@ -205,17 +212,14 @@ class CalcFlux(QMainWindow):
         # Create inputs for the volcano latitude
         layout.addWidget(QLabel('Volcano\nLatitude:'), 1, 0)
         self.vlat = QLineEdit()
+        self.vlat.textChanged.connect(self._on_volcano_change)
         layout.addWidget(self.vlat, 1, 1)
 
         # Create inputs for the volcano longitude
         layout.addWidget(QLabel('Volcano\nLongitutde:'), 2, 0)
         self.vlon = QLineEdit()
+        self.vlon.textChanged.connect(self._on_volcano_change)
         layout.addWidget(self.vlon, 2, 1)
-
-        # Create inputs for the time difference
-        layout.addWidget(QLabel('Time\nDifference:'), 3, 0)
-        self.tdiff = QLineEdit()
-        layout.addWidget(self.tdiff, 3, 1)
 
         # Create inputs for the wind speed
         layout.addWidget(QLabel('Wind\nSpeed:'), 1, 2)
@@ -239,12 +243,6 @@ class CalcFlux(QMainWindow):
         self.widgets['err_units'] = QComboBox()
         self.widgets['err_units'].addItems(['%', 'abs'])
         layout.addWidget(self.widgets['err_units'], 2, 4)
-
-        # Create a combobox to hold the pre-saved volcano data
-        layout.addWidget(QLabel('Flux\nUnits:'), 3, 2)
-        self.widgets['flux_units'] = QComboBox()
-        self.widgets['flux_units'].addItems(['kg/s', 't/day'])
-        layout.addWidget(self.widgets['flux_units'], 3, 3)
 
 # =============================================================================
 #   Create outputs
@@ -273,19 +271,27 @@ class CalcFlux(QMainWindow):
         sav_btn.clicked.connect(self.save_fluxes)
         layout.addWidget(sav_btn, 0, 2)
 
+        # Create a combobox to hold the pre-saved volcano data
+        label = QLabel('Flux\nUnits:')
+        label.setAlignment(Qt.AlignRight)
+        layout.addWidget(label, 0, 3)
+        self.widgets['flux_units'] = QComboBox()
+        self.widgets['flux_units'].addItems(['kg/s', 't/day'])
+        layout.addWidget(self.widgets['flux_units'], 0, 4)
+
         # Add a table to hold the flux results
         self.fluxTable = QTableWidget()
         self.fluxTable.setColumnCount(2)
         self.fluxTable.setRowCount(0)
         self.fluxTable.setHorizontalHeaderLabels(['Flux', 'Error'])
-        layout.addWidget(self.fluxTable, 1, 0, 1, 3)
+        layout.addWidget(self.fluxTable, 1, 0, 1, 5)
 
         # Create a textbox to display the program messages
         self.logBox = QTextEditLogger(self)
         self.logBox.setFormatter(logging.Formatter('%(message)s'))
         logging.getLogger().addHandler(self.logBox)
         logging.getLogger().setLevel(logging.INFO)
-        layout.addWidget(self.logBox.widget, 2, 0, 1, 3)
+        layout.addWidget(self.logBox.widget, 2, 0, 1, 5)
 
 # =============================================================================
 #   Graphs
@@ -307,7 +313,7 @@ class CalcFlux(QMainWindow):
         layout.addWidget(tabwidget, 0, 0)
 
         g1layout = QGridLayout(tab1)
-        graphwin = pg.GraphicsWindow(show=True)
+        graphwin = pg.GraphicsLayoutWidget(show=True)
 
         # Make the graphs
         self.ax = graphwin.addPlot()
@@ -320,6 +326,30 @@ class CalcFlux(QMainWindow):
         self.ax.setLabel('left', 'SO<sub>2</sub> SCD (molec cm<sup>-2</sup>)')
         self.ax.setLabel('bottom', 'Time')
 
+        # Add the plot elements
+        b0 = QColor('#1f77b4')
+        b0.setAlpha(120)
+        l1 = pg.PlotCurveItem(pen=None)
+        l2 = pg.PlotCurveItem(pen=None)
+        pfill = pg.FillBetweenItem(l1, l2, pen=None, brush=b0)
+        self.ax.addItem(pfill)
+        line = pg.PlotCurveItem(pen=pg.mkPen(COLORS[0], width=2))
+        sline = pg.PlotCurveItem(pen=pg.mkPen(COLORS[2], width=2))
+
+        # Add the region selector
+        region_select = pg.LinearRegionItem()
+        region_select.setZValue(-1)
+        region_select.sigRegionChangeFinished.connect(self._on_region_change)
+
+        # Add the baseline
+        baseline = pg.InfiniteLine(0, angle=0, movable=True)
+
+        self.ax_elements = {'line': line, 'sline': sline, 'hi_err': l1,
+                            'lo_err': l2, 'region_select': region_select,
+                            'baseline': baseline}
+        for el in self.ax_elements.values():
+            self.ax.addItem(el)
+
         # Add the graphs to the layout
         g1layout.addWidget(graphwin, 0, 0, 0, 5)
 
@@ -330,18 +360,48 @@ class CalcFlux(QMainWindow):
         g1layout.addWidget(self.widgets['x_axis'], 1, 2)
 
         g2layout = QGridLayout(tab2)
-        graphwin = pg.GraphicsWindow(show=True)
+        graphwin = pg.GraphicsLayoutWidget(show=True)
 
-        # Make the graphs
+        # Make the maps
         self.mapax = graphwin.addPlot()
         self.mapax.setDownsampling(mode='peak')
         self.mapax.setClipToView(True)
         self.mapax.showGrid(x=True, y=True)
         self.mapax.setAspectLocked(True)
+        self.mapax.addLegend()
+
+        # Add plot elements
+        full_trav_line = pg.PlotCurveItem(pen=pg.mkPen(COLORS[0], width=2))
+        trav_scat = pg.ScatterPlotItem()
+        trav_scat.setZValue(-1)
+        trav_line = pg.PlotCurveItem(pen=pg.mkPen(COLORS[2], width=2))
+        volcano = pg.ScatterPlotItem(symbol='o', size=10, name='Volcano',
+                                     brush=pg.mkBrush(color='r'))
+        plume_start = pg.ScatterPlotItem(
+            symbol='t1', pen=pg.mkPen(color='w'), size=10,
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume Start')
+        plume_stop = pg.ScatterPlotItem(
+            symbol='t', pen=pg.mkPen(color='w'), size=10,
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume Centre')
+        plume_cent = pg.ScatterPlotItem(
+            symbol='o', pen=pg.mkPen(color='w'), size=10,
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume End')
+        self.map_elements = {'full_trav_line': full_trav_line,
+                             'trav_line': trav_line,
+                             'trav_scat': trav_scat,
+                             'plume_start': plume_start,
+                             'plume_stop': plume_stop,
+                             'plume_cent': plume_cent,
+                             'volcano': volcano}
+        for el in self.map_elements.values():
+            self.mapax.addItem(el)
 
         # Add axis labels
         self.mapax.setLabel('left', 'Latitude')
         self.mapax.setLabel('bottom', 'Longitude')
+
+        # Generate the colormap
+        self.cm = pg.colormap.get('magma', source='matplotlib')
 
         # Make pens for plotting
         self.p0 = pg.mkPen(color='#1f77b4', width=1.5)
@@ -364,7 +424,51 @@ class CalcFlux(QMainWindow):
             data = self.volcano_data[volc]
             self.vlat.setText(str(data[0]))
             self.vlon.setText(str(data[1]))
-            self.tdiff.setText(str(data[2]))
+
+# =============================================================================
+#   Slot functions
+# =============================================================================
+
+    def _on_region_change(self):
+        try:
+            # Find the bounds of the selected area
+            i0, i1 = self.ax_elements['region_select'].getRegion()
+            if self.widgets.get('x_axis') == 'Time':
+                idx = np.where(np.logical_and(self.so2_time >= i0,
+                                              self.so2_time <= i1))
+            else:
+                idx = np.where(np.logical_and(self.so2_num >= i0,
+                                              self.so2_num <= i1))
+
+            # Extract the relevant gps data and interpolate onto the so2 grid
+            so2_time = self.so2_time[idx]
+            so2_num = self.so2_num[idx]
+            lat = self.lat[idx]
+            lon = self.lon[idx]
+
+            # Update the graph
+            ploty = self.so2_scd[idx] / 10**self.order
+            if self.widgets.get('x_axis') == 'Time':
+                plotx = so2_time
+            else:
+                plotx = so2_num
+            self.ax_elements['sline'].setData(plotx, ploty)
+
+            # Update the map
+            self.map_elements['trav_line'].setData(lon, lat)
+            self.map_elements['plume_start'].setData([lon[0]], [lat[0]])
+            self.map_elements['plume_stop'].setData([lon[-1]], [lat[-1]])
+
+        except AttributeError:
+            pass
+
+    def _on_volcano_change(self):
+        try:
+            vlat = float(self.vlat.text())
+            vlon = float(self.vlon.text())
+            self.map_elements['volcano'].setData([vlon], [vlat])
+        except ValueError:
+            pass
 
 # =============================================================================
 #   Import data
@@ -413,18 +517,22 @@ class CalcFlux(QMainWindow):
             logger.info('Importing GPS data...')
             gps_df = pd.read_table(self.widgets.get('gps_path'), sep='\t',
                                    parse_dates=['time'])
+            lat = gps_df['latitude'].to_numpy()
+            lon = gps_df['longitude'].to_numpy()
 
-            self.gps_time = np.array([t.hour + t.minute/60 + t.second/3600
-                                      for t in gps_df['time']])
-            self.lat = gps_df['latitude'].to_numpy()
-            self.lon = gps_df['longitude'].to_numpy()
-            self.alt = gps_df['altitude (m)'].to_numpy()
+            # Correct the GPS time for the time difference
+            tdiff = float(self.widgets.get('tdiff'))
+            gps_time = np.array([t.hour + t.minute/60 + t.second/3600 + tdiff
+                                 for t in gps_df['time']])
+
+            # Interpolate the GPS locations onto the spectra times
+            self.lat = griddata(gps_time, lat, self.so2_time)
+            self.lon = griddata(gps_time, lon, self.so2_time)
 
         else:
-            self.gps_time = self.so2_time
+            # Pull from the iFit results file
             self.lat = so2_df['Lat'].to_numpy()
             self.lon = so2_df['Lon'].to_numpy()
-            self.alt = so2_df['Alt'].to_numpy()
 
         ploty = self.so2_scd
 
@@ -433,40 +541,28 @@ class CalcFlux(QMainWindow):
             ploty = ploty / 10**self.order
             plot_err = [ploty - self.so2_err/10**self.order,
                         ploty + self.so2_err/10**self.order]
-            self.ax.setLabel('left', f'Fit value (1e{self.order})')
+            self.ax.setLabel('left', f'SO2 SCD (1e{self.order})')
 
         if self.widgets.get('x_axis') == 'Time':
             plotx = self.so2_time
         else:
             plotx = self.so2_num
 
-        # Update the graph
-        self.ax.clear()
-        l1 = pg.PlotCurveItem(plotx, plot_err[0], pen=None)
-        l2 = pg.PlotCurveItem(plotx, plot_err[1], pen=None)
-        pfill = pg.FillBetweenItem(l1, l2, pen=None, brush=self.b0)
-        self.ax.addItem(pfill)
-        self.ax.plot(plotx, ploty, pen=self.p0)
+        # Update graph
+        self.ax_elements['line'].setData(plotx, ploty)
+        self.ax_elements['hi_err'].setData(plotx, plot_err[0])
+        self.ax_elements['lo_err'].setData(plotx, plot_err[1])
+        self.ax_elements['region_select'].setRegion([plotx[0], plotx[-1]])
+        self.ax_elements['baseline'].setValue(0)
 
-        # Add the region selector
-        self.lr = pg.LinearRegionItem([plotx[0], plotx[-1]])
-        self.lr.setZValue(-10)
-        self.ax.addItem(self.lr)
-
-        # Add the baseline
-        self.baseline = pg.InfiniteLine(0, angle=0, movable=True)
-        self.ax.addItem(self.baseline)
-
-        # Plot the traverse graphs
-        self.mapax.clear()
-        self.mapax.addLegend()
-        cm = pg.colormap.get('magma', source='matplotlib')
-        pens = [pg.mkPen(color=cm.map(val)) for val in ploty]
-        brushes = [pg.mkBrush(color=cm.map(val)) for val in ploty]
-        scatter = pg.ScatterPlotItem(
+        # Update map
+        norm = (ploty-np.nanmin(ploty)) / np.nanmax(ploty-np.nanmin(ploty))
+        pens = [pg.mkPen(color=self.cm.map(val)) for val in norm]
+        brushes = [pg.mkBrush(color=self.cm.map(val))
+                   for val in norm]
+        self.map_elements['trav_scat'].setData(
             x=self.lon, y=self.lat, pen=pens, brush=brushes)
-        self.mapax.addItem(scatter)
-        self.mapax.plot(self.lon, self.lat, pen=self.p0)
+        self.map_elements['full_trav_line'].setData(x=self.lon, y=self.lat)
 
         # Create a traverse counter and dictionary to hold the results
         self.flux_data = {}
@@ -498,21 +594,10 @@ class CalcFlux(QMainWindow):
                 plotx = self.so2_num
 
             # Update the graph
-            self.ax.clear()
-            l1 = pg.PlotCurveItem(plotx, plot_err[0], pen=None)
-            l2 = pg.PlotCurveItem(plotx, plot_err[1], pen=None)
-            pfill = pg.FillBetweenItem(l1, l2, pen=None, brush=self.b0)
-            self.ax.addItem(pfill)
-            self.ax.plot(plotx, ploty, pen=self.p0)
-
-            # Add the region selector
-            self.lr = pg.LinearRegionItem([plotx[0], plotx[-1]])
-            self.lr.setZValue(-10)
-            self.ax.addItem(self.lr)
-
-            # Add the baseline
-            self.baseline = pg.InfiniteLine(0, angle=0, movable=True)
-            self.ax.addItem(self.baseline)
+            self.ax_elements['line'].setData(plotx, ploty)
+            self.ax_elements['hi_err'].setData(plotx, plot_err[0])
+            self.ax_elements['lo_err'].setData(plotx, plot_err[1])
+            self.ax_elements['region_select'].setRegion([plotx[0], plotx[-1]])
 
         except AttributeError:
             pass
@@ -528,7 +613,6 @@ class CalcFlux(QMainWindow):
         # Pull the relavant data from the GUI
         vlat = float(self.vlat.text())
         vlon = float(self.vlon.text())
-        tdiff = float(self.tdiff.text())
         wind_speed = float(self.widgets.get('wind_speed'))
         wind_error = float(self.widgets.get('wind_error'))
         flux_units = self.widgets.get('flux_units')
@@ -550,28 +634,28 @@ class CalcFlux(QMainWindow):
         logger.info(f'Wind speed: {wind_speed:.02f} m/s')
 
         # Find the bounds of the selected area
-        i0, i1 = self.lr.getRegion()
-        idx = np.where(np.logical_and(self.so2_time >= i0,
-                                      self.so2_time <= i1))
+        i0, i1 = self.ax_elements['region_select'].getRegion()
+        if self.widgets.get('x_axis') == 'Time':
+            idx = np.where(np.logical_and(self.so2_time >= i0,
+                                          self.so2_time <= i1))
+        else:
+            idx = np.where(np.logical_and(self.so2_num >= i0,
+                                          self.so2_num <= i1))
 
         # Extract the travese from the SO2 data
         so2_time = self.so2_time[idx]
         so2_scd = self.so2_scd[idx]
         so2_err = self.so2_err[idx]
+        lat = self.lat[idx]
+        lon = self.lon[idx]
 
         # Correct the baseline in SO2
-        so2_scd = np.subtract(so2_scd, self.baseline.value()*(10**self.order))
+        baseline = self.ax_elements['baseline'].value()*(10**self.order)
+        so2_scd = np.subtract(so2_scd, baseline)
 
         # Find the centre of mass of the plume
         cum_so2_scd = np.nancumsum(so2_scd)
         peak_idx = np.abs(cum_so2_scd - cum_so2_scd[-1]/2).argmin()
-
-        # Correct for the time diffeence between the SO2 and GPS data
-        gps_time = self.gps_time + tdiff
-
-        # Extract the relevant gps data and interpolate onto the so2 grid
-        lat = griddata(gps_time, self.lat, so2_time)
-        lon = griddata(gps_time, self.lon, so2_time)
 
         # Calculate the plume bearing
         volc_loc = [vlat, vlon]
@@ -635,31 +719,11 @@ class CalcFlux(QMainWindow):
                                QTableWidgetItem(f'{flux_err:.02f}'))
 
         # Plot the traverse graphs
-        self.mapax.clear()
-        self.mapax.addLegend()
-
-        cm = pg.colormap.get('magma', source='matplotlib')
-        ploty = self.so2_scd/np.nanmax(self.so2_scd)
-        pens = [pg.mkPen(color=cm.map(val)) for val in ploty]
-        brushes = [pg.mkBrush(color=cm.map(val)) for val in ploty]
-        scatter = pg.ScatterPlotItem(
-            x=self.lon, y=self.lat, pen=pens, brush=brushes)
-        self.mapax.addItem(scatter)
-
-        self.mapax.plot(self.lon, self.lat, pen=self.p0)
-        self.mapax.plot(lon, lat, pen=pg.mkPen(color='g', width=2))
-        self.mapax.plot([vlon], [vlat], pen=None, symbol='o', symbolPen=None,
-                        symbolSize=10, symbolBrush=pg.mkBrush(color='r'),
-                        name='Vent')
-        self.mapax.plot([lon[0]], [lat[0]], pen=None, symbol='t1',
-                        symbolPen=None, symbolSize=10, name='Plume Start',
-                        symbolBrush=(0, 255, 0))
-        self.mapax.plot([peak_loc[1]], [peak_loc[0]], pen=None, symbol='o',
-                        symbolPen=None, symbolSize=10, name='Plume Centre',
-                        symbolBrush=(0, 255, 0))
-        self.mapax.plot([lon[-1]], [lat[-1]], pen=None, symbol='t',
-                        symbolPen=None, symbolSize=10, name='Plume End',
-                        symbolBrush=(0, 255, 0))
+        self.map_elements['trav_line'].setData(lon, lat)
+        self.map_elements['plume_start'].setData([lon[0]], [lat[0]])
+        self.map_elements['plume_cent'].setData([peak_loc[1]], [peak_loc[0]])
+        self.map_elements['plume_stop'].setData([lon[-1]], [lat[-1]])
+        self.map_elements['volcano'].setData([vlon], [vlat])
 
         # Collate the results
         output_data = np.column_stack([so2_time[1:], so2_scd[1:], so2_err[1:],
@@ -696,11 +760,11 @@ class CalcFlux(QMainWindow):
         if not os.path.isdir(out_path):
             os.makedirs(out_path)
 
-        for key, data in self.flux_data.items():
+        for i, [key, data] in enumerate(self.flux_data.items()):
 
             # Write the detailed output
-            with open(out_path + 'flux_results.csv', 'a') as w:
-                w.write(f'Traverse Number,{self.trav_no}\n'
+            with open(out_path + 'flux_results.csv', 'w') as w:
+                w.write(f'Traverse Number,{i+1}\n'
                         + f'Flux ({data["flux_units"]}),{data["flux"]}\n'
                         + f'Error ({data["flux_units"]}),{data["flux_err"]}\n'
                         + f'Wind Speed (m/s), {data["wind_speed"]}\n'
@@ -872,7 +936,7 @@ class ILSWindow(QMainWindow):
         btn.clicked.connect(self.save_fit)
         layout.addWidget(btn, 4, 3)
 
-        graphwin = pg.GraphicsWindow(show=True)
+        graphwin = pg.GraphicsLayoutWidget(show=True)
         pg.setConfigOptions(antialias=True)
         # pg.setConfigOptions(useOpenGL=True)
 
@@ -1056,7 +1120,7 @@ class FLATWindow(QMainWindow):
         btn.clicked.connect(self.save_fit)
         layout.addWidget(btn, 3, 3)
 
-        graphwin = pg.GraphicsWindow(show=True)
+        graphwin = pg.GraphicsLayoutWidget(show=True)
         pg.setConfigOptions(antialias=True)
         # pg.setConfigOptions(useOpenGL=True)
 
@@ -1440,7 +1504,7 @@ class LDFWindow(QMainWindow):
         # Generate the graph layout and window
         layout = QGridLayout(self.graphFrame)
         pg.setConfigOptions(antialias=True)
-        graphwin = pg.GraphicsWindow(show=True)
+        graphwin = pg.GraphicsLayoutWidget(show=True)
 
         # Make the graphs
         self.ax = graphwin.addPlot()
@@ -1885,5 +1949,7 @@ def main():
 
 
 if __name__ == '__main__':
+    main()
+    main()
     main()
     main()
