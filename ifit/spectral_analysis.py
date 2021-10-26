@@ -242,7 +242,7 @@ class Analyser():
 #   Spectrum Pre-processing
 # =============================================================================
 
-    def pre_process(self, spectrum):
+    def pre_process(self, spectrum, prefit_shift=0.0):
         """Prepare spectrum for fit.
 
         Function to pre-process the measured spectrum to prepare it for the
@@ -254,6 +254,9 @@ class Analyser():
         ----------
         spectrum : 2D numpy array
             The spectrum as [wavelength, intensities].
+        prefit_shift : float, optional
+            Wavelength shift (in nm) applied to the spectrum wavelength
+            calibration prior to the fit. Default is 0.0
 
         Returns
         -------
@@ -304,6 +307,9 @@ class Analyser():
             for i in self.bad_pixels:
                 y[i] = np.average([y[i-1], y[i+1]])
 
+        # Apply prefit shift
+        x = np.add(x, prefit_shift)
+
         # Cut desired wavelength window
         fit_idx = np.where(np.logical_and(x >= self.fit_window[0],
                                           x <= self.fit_window[1]))
@@ -334,7 +340,8 @@ class Analyser():
 
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
                      resid_type='Percentage', int_limit=None, calc_od=[],
-                     pre_process=True, interp_method='cubic', fit_window=None):
+                     pre_process=True, prefit_shift=0.0, interp_method='cubic',
+                     fit_window=None):
         """Fit the supplied spectrum.
 
         Parameters
@@ -360,6 +367,9 @@ class Analyser():
         pre_process : bool, optional, default=True
             Flag to control whether the supplied spectrum requires
             pre-prossessing or not
+        prefit_shift : float, optional
+            Wavelength shift (in nm) applied to the spectrum wavelength
+            calibration prior to the fit. Default is 0.0
         interp_method : str, optional, default="cubic"
             Controls whether the interpolation at the end of the forward model
             is cubic or linear. Must be either "cubic", "linear" or "nearest".
@@ -406,7 +416,7 @@ class Analyser():
 
         # Check is spectrum requires preprocessing
         if pre_process:
-            spectrum = self.pre_process(spectrum)
+            spectrum = self.pre_process(spectrum, prefit_shift)
 
         # Define the interpolation mode
         self.interp_method = interp_method

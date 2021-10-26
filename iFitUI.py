@@ -15,9 +15,10 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QLineEdit, QPushButton, QProgressBar, QFrame,
                              QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
                              QTabWidget, QAction, QFileDialog, QScrollArea,
-                             QToolBar)
+                             QToolBar, QTableWidget, QHeaderView,
+                             QTableWidgetItem)
 
-from ifit.gui_functions import (Widgets, SpinBox, DSpinBox, Table,
+from ifit.gui_functions import (Widgets, SpinBox, DSpinBox, ParamTable,
                                 AnalysisWorker, QTextEditLogger,
                                 AcqScopeWorker, AcqSpecWorker)
 from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
@@ -458,15 +459,23 @@ class MainWindow(QMainWindow):
         tabwidget.addTab(tab2, 'Settings')
         layout.addWidget(tabwidget, 0, 0)
 
+        # Make analysis tab holder
+        analysis_tabs = QTabWidget()
+        graphtab = QWidget()
+        tabletab = QWidget()
+        analysis_tabs.addTab(graphtab, 'Graphs')
+        analysis_tabs.addTab(tabletab, 'Table')
+        analysis_layout = QGridLayout(tab1)
+        analysis_layout.addWidget(analysis_tabs, 0, 0)
+
 # =============================================================================
 #       Set up the analysis graphs
 # =============================================================================
 
+        # Generate the graph window
         self.graphwin = pg.GraphicsLayoutWidget(show=True)
         pg.setConfigOptions(antialias=True)
         # pg.setConfigOptions(useOpenGL=True)
-
-        glayout = QGridLayout(tab1)
 
         # Make the graphs
         ax0 = self.graphwin.addPlot(row=0, col=0)
@@ -492,10 +501,10 @@ class MainWindow(QMainWindow):
         ax4.setLabel('bottom', 'Spectrum Number')
 
         # Initialise the lines
-        p0 = pg.mkPen(color='#1f77b4', width=1.0)
+        p0 = pg.mkPen(color='#1f77b4', width=1.5)
         p1 = pg.mkPen(color='#ff7f0e', width=1.0)
-        l0 = ax0.plot(pen=p0, name='Spectrum')
-        l1 = ax0.plot(pen=p1, name='Fit')
+        l0 = ax0.plot(pen=p0)
+        l1 = ax0.plot(pen=p1)
         l2 = ax1.plot(pen=p0)
         l3 = ax2.plot(pen=p0)
         l4 = ax3.plot(pen=p0)
@@ -507,7 +516,9 @@ class MainWindow(QMainWindow):
         ax4.addItem(self.err_plot)
 
         # Add legend to first axis
-        ax0.addLegend()
+        legend = ax0.addLegend()
+        legend.addItem(l0, 'Spectrum')
+        legend.addItem(l1, 'Fit')
 
         # Colate lines into a dictionary
         self.plot_lines = {'spectrum': l0,
@@ -519,6 +530,7 @@ class MainWindow(QMainWindow):
                            'series': l6}
 
         # Add the graphs to the layout
+        glayout = QGridLayout(graphtab)
         glayout.addWidget(self.graphwin, 0, 0, 1, 8)
 
 # =============================================================================
@@ -565,11 +577,26 @@ class MainWindow(QMainWindow):
         glayout.addWidget(self.widgets['scroll_amt'], 1, 7)
 
 # =============================================================================
+#      Analysis results table
+# =============================================================================
+
+        # Generate results table
+        tlayout = QGridLayout(tabletab)
+        self.results_table = QTableWidget(0, 4)
+        self.results_table.setHorizontalHeaderLabels(
+            ['Parameter', 'Vary?', 'Fit Value', 'Fit Error'])
+        self.results_table.horizontalHeader().setStretchLastSection(True)
+        self.results_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch)
+
+        tlayout.addWidget(self.results_table, 0, 0)
+
+# =============================================================================
 #      Set up the scope plot
 # =============================================================================
 
         self.scopewin = pg.GraphicsLayoutWidget(show=True)
-        glayout = QGridLayout(tab3)
+        slayout = QGridLayout(tab3)
 
         # Make the graph
         self.scope_ax = self.scopewin.addPlot(row=0, col=0)
@@ -580,7 +607,7 @@ class MainWindow(QMainWindow):
         self.scope_line = self.scope_ax.plot([], [], pen=p0)
 
         # Add the graphs to the layout
-        glayout.addWidget(self.scopewin, 0, 0)
+        slayout.addWidget(self.scopewin, 0, 0)
 
 # =============================================================================
 #       Create settings
@@ -672,17 +699,28 @@ class MainWindow(QMainWindow):
         self.widgets['dark_flag'].setToolTip('Remove averaged dark spectrum '
                                              + 'before fitting')
         layout.addWidget(self.widgets['dark_flag'], nrow, ncol, 1, 2)
-        nrow += 1
+        # nrow += 1
 
         # Add sterio button for flat correction
         self.widgets['flat_flag'] = QCheckBox('Correct Flat\nSpectrum?')
         self.widgets['flat_flag'].setToolTip('Remove flat-field spectrum '
                                              + 'before fitting')
-        layout.addWidget(self.widgets['flat_flag'], nrow, ncol, 1, 2)
+        layout.addWidget(self.widgets['flat_flag'], nrow, ncol+2, 1, 2)
+        nrow += 1
+
+        # Add option to apply pre-fit wavelength shift
+        layout.addWidget(QLabel('Pre-Fit\nShift (nm):'), nrow, ncol)
+        self.widgets['prefit_shift'] = DSpinBox(0.0, [-1000, 1000], 0.1)
+        self.widgets['prefit_shift'].setFixedSize(70, 20)
+        layout.addWidget(self.widgets['prefit_shift'], nrow, ncol+1)
+        self.widgets['preshift_flag'] = QCheckBox('Apply?')
+        self.widgets['preshift_flag'].setToolTip('Apply pre-fit wavelength '
+                                                 + 'shift')
+        layout.addWidget(self.widgets['preshift_flag'], nrow, ncol+2)
         nrow += 1
 
         # Add spinboxs for the stray light window
-        layout.addWidget(QLabel('Stray Light\nWindow: (nm)'), nrow, ncol, 2, 1)
+        layout.addWidget(QLabel('Stray Light\nWindow (nm):'), nrow, ncol, 2, 1)
         self.widgets['stray_lo'] = DSpinBox(280, [0, 10000])
         self.widgets['stray_lo'].setToolTip('Stray window lower limit')
         self.widgets['stray_lo'].setFixedSize(70, 20)
@@ -786,7 +824,7 @@ class MainWindow(QMainWindow):
         nrow += 1
 
         # Add an input for the ILS parameters
-        layout.addWidget(QLabel('ILS Parameters:'), nrow, ncol)
+        layout.addWidget(QLabel('ILS Parameter\nFile:'), nrow, ncol)
         self.widgets['ils_path'] = QLineEdit()
         self.widgets['ils_path'].setFixedSize(300, 25)
         layout.addWidget(self.widgets['ils_path'], nrow, ncol+1, 1, 2)
@@ -921,10 +959,10 @@ class MainWindow(QMainWindow):
         layout.addItem(hspacer, 0, 5, -1, 1)
 
         # Create the absorber and polynomial tables
-        self.gas_table = Table(ptab1, 'param', 620, 400)
-        self.bgpoly_table = Table(ptab2, 'poly', 550, 400, 'bg_poly')
-        self.offset_table = Table(ptab3, 'poly', 550, 400, 'offset')
-        self.shift_table = Table(ptab4, 'poly', 550, 400, 'shift')
+        self.gas_table = ParamTable(ptab1, 'param', 620, 400)
+        self.bgpoly_table = ParamTable(ptab2, 'poly', 550, 400, 'bg_poly')
+        self.offset_table = ParamTable(ptab3, 'poly', 550, 400, 'offset')
+        self.shift_table = ParamTable(ptab4, 'poly', 550, 400, 'shift')
 
         # Link the parameter table to the plot parameter combobox
         self.gas_table.cellChanged.connect(self.update_plot_params)
@@ -1234,6 +1272,7 @@ class MainWindow(QMainWindow):
         self.last_err.setText(f'{err:.03g}')
 
         self.update_plots()
+        self.update_results_table()
 
     def update_plots(self):
         """Update the plots."""
@@ -1309,6 +1348,28 @@ class MainWindow(QMainWindow):
             else:
                 self.err_plot.setVisible(False)
 
+    def initialize_results_table(self, params):
+        """Initialize table rows."""
+        # Clear all current rows
+        self.results_table.clearContents()
+
+        # Make the rows
+        self.results_table.setRowCount(len(params.keys()))
+
+        for i, [name, param] in enumerate(params.items()):
+            self.results_table.setItem(i, 0, QTableWidgetItem(name))
+            self.results_table.setItem(i, 1, QTableWidgetItem(str(param.vary)))
+
+    def update_results_table(self):
+        """Update results table with fit output."""
+        # Pull the fitted parameters
+        params = self.fit_result.params
+
+        # Update the table items
+        for i, [name, p] in enumerate(params.items()):
+            self.results_table.setItem(i, 2, QTableWidgetItem(str(p.fit_val)))
+            self.results_table.setItem(i, 3, QTableWidgetItem(str(p.fit_err)))
+
     def begin_analysis(self, analysis_mode):
         """Run spectral analysis."""
         # Pull the plotting data from the GUI
@@ -1344,6 +1405,8 @@ class MainWindow(QMainWindow):
         self.analysisThread.started.connect(self.analysisWorker.run)
         self.analysisWorker.progress.connect(self.update_progress)
         self.analysisWorker.error.connect(self.update_error)
+        self.analysisWorker.initializeTable.connect(
+            self.initialize_results_table)
         self.analysisWorker.plotData.connect(self.get_plot_data)
         self.analysisWorker.finished.connect(self.analysis_complete)
         self.analysisWorker.finished.connect(self.analysisThread.quit)

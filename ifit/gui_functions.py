@@ -265,6 +265,7 @@ class AnalysisWorker(QObject):
     status = pyqtSignal(str)
     error = pyqtSignal(tuple)
     plotData = pyqtSignal(list)
+    initializeTable = pyqtSignal(object)
 
     def __init__(self, mode, widgetData, dark_spec):
         """Initialise."""
@@ -299,6 +300,9 @@ class AnalysisWorker(QObject):
         # Generate the anlyser
         self.analyser = self.generate_analyser()
 
+        # Initialize results table
+        self.initializeTable.emit(self.analyser.params)
+
         # Pull processing settings
         update_flag = self.widgetData['update_flag']
         resid_limit = self.widgetData['resid_limit']
@@ -307,6 +311,11 @@ class AnalysisWorker(QObject):
                      self.widgetData['hi_int_limit']]
         graph_p = [r[0] for r in self.widgetData['gas_params']]
         interp_meth = self.widgetData['interp_method']
+
+        if self.widgetData['preshift_flag']:
+            prefit_shift = self.widgetData['prefit_shift']
+        else:
+            prefit_shift = 0.0
 
         # Make a list of the fit parameters to form the buffer columns
         buffer_cols = ['Number']
@@ -416,41 +425,18 @@ class AnalysisWorker(QObject):
                     resid_type=resid_type,
                     int_limit=int_limit,
                     calc_od=graph_p,
-                    interp_method=interp_meth)
+                    interp_method=interp_meth,
+                    prefit_shift=prefit_shift)
 
-                # Write spectrum info to file
-                w.write(f'{fname},{metadata["spectrum_number"]},'
-                        + f'{metadata["timestamp"]}')
+                # Write the fit results to file
+                self._write_fit_results(w, fname, metadata, fit_result)
 
-                if self.widgetData['outp_lat']:
-                    w.write(f',{metadata["lat"]}')
-                if self.widgetData['outp_lon']:
-                    w.write(f',{metadata["lon"]}')
-                if self.widgetData['outp_alt']:
-                    w.write(f',{metadata["alt"]}')
-
-                # Add results to the buffer dataframe and write to file
+                # Add results to the buffer dataframe
                 row = [metadata["spectrum_number"]]
                 for par in fit_result.params.values():
                     row += [par.fit_val, par.fit_err]
-                    w.write(f',{par.fit_val},{par.fit_err}')
                 row += [fit_result.nerr]
                 buffer.update(row)
-
-                # Write fit quality info and start a new line
-                if self.widgetData['outp_intlo']:
-                    w.write(f',{fit_result.int_lo}')
-                if self.widgetData['outp_inthi']:
-                    w.write(f',{fit_result.int_hi}')
-                if self.widgetData['outp_intav']:
-                    w.write(f',{fit_result.int_av}')
-                if self.widgetData['outp_resmax']:
-                    w.write(f',{fit_result.resid_max}')
-                if self.widgetData['outp_resstd']:
-                    w.write(f',{fit_result.resid_std}')
-                if self.widgetData['outp_fitqual']:
-                    w.write(f',{fit_result.nerr}')
-                w.write('\n')
 
                 # Emit the progress
                 self.progress.emit(((loop+1)/nspec)*100)
@@ -540,6 +526,39 @@ class AnalysisWorker(QObject):
             analyser.dark_flag = False
 
         return analyser
+
+#   Write results to file =====================================================
+
+    def _write_fit_results(self, writer, spec_fname, metadata, fit_result):
+        # Write spectrum info to file
+        writer.write(f'{spec_fname},{metadata["spectrum_number"]},'
+                     + f'{metadata["timestamp"]}')
+
+        if self.widgetData['outp_lat']:
+            writer.write(f',{metadata["lat"]}')
+        if self.widgetData['outp_lon']:
+            writer.write(f',{metadata["lon"]}')
+        if self.widgetData['outp_alt']:
+            writer.write(f',{metadata["alt"]}')
+
+        # Write fit results to file
+        for par in fit_result.params.values():
+            writer.write(f',{par.fit_val},{par.fit_err}')
+
+        # Write fit quality info and start a new line
+        if self.widgetData['outp_intlo']:
+            writer.write(f',{fit_result.int_lo}')
+        if self.widgetData['outp_inthi']:
+            writer.write(f',{fit_result.int_hi}')
+        if self.widgetData['outp_intav']:
+            writer.write(f',{fit_result.int_av}')
+        if self.widgetData['outp_resmax']:
+            writer.write(f',{fit_result.resid_max}')
+        if self.widgetData['outp_resstd']:
+            writer.write(f',{fit_result.resid_std}')
+        if self.widgetData['outp_fitqual']:
+            writer.write(f',{fit_result.nerr}')
+        writer.write('\n')
 
 #   Controls ==================================================================
 
@@ -683,7 +702,7 @@ class SpinBox(QSpinBox):
 # Parameter Table
 # =============================================================================
 
-class Table(QTableWidget):
+class ParamTable(QTableWidget):
     """Object to build parameter tables."""
 
     def __init__(self, parent, type, width, height, pname=None):
