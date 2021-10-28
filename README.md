@@ -29,6 +29,12 @@ where `myenv` is the name of the environment. The environment can then be activa
 conda activate myenv
 ```
 
+Note that currently (checked October 2021) the codnda version of pyqtgraph is outdated. If you have problems with pyqtgraph then uninstall from conda and add with pip:
+```
+conda uninstall pyqtgraph
+pip install pyqtgraph
+```
+
 This should allow the use of the basic code as well as the GUI. If wanting to acquire spectra then also run:
 
 ```
