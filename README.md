@@ -29,7 +29,7 @@ where `myenv` is the name of the environment. The environment can then be activa
 conda activate myenv
 ```
 
-Note that currently (checked October 2021) the codnda version of pyqtgraph is outdated. If you have problems with pyqtgraph then uninstall from conda and add with pip:
+Note that currently (checked October 2021) the conda version of pyqtgraph is outdated (v0.10.0 with latest v0.12.3). iFit makes use of some recent updates, so if you have problems with pyqtgraph then uninstall from conda and install with pip:
 ```
 conda uninstall pyqtgraph
 pip install pyqtgraph
