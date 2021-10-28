@@ -21,7 +21,7 @@ iFit requires Python 3.6+ with `numpy` and `scipy` for basic operation. `matplot
 
 To get started with Anaconda create a new environment:
 
-```conda create -n myenv python=3.6 numpy scipy matplotlib tqdm pandas pyqt pyqtgraph pyyaml```
+```conda create -n myenv python numpy scipy matplotlib tqdm pandas pyyaml```
 
 where `myenv` is the name of the environment. The environment can then be activated with:
 
@@ -29,22 +29,22 @@ where `myenv` is the name of the environment. The environment can then be activa
 conda activate myenv
 ```
 
-Note that currently (checked October 2021) the conda version of pyqtgraph is outdated (v0.10.0 with latest v0.12.3). iFit makes use of some recent updates, so if you have problems with pyqtgraph then uninstall from conda and install with pip:
+Note that currently (checked October 2021) the conda version of pyqtgraph is outdated (v0.10.0 with latest v0.12.3). iFit makes use of some recent updates, so it is best to use pip for the time being:
 ```
-conda uninstall pyqtgraph
+pip install PyQt5
 pip install pyqtgraph
 ```
 
-This should allow the use of the basic code as well as the GUI. If wanting to acquire spectra then also run:
+This should allow the use of the basic code as well as the GUI. If wanting to acquire spectra with Ocean Insight spectrometers then also run:
 
 ```
 conda install -c conda-forge seabreeze
 ```
 
-To install `python-seabreeze`, the library for cotrolly Ocean Optics (or Ocean Insight) spectrometers. To install the relevant drivers shut the terminal, reopen a new one and run
+To install `python-seabreeze`, the library for cotrolly Ocean Optics (or Ocean Insight) spectrometers. To install the relevant drivers shut the terminal, reopen a new one, activate the environment again and run
 
 ```
 seabreeze_os_setup
 ```
 
-after activating the environment. See the [`python-seabreeze docs`](https://python-seabreeze.readthedocs.io/en/latest/) for more details. Massive thanks to Andreas Poehlmann for creating and maintaining python-seabreeze, without which I would have spent an inordinate amount of time trying (and likely failing) to talk to spectrometers.
+See the [`python-seabreeze docs`](https://python-seabreeze.readthedocs.io/en/latest/) for more details. Massive thanks to Andreas Poehlmann for creating and maintaining python-seabreeze, without which I would have spent an inordinate amount of time trying (and likely failing) to talk to spectrometers.
