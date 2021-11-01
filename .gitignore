@@ -10,6 +10,8 @@ temp*
 *.zip
 *scratch*
 Ref
+*.cmd
+*.bat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
