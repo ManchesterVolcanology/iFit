@@ -64,6 +64,10 @@ class Analyser():
         The limit of the spike size to remove. Defined as the difference
         between the raw spectrum and a savgol filtered spectrum. The
         default is None
+    wl_config_file : str, optional
+        Offers the option to provide a separate wavelength calibration if not
+        available in the spectrum file. Should be a 1D column array readable
+        with np.loadtxt. Default is None
 
     Attributes
     ----------
@@ -95,7 +99,7 @@ class Analyser():
                  model_spacing=0.01, flat_flag=False, flat_path=None,
                  stray_flag=False, stray_window=[280, 290], dark_flag=False,
                  ils_type='Manual', ils_path=None, despike_flag=False,
-                 spike_limit=None, bad_pixels=None):
+                 spike_limit=None, bad_pixels=None, wl_calibration_file=None):
         """Initialise the model for the analyser."""
         # Set the initial estimate for the fit parameters
         self.params = params.make_copy()
@@ -135,10 +139,10 @@ class Analyser():
         # ---------------------------------------------------------------------
 
         # Import measured ILS
-        if ils_type == 'File':
-            logger.info('Importing ILS')
+        try:
+            if ils_type == 'File':
+                logger.info('Importing ILS')
 
-            try:
                 # Read in measured ILS shape
                 x_ils, y_ils = np.loadtxt(ils_path, unpack=True)
 
@@ -148,13 +152,10 @@ class Analyser():
                 self.ils = ils / np.sum(ils)
                 self.generate_ils = False
 
-            except OSError:
-                logger.error(f'{ils_path} file not found!')
+            # Import ILS params
+            if ils_type == 'Params':
+                logger.info('Importing ILS parameters')
 
-        # Import ILS params
-        if ils_type == 'Params':
-            logger.info('Importing ILS parameters')
-            try:
                 # Import ils parameters
                 ils_params = np.loadtxt(ils_path, unpack=True)
 
@@ -164,8 +165,8 @@ class Analyser():
                 self.generate_ils = False
                 logger.info(f'ILS parameters imported: {ils_path}')
 
-            except OSError:
-                logger.error(f'{ils_path} file not found!')
+        except OSError:
+            logger.error(f'{ils_path} file not found!')
 
         # Manually set the ILS params
         if ils_type == 'Manual':
@@ -179,6 +180,13 @@ class Analyser():
                 ils_params = [params[k].value for k in keys]
                 self.ils = make_ils(model_spacing, *ils_params)
                 self.generate_ils = False
+
+        # ---------------------------------------------------------------------
+        # Spectrometer Wavelength calibration
+        # ---------------------------------------------------------------------
+
+        if wl_calibration_file is not None:
+            self.wl_calib = np.loadtxt(wl_calibration_file)
 
         # ---------------------------------------------------------------------
         # Import solar spectrum
@@ -413,7 +421,7 @@ class Analyser():
 
             # Update the fit window attribute
             self.fit_window = fit_window
-
+        print(spectrum.shape)
         # Check is spectrum requires preprocessing
         if pre_process:
             spectrum = self.pre_process(spectrum, prefit_shift)
