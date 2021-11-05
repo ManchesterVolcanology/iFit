@@ -12,12 +12,12 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from functools import partial
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QObject, pyqtSignal
-from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
-                             QSpinBox, QCheckBox, QFileDialog, QPushButton,
-                             QTableWidgetItem, QMenu, QTableWidget,
-                             QPlainTextEdit, QHeaderView)
+from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
+                               QSpinBox, QCheckBox, QFileDialog, QPushButton,
+                               QTableWidgetItem, QMenu, QTableWidget,
+                               QPlainTextEdit, QHeaderView)
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 class QTextEditLogger(logging.Handler, QObject):
     """Record logs to the GUI."""
 
-    appendPlainText = pyqtSignal(str)
+    appendPlainText = Signal(str)
 
     def __init__(self, parent):
         """Initialise."""
@@ -59,9 +59,9 @@ class AcqScopeWorker(QObject):
     """Handle continuous scope acquisition."""
 
     # Define Signals
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    plotSpec = pyqtSignal(np.ndarray)
+    finished = Signal()
+    error = Signal(tuple)
+    plotSpec = Signal(np.ndarray)
 
     def __init__(self, spectrometer):
         """Initialise."""
@@ -90,13 +90,13 @@ class AcqSpecWorker(QObject):
     """Handle targeted acquisition and saving of spectra."""
 
     # Define Signals
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-    status = pyqtSignal(str)
-    error = pyqtSignal(tuple)
-    plotSpec = pyqtSignal(np.ndarray)
-    setDark = pyqtSignal(np.ndarray)
-    setSpec = pyqtSignal(tuple)
+    finished = Signal()
+    progress = Signal(int)
+    status = Signal(str)
+    error = Signal(tuple)
+    plotSpec = Signal(np.ndarray)
+    setDark = Signal(np.ndarray)
+    setSpec = Signal(tuple)
 
     def __init__(self, spectrometer, widgetData):
         """Initialise."""
@@ -260,12 +260,12 @@ class AnalysisWorker(QObject):
     """Handle analysis of measured spectra."""
 
     # Define Signals
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-    status = pyqtSignal(str)
-    error = pyqtSignal(tuple)
-    plotData = pyqtSignal(list)
-    initializeTable = pyqtSignal(object)
+    finished = Signal()
+    progress = Signal(int)
+    status = Signal(str)
+    error = Signal(tuple)
+    plotData = Signal(list)
+    initializeTable = Signal(object)
 
     def __init__(self, mode, widgetData, dark_spec):
         """Initialise."""

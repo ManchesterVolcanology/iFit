@@ -17,13 +17,13 @@ import pyqtgraph as pg
 from functools import partial
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
-from PyQt5.QtGui import QIcon, QPalette, QColor
-from PyQt5.QtCore import Qt, QThreadPool, QObject, pyqtSignal, QThread
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
-                             QLabel, QTextEdit, QLineEdit, QPushButton, QFrame,
-                             QFileDialog, QScrollArea, QCheckBox, QSplitter,
-                             QComboBox, QDoubleSpinBox, QTableWidget,
-                             QTableWidgetItem, QTabWidget, QMessageBox)
+from PySide6.QtGui import QIcon, QPalette, QColor
+from PySide6.QtCore import Qt, QThreadPool, QObject, Signal, QThread
+from PySide6.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
+                               QLabel, QTextEdit, QLineEdit, QPushButton,
+                               QFileDialog, QScrollArea, QCheckBox, QSplitter,
+                               QComboBox, QDoubleSpinBox, QTableWidget, QFrame,
+                               QTableWidgetItem, QTabWidget, QMessageBox)
 
 from ifit.gui_functions import QTextEditLogger, DSpinBox, Widgets
 from ifit.parameters import Parameters
@@ -1766,9 +1766,9 @@ class LDWorker(QObject):
     """
 
     # Define signals
-    finished = pyqtSignal()
-    data = pyqtSignal(np.ndarray)
-    error = pyqtSignal(tuple)
+    finished = Signal()
+    data = Signal(np.ndarray)
+    error = Signal(tuple)
 
     def __init__(self, spec_fnames, dark_fnames, widgetData, ld_kwargs):
         """Initialise."""

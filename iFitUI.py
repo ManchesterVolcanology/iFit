@@ -4,19 +4,20 @@ import sys
 import yaml
 import logging
 import numpy as np
+import PySide6
 import pyqtgraph as pg
 from datetime import datetime
 from functools import partial
 from logging.handlers import RotatingFileHandler
-from PyQt5.QtGui import QIcon, QPalette, QColor, QFont
-from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot, QThread
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
-                             QMessageBox, QLabel, QComboBox, QTextEdit,
-                             QLineEdit, QPushButton, QProgressBar, QFrame,
-                             QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
-                             QTabWidget, QAction, QFileDialog, QScrollArea,
-                             QToolBar, QTableWidget, QHeaderView,
-                             QTableWidgetItem)
+from PySide6.QtGui import QIcon, QPalette, QColor, QFont, QAction
+from PySide6.QtCore import Qt, QThreadPool, Slot, QThread
+from PySide6.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
+                               QMessageBox, QLabel, QComboBox, QTextEdit,
+                               QLineEdit, QPushButton, QProgressBar, QFrame,
+                               QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
+                               QTabWidget, QFileDialog, QScrollArea,
+                               QToolBar, QTableWidget, QHeaderView,
+                               QTableWidgetItem)
 
 from ifit.gui_functions import (Widgets, SpinBox, DSpinBox, ParamTable,
                                 AnalysisWorker, QTextEditLogger,
@@ -1665,7 +1666,7 @@ class MainWindow(QMainWindow):
             self.changeThemeLight()
             self.theme = 'Light'
 
-    @pyqtSlot()
+    @Slot()
     def changeThemeDark(self):
         """Change theme to dark."""
         darkpalette = QPalette()
@@ -1705,7 +1706,7 @@ class MainWindow(QMainWindow):
         self.scope_ax.getAxis('top').setPen(pen)
         self.scope_ax.getAxis('bottom').setPen(pen)
 
-    @pyqtSlot()
+    @Slot()
     def changeThemeLight(self):
         """Change theme to light."""
         QApplication.instance().setPalette(self.style().standardPalette())
