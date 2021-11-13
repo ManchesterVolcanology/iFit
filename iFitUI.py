@@ -321,6 +321,7 @@ class MainWindow(QMainWindow):
 
         # Add GPS connection settings
         self.gps_connected_flag = False
+        self.gps = None
         layout.addWidget(QLabel('GPS Status:'), nrow, 0)
         self.gps_status = QLabel('Not connected')
         layout.addWidget(self.gps_status, nrow, 1)
@@ -1664,6 +1665,7 @@ class MainWindow(QMainWindow):
             self.gpsThread.quit()
             self.gpsThread.wait()
             self.gps.close()
+            self.gps = None
             self.gps_status.setText('Not connected')
             self.gps_connect_btn.setText('Connect')
             self.spectro_connected_flag = False
@@ -1807,7 +1809,8 @@ class MainWindow(QMainWindow):
 
         # Initialise the acquisition thread and worker
         self.specThread = QThread()
-        self.specWorker = AcqSpecWorker(self.spectrometer, widgetData)
+        self.specWorker = AcqSpecWorker(self.spectrometer, self.gps,
+                                        widgetData)
         self.specWorker.moveToThread(self.specThread)
 
         # Assign signals depending on mode

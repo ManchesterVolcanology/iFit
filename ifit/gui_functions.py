@@ -101,10 +101,11 @@ class AcqSpecWorker(QObject):
     setDark = pyqtSignal(np.ndarray)
     setSpec = pyqtSignal(tuple)
 
-    def __init__(self, spectrometer, widgetData):
+    def __init__(self, spectrometer, gps, widgetData):
         """Initialise."""
         super(QObject, self).__init__()
         self.spectrometer = spectrometer
+        self.gps = gps
         self.widgetData = widgetData
         self.is_paused = False
         self.is_stopped = False
@@ -148,7 +149,8 @@ class AcqSpecWorker(QObject):
 
                 # Read the spectrum and add to the array
                 fname = f'{save_path}spectrum_{i:05d}.txt'
-                spectrum, info = self.spectrometer.get_spectrum(fname=fname)
+                spectrum, info = self.spectrometer.get_spectrum(fname=fname,
+                                                                gps=self.gps)
                 dark_arr[i] = spectrum[1]
 
                 # Display the spectrum
@@ -221,7 +223,8 @@ class AcqSpecWorker(QObject):
                         spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
 
                 # Measure the spectrum
-                spec, info = self.spectrometer.get_spectrum(fname=spec_fname)
+                spec, info = self.spectrometer.get_spectrum(fname=spec_fname,
+                                                            gps=self.gps)
 
                 # Add the spectrum number to the metadata
                 info['spectrum_number'] = nspec
