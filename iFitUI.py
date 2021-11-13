@@ -19,11 +19,13 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QTableWidgetItem)
 
 from ifit.gui_functions import (Widgets, SpinBox, DSpinBox, ParamTable,
-                                AnalysisWorker, QTextEditLogger,
-                                AcqScopeWorker, AcqSpecWorker)
+                                AnalysisWorker, QTextEditLogger, GPSWorker,
+                                AcqScopeWorker, AcqSpecWorker, QHLine, QVLine,
+                                browse, GPSWizard)
 from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
 from ifit.spectrometers import Spectrometer
 from ifit.load_spectra import average_spectra
+from ifit.gps import GPS
 
 __version__ = '3.4'
 __author__ = 'Ben Esse'
@@ -210,25 +212,45 @@ class MainWindow(QMainWindow):
         # Setup the layout
         layout = QGridLayout(tab1)
         layout.setAlignment(Qt.AlignTop)
+        nrow = 0
+
+        # Add an input for the save selection
+        layout.addWidget(QLabel('Output\nFolder:'), nrow, 0)
+        self.widgets['rt_save_path'] = QLineEdit('Results')
+        self.widgets['rt_save_path'].setToolTip('Folder to hold real time '
+                                                + 'results')
+        layout.addWidget(self.widgets['rt_save_path'], nrow, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.widgets['rt_save_path'],
+                                    'folder', None))
+        layout.addWidget(btn, nrow, 4)
+        nrow += 1
+
+        layout.addWidget(QHLine(), nrow, 0, 1, 5)
+        nrow += 1
 
         # Set a label for the spectrometer ID
-        self.connected_flag = False
-        layout.addWidget(QLabel('Spectrometer:'), 0, 0)
+        self.spectro_connected_flag = False
+        layout.addWidget(QLabel('Spectrometer:'), nrow, 0)
         self.spec_id = QLabel('Not connected')
         self.spec_id.setToolTip('Spectrometer Serial Number')
-        layout.addWidget(self.spec_id, 0, 1)
+        layout.addWidget(self.spec_id, nrow, 1)
 
         # Create a button to connect to a spectrometer
-        self.connect_btn = QPushButton('Connect')
-        self.connect_btn.setToolTip('Connect or disconnect the spectrometer')
-        self.connect_btn.clicked.connect(self.connect_spectrometer)
-        layout.addWidget(self.connect_btn, 0, 2)
+        self.spec_connect_btn = QPushButton('Connect')
+        self.spec_connect_btn.setToolTip(
+            'Connect or disconnect the spectrometer')
+        self.spec_connect_btn.clicked.connect(self.connect_spectrometer)
+        layout.addWidget(self.spec_connect_btn, nrow, 2)
+
+        nrow += 1
 
         # Create a control for the spectrometer integration time
-        layout.addWidget(QLabel('Integration\nTime (ms):'), 1, 0)
+        layout.addWidget(QLabel('Integration\nTime (ms):'), nrow, 0)
         self.widgets['int_time'] = SpinBox(100, [10, 1000000])
         self.widgets['int_time'].setToolTip('Spectrometer integration time')
-        layout.addWidget(self.widgets['int_time'], 1, 1)
+        layout.addWidget(self.widgets['int_time'], nrow, 1)
 
         # Create a button to update the integration time
         self.update_inttime_btn = QPushButton('Update')
@@ -236,27 +258,44 @@ class MainWindow(QMainWindow):
                                            + ' Time')
         self.update_inttime_btn.clicked.connect(self.update_int_time)
         self.update_inttime_btn.setEnabled(False)
-        layout.addWidget(self.update_inttime_btn, 1, 2)
+        layout.addWidget(self.update_inttime_btn, nrow, 2)
+
+        # Add stereo button for non-liniarity correction
+        self.widgets['nonlin_flag'] = QCheckBox('Correct\nNon-Linearity?')
+        self.widgets['nonlin_flag'].setToolTip('Turn on correction for non-'
+                                               + 'linear intensity response'
+                                               + ' correction')
+        layout.addWidget(self.widgets['nonlin_flag'], nrow, 3)
+
+        nrow += 1
 
         # Create a control for the spectrometer coadds
-        layout.addWidget(QLabel('Coadds:'), 2, 0)
+        layout.addWidget(QLabel('Coadds:'), nrow, 0)
         self.widgets['coadds'] = SpinBox(10, [1, 1000000])
         self.widgets['coadds'].setToolTip('No. spectra to average')
-        layout.addWidget(self.widgets['coadds'], 2, 1)
+        layout.addWidget(self.widgets['coadds'], nrow, 1)
 
         # Create a button to update the coadds
         self.update_coadds_btn = QPushButton('Update')
         self.update_coadds_btn.setToolTip('Update Spectrometer Coadds')
         self.update_coadds_btn.clicked.connect(self.update_coadds)
         self.update_coadds_btn.setEnabled(False)
-        layout.addWidget(self.update_coadds_btn, 2, 2)
+        layout.addWidget(self.update_coadds_btn, nrow, 2)
+
+        # Add stereo button for non-liniarity correction
+        self.widgets['eldark_flag'] = QCheckBox('Correct\nElectronic dark?')
+        self.widgets['eldark_flag'].setToolTip('Turn on electronic dark '
+                                               + 'correction')
+        layout.addWidget(self.widgets['eldark_flag'], nrow, 3)
+
+        nrow += 1
 
         # Create a control for the number of dark spectra
-        layout.addWidget(QLabel('No. Dark\nSpectra:'), 3, 0)
+        layout.addWidget(QLabel('No. Dark\nSpectra:'), nrow, 0)
         self.widgets['ndarks'] = SpinBox(10, [1, 1000000])
         self.widgets['ndarks'].setToolTip('Set number of dark spectra to '
                                           + 'measure')
-        layout.addWidget(self.widgets['ndarks'], 3, 1)
+        layout.addWidget(self.widgets['ndarks'], nrow, 1)
 
         # Create a button to acquire the dark spectra
         self.acquire_darks_btn = QPushButton('Acquire')
@@ -264,7 +303,7 @@ class MainWindow(QMainWindow):
         self.acquire_darks_btn.clicked.connect(partial(self.begin_acquisition,
                                                        'acquire_darks'))
         self.acquire_darks_btn.setEnabled(False)
-        layout.addWidget(self.acquire_darks_btn, 3, 2)
+        layout.addWidget(self.acquire_darks_btn, nrow, 2)
 
         # Create a button to toggle real-time analysis
         self.rt_fitting_flag = False
@@ -273,32 +312,25 @@ class MainWindow(QMainWindow):
         self.rt_flag_btn.clicked.connect(self.toggle_fitting)
         self.rt_flag_btn.setEnabled(False)
         self.rt_flag_btn.setStyleSheet("background-color: red")
-        layout.addWidget(self.rt_flag_btn, 3, 3)
+        layout.addWidget(self.rt_flag_btn, nrow, 3)
 
-        # Add stereo button for non-liniarity correction
-        self.widgets['nonlin_flag'] = QCheckBox('Correct\nNon-Linearity?')
-        self.widgets['nonlin_flag'].setToolTip('Turn on correction for non-'
-                                               + 'linear intensity response'
-                                               + ' correction')
-        layout.addWidget(self.widgets['nonlin_flag'], 1, 3)
+        nrow += 1
 
-        # Add stereo button for non-liniarity correction
-        self.widgets['eldark_flag'] = QCheckBox('Correct\nElectronic dark?')
-        self.widgets['eldark_flag'].setToolTip('Turn on electronic dark '
-                                               + 'correction')
-        layout.addWidget(self.widgets['eldark_flag'], 2, 3)
+        layout.addWidget(QHLine(), nrow, 0, 1, 5)
+        nrow += 1
 
-        # Add an input for the save selection
-        layout.addWidget(QLabel('Output\nFolder:'), 4, 0)
-        self.widgets['rt_save_path'] = QLineEdit()
-        self.widgets['rt_save_path'].setToolTip('Folder to hold real time '
-                                                + 'results')
-        layout.addWidget(self.widgets['rt_save_path'], 4, 1, 1, 3)
-        btn = QPushButton('Browse')
-        btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.widgets['rt_save_path'],
-                                    'folder', None))
-        layout.addWidget(btn, 4, 4)
+        # Add GPS connection settings
+        self.gps_connected_flag = False
+        layout.addWidget(QLabel('GPS Status:'), nrow, 0)
+        self.gps_status = QLabel('Not connected')
+        layout.addWidget(self.gps_status, nrow, 1)
+        self.gps_connect_btn = QPushButton('Connect')
+        self.gps_connect_btn.clicked.connect(self.connect_gps)
+        layout.addWidget(self.gps_connect_btn, nrow, 2)
+        nrow += 1
+
+        layout.addWidget(QHLine(), nrow, 0, 1, 5)
+        nrow += 1
 
         # Add button to begin analysis
         self.rt_start_btn = QPushButton('Begin!')
@@ -307,7 +339,7 @@ class MainWindow(QMainWindow):
                                                   'acquire_cont'))
         self.rt_start_btn.setFixedSize(90, 25)
         self.rt_start_btn.setEnabled(False)
-        layout.addWidget(self.rt_start_btn, 5, 1)
+        layout.addWidget(self.rt_start_btn, nrow, 1)
 
         # Add button to pause analysis
         self.rt_pause_btn = QPushButton('Pause')
@@ -315,7 +347,7 @@ class MainWindow(QMainWindow):
         self.rt_pause_btn.clicked.connect(partial(self.pause))
         self.rt_pause_btn.setFixedSize(90, 25)
         self.rt_pause_btn.setEnabled(False)
-        layout.addWidget(self.rt_pause_btn, 5, 2)
+        layout.addWidget(self.rt_pause_btn, nrow, 2)
 
         # Add button to stop analysis
         self.rt_stop_btn = QPushButton('Stop')
@@ -323,7 +355,7 @@ class MainWindow(QMainWindow):
         self.rt_stop_btn.clicked.connect(partial(self.stop))
         self.rt_stop_btn.setFixedSize(90, 25)
         self.rt_stop_btn.setEnabled(False)
-        layout.addWidget(self.rt_stop_btn, 5, 3)
+        layout.addWidget(self.rt_stop_btn, nrow, 3)
 
 # =============================================================================
 #       Post-procesing controls
@@ -338,6 +370,7 @@ class MainWindow(QMainWindow):
         self.widgets['spec_type'] = QComboBox()
         self.widgets['spec_type'].setToolTip('Choose spectrum format')
         self.widgets['spec_type'].addItems(['iFit',
+                                            'iFit (old)',
                                             'Master.Scope',
                                             'Spectrasuite',
                                             'mobileDOAS',
@@ -463,8 +496,11 @@ class MainWindow(QMainWindow):
         analysis_tabs = QTabWidget()
         graphtab = QWidget()
         tabletab = QWidget()
+        maptab = QWidget()
         analysis_tabs.addTab(graphtab, 'Graphs')
         analysis_tabs.addTab(tabletab, 'Table')
+        analysis_tabs.addTab(maptab, 'Map')
+
         analysis_layout = QGridLayout(tab1)
         analysis_layout.addWidget(analysis_tabs, 0, 0)
 
@@ -590,6 +626,62 @@ class MainWindow(QMainWindow):
             QHeaderView.Stretch)
 
         tlayout.addWidget(self.results_table, 0, 0)
+
+# =============================================================================
+#      Analysis results map
+# =============================================================================
+
+        # Make the layout
+        mlayout = QGridLayout(maptab)
+
+        # Add markers for the current lat/lon/alt values
+        self.gps_timestamp = QLabel('-')
+        self.gps_lat = QLabel('-')
+        self.gps_lon = QLabel('-')
+        self.gps_alt = QLabel('-')
+        mlayout.addWidget(QLabel('GPS Time:'), 0, 0)
+        mlayout.addWidget(self.gps_timestamp, 0, 1)
+        mlayout.addWidget(QLabel('Altitude:'), 1, 0)
+        mlayout.addWidget(self.gps_alt, 1, 1)
+        mlayout.addWidget(QLabel('Latitude:'), 0, 2)
+        mlayout.addWidget(self.gps_lat, 0, 3)
+        mlayout.addWidget(QLabel('Longitude:'), 1, 2)
+        mlayout.addWidget(self.gps_lon, 1, 3)
+
+        # Add controls for scatter color limits
+        mlayout.addWidget(QLabel('Lower\nLimit:'), 0, 4)
+        self.widgets['map_lo_lim'] = QLineEdit('0.0')
+        self.widgets['map_lo_lim'].setFixedSize(70, 20)
+        self.widgets['map_lo_lim'].editingFinished.connect(self.update_map)
+        mlayout.addWidget(self.widgets['map_lo_lim'], 0, 5)
+        mlayout.addWidget(QLabel('Upper\nLimit:'), 1, 4)
+        self.widgets['map_hi_lim'] = QLineEdit('1.0e18')
+        self.widgets['map_hi_lim'].setFixedSize(70, 20)
+        self.widgets['map_hi_lim'].editingFinished.connect(self.update_map)
+        mlayout.addWidget(self.widgets['map_hi_lim'], 1, 5)
+
+        # Make the graphics window
+        self.mapwin = pg.GraphicsLayoutWidget(show=True)
+        mlayout.addWidget(self.mapwin, 2, 0, 1, 6)
+
+        # Generate the axes
+        self.map_ax = self.mapwin.addPlot(row=0, col=0)
+        self.map_ax.setDownsampling(mode='peak')
+        self.map_ax.setClipToView(True)
+        self.map_ax.showGrid(x=True, y=True)
+        self.map_ax.setAspectLocked(True)
+
+        # Add the axis labels
+        self.map_ax.setLabel('left', 'Latitude')
+        self.map_ax.setLabel('bottom', 'Longitude')
+
+        # Initialise the plots for the GPS data
+        self.gps_line = self.map_ax.plot(pen=p0)
+        self.gps_scatter = pg.ScatterPlotItem()
+        self.map_ax.addItem(self.gps_scatter)
+
+        # Generate the colormap to use
+        self.cmap = pg.colormap.get('magma')
 
 # =============================================================================
 #      Set up the scope plot
@@ -1273,6 +1365,7 @@ class MainWindow(QMainWindow):
 
         self.update_plots()
         self.update_results_table()
+        self.update_map()
 
     def update_plots(self):
         """Update the plots."""
@@ -1347,6 +1440,36 @@ class MainWindow(QMainWindow):
                                       bottom=erry)
             else:
                 self.err_plot.setVisible(False)
+
+    def update_map(self):
+        """Update data map."""
+        # Get non-null values from the dataframe
+        try:
+            df = self.df.dropna(subset=['Lat', 'Lon'])
+        except AttributeError:
+            return
+
+        # Pull the plot values
+        lat = df['Lat'].to_numpy()
+        lon = df['Lon'].to_numpy()
+        values = df[self.key].to_numpy()
+
+        # Get the plot limits
+        try:
+            map_lo_lim = float(self.widgets.get('map_lo_lim'))
+            map_hi_lim = float(self.widgets.get('map_hi_lim'))
+        except ValueError:
+            map_lo_lim = min(values)
+            map_hi_lim = max(values)
+
+        norm_values = (values - map_lo_lim) / (map_hi_lim - map_lo_lim)
+
+        # Convert to colors
+        pens = [pg.mkPen(color=self.cmap.map(val)) for val in norm_values]
+        brushes = [pg.mkBrush(color=self.cmap.map(val)) for val in norm_values]
+
+        # Update the map data
+        self.gps_scatter.setData(x=lon, y=lat, pen=pens, brush=brushes)
 
     def initialize_results_table(self, params):
         """Initialize table rows."""
@@ -1425,7 +1548,7 @@ class MainWindow(QMainWindow):
 
     def connect_spectrometer(self):
         """Connect or dissconnect the spectrometer."""
-        if not self.connected_flag:
+        if not self.spectro_connected_flag:
 
             # Connect to the spectrometer
             w = self.widgets
@@ -1443,13 +1566,13 @@ class MainWindow(QMainWindow):
 
                 # Update the GUI
                 self.spec_id.setText(self.spectrometer.serial_number)
-                self.connect_btn.setText('Disconnect')
+                self.spec_connect_btn.setText('Disconnect')
 
                 # Create a holder for the dark spectra
                 self.dark_spectrum = np.zeros(self.spectrometer.pixels)
 
                 # Update GUI features
-                self.connected_flag = True
+                self.spectro_connected_flag = True
                 self.rt_flag_btn.setEnabled(True)
                 self.acquire_darks_btn.setEnabled(True)
                 self.update_inttime_btn.setEnabled(True)
@@ -1474,10 +1597,10 @@ class MainWindow(QMainWindow):
 
             # Update the GUI
             self.spec_id.setText('Not connected')
-            self.connect_btn.setText('Connect')
+            self.spec_connect_btn.setText('Connect')
 
             # Update GUI features
-            self.connected_flag = False
+            self.spectro_connected_flag = False
             self.rt_flag_btn.setEnabled(False)
             self.acquire_darks_btn.setEnabled(False)
             self.update_inttime_btn.setEnabled(False)
@@ -1510,6 +1633,75 @@ class MainWindow(QMainWindow):
             logger.info('Fitting turned on')
 
 # =============================================================================
+#   Connect to GPS
+# =============================================================================
+
+    def connect_gps(self):
+        """Input information for a GPS connection."""
+        if not self.spectro_connected_flag:
+            dialog = GPSWizard(self)
+            if dialog.exec_():
+                self.gps = GPS(**dialog.gps_kwargs)
+                self.gps_status.setText('Connected')
+                self.gps_connect_btn.setText('Disconnect')
+                self.spectro_connected_flag = True
+                logger.info('GPS connected')
+
+                # Start GPS aquisition
+                self.gpsThread = QThread()
+                self.gpsWorker = GPSWorker(self.gps)
+                self.gpsWorker.moveToThread(self.gpsThread)
+                self.gpsThread.started.connect(self.gpsWorker.run)
+                self.gpsWorker.position.connect(self.update_position)
+                self.gpsWorker.error.connect(self.update_error)
+                self.gpsWorker.finished.connect(self.gpsThread.quit)
+                self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)
+                self.gpsThread.finished.connect(self.gpsThread.deleteLater)
+                self.gpsThread.start()
+
+        else:
+            self.gpsWorker.stop()
+            self.gpsThread.quit()
+            self.gpsThread.wait()
+            self.gps.close()
+            self.gps_status.setText('Not connected')
+            self.gps_connect_btn.setText('Connect')
+            self.spectro_connected_flag = False
+            logger.info('GPS disconnected')
+
+    def update_position(self, location):
+        """Update the current position on the GUI."""
+        # Unpack location data
+        ts, lat, lon, alt = location
+
+        # Determine the directions
+        if lat >= 0:
+            lat_dir = 'N'
+        else:
+            lat_dir = 'S'
+        if lon >= 0:
+            lon_dir = 'E'
+        else:
+            lon_dir = 'W'
+
+        # Update GUI labels
+        self.gps_timestamp.setText(f'{ts}')
+        self.gps_lat.setText(f'{abs(lat):.6f} {lat_dir}')
+        self.gps_lon.setText(f'{abs(lon):.6f} {lon_dir}')
+        self.gps_alt.setText(f'{alt:.1f} m')
+
+        # Update GUI graph
+        xdata, ydata = self.gps_line.getData()
+
+        if xdata is None or ydata is None:
+            self.gps_line.setData([lon], [lat])
+
+        elif lat != ydata[-1] and lon != xdata[-1]:
+            new_xdata = np.append(xdata, lon)
+            new_ydata = np.append(ydata, lat)
+            self.gps_line.setData(new_xdata, new_ydata)
+
+# =============================================================================
 #   Acquisition Loop Setup
 # =============================================================================
 
@@ -1519,7 +1711,7 @@ class MainWindow(QMainWindow):
         self.rt_start_btn.setEnabled(True)
         self.rt_pause_btn.setEnabled(False)
         self.rt_stop_btn.setEnabled(False)
-        self.connect_btn.setEnabled(True)
+        self.spec_connect_btn.setEnabled(True)
         self.acquire_darks_btn.setEnabled(True)
         self.rt_flag_btn.setEnabled(True)
         self.rt_pause_btn.setText('Pause')
@@ -1644,7 +1836,7 @@ class MainWindow(QMainWindow):
         self.rt_start_btn.setEnabled(False)
         self.rt_pause_btn.setEnabled(True)
         self.rt_stop_btn.setEnabled(True)
-        self.connect_btn.setEnabled(False)
+        self.spec_connect_btn.setEnabled(False)
         self.acquire_darks_btn.setEnabled(False)
         self.rt_flag_btn.setEnabled(False)
 
@@ -1691,19 +1883,22 @@ class MainWindow(QMainWindow):
         # Update graphs
         self.graphwin.setBackground('k')
         self.scopewin.setBackground('k')
+        self.mapwin.setBackground('k')
         pen = pg.mkPen('w', width=1)
 
-        for ax in self.plot_axes:
+        axes = self.plot_axes + [self.scope_ax, self.map_ax]
+
+        for ax in axes:
             ax.getAxis('left').setPen(pen)
             ax.getAxis('right').setPen(pen)
             ax.getAxis('top').setPen(pen)
             ax.getAxis('bottom').setPen(pen)
             ax.getAxis('left').setTextPen(pen)
             ax.getAxis('bottom').setTextPen(pen)
-        self.scope_ax.getAxis('left').setPen(pen)
-        self.scope_ax.getAxis('right').setPen(pen)
-        self.scope_ax.getAxis('top').setPen(pen)
-        self.scope_ax.getAxis('bottom').setPen(pen)
+        # self.scope_ax.getAxis('left').setPen(pen)
+        # self.scope_ax.getAxis('right').setPen(pen)
+        # self.scope_ax.getAxis('top').setPen(pen)
+        # self.scope_ax.getAxis('bottom').setPen(pen)
 
     @pyqtSlot()
     def changeThemeLight(self):
@@ -1711,77 +1906,22 @@ class MainWindow(QMainWindow):
         QApplication.instance().setPalette(self.style().standardPalette())
         self.graphwin.setBackground('w')
         self.scopewin.setBackground('w')
+        self.mapwin.setBackground('w')
         pen = pg.mkPen('k', width=1)
 
-        for ax in self.plot_axes:
+        axes = self.plot_axes + [self.scope_ax, self.map_ax]
+
+        for ax in axes:
             ax.getAxis('left').setPen(pen)
             ax.getAxis('right').setPen(pen)
             ax.getAxis('top').setPen(pen)
             ax.getAxis('bottom').setPen(pen)
             ax.getAxis('left').setTextPen(pen)
             ax.getAxis('bottom').setTextPen(pen)
-        self.scope_ax.getAxis('left').setPen(pen)
-        self.scope_ax.getAxis('right').setPen(pen)
-        self.scope_ax.getAxis('top').setPen(pen)
-        self.scope_ax.getAxis('bottom').setPen(pen)
-
-
-def browse(gui, widget, mode='single', filter=None):
-    """Open native file dialogue."""
-    # Check if specified file extensions
-    if filter is not None:
-        filter = filter + ';;All Files (*)'
-
-    # Pick a single file to read
-    if mode == 'single':
-        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '', filter)
-
-    elif mode == 'multi':
-        fname, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
-                                                filter)
-
-    elif mode == 'save':
-        fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
-
-    elif mode == 'folder':
-        fname = QFileDialog.getExistingDirectory(gui, 'Select Folder')
-
-    # Get current working directory
-    cwd = os.getcwd() + '/'
-    cwd = cwd.replace("\\", "/")
-
-    # Update the relavant widget for a single file
-    if type(fname) == str and fname != '':
-        if cwd in fname:
-            fname = fname[len(cwd):]
-        widget.setText(fname)
-
-    # And for multiple files
-    elif type(fname) == list and fname != []:
-        for i, f in enumerate(fname):
-            if cwd in f:
-                fname[i] = f[len(cwd):]
-        widget.setText('\n'.join(fname))
-
-
-class QHLine(QFrame):
-    """Horizontal line widget."""
-
-    def __init__(self):
-        """Initialise."""
-        super(QHLine, self).__init__()
-        self.setFrameShape(QFrame.HLine)
-        self.setFrameShadow(QFrame.Sunken)
-
-
-class QVLine(QFrame):
-    """Vertical line widget."""
-
-    def __init__(self):
-        """Initialise."""
-        super(QVLine, self).__init__()
-        self.setFrameShape(QFrame.VLine)
-        self.setFrameShadow(QFrame.Sunken)
+        # self.scope_ax.getAxis('left').setPen(pen)
+        # self.scope_ax.getAxis('right').setPen(pen)
+        # self.scope_ax.getAxis('top').setPen(pen)
+        # self.scope_ax.getAxis('bottom').setPen(pen)
 
 
 # Cliet Code
