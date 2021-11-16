@@ -1639,13 +1639,13 @@ class MainWindow(QMainWindow):
 
     def connect_gps(self):
         """Input information for a GPS connection."""
-        if not self.spectro_connected_flag:
+        if not self.gps_connected_flag:
             dialog = GPSWizard(self)
             if dialog.exec_():
                 self.gps = GPS(**dialog.gps_kwargs)
                 self.gps_status.setText('Connected')
                 self.gps_connect_btn.setText('Disconnect')
-                self.spectro_connected_flag = True
+                self.gps_connected_flag = True
                 logger.info('GPS connected')
 
                 # Start GPS aquisition
@@ -1668,7 +1668,7 @@ class MainWindow(QMainWindow):
             self.gps = None
             self.gps_status.setText('Not connected')
             self.gps_connect_btn.setText('Connect')
-            self.spectro_connected_flag = False
+            self.gps_connected_flag = False
             logger.info('GPS disconnected')
 
     def update_position(self, location):
