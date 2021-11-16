@@ -87,6 +87,7 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
         read_err = True, e
 
         if stop_on_err:
+            logger.error(f'Error reading file {fname}', exc_info=True)
             raise Exception
 
     metadata = {**base_metadata, **metadata}
@@ -300,24 +301,24 @@ def load_ifit(*args):
         line = r.readline()
 
         # Cycle through until we hit the data header
-        while 'Wavelength (nm)' not in line:
+        line = r.readline()
+        while 'Wavelength' not in line:
 
-            # Read the line and split the key from the value
-            line = r.readline()
-            key, value = line[2:].strip().split(': ')
+            # Split the key from the value
+            key, value = line[2:].strip().split('; ')
 
             # For each, record according to the perscribed datatype
-            if key in int_types:
+            if key in int_types and value != 'None':
                 metadata[key] = int(value)
-            elif key in float_types:
+            elif key in float_types and value != 'None':
                 metadata[key] = float(value)
-            elif key in bool_types:
+            elif key in bool_types and value != 'None':
                 if value == 'True':
                     value = True
                 elif value == 'False':
                     value = False
                 metadata[key] = value
-            elif key in time_types:
+            elif key in time_types and value != 'None':
                 try:
                     ts = datetime.strptime(value, '%Y-%m-%d %H:%M:%S.%f')
                 except ValueError:
@@ -325,6 +326,9 @@ def load_ifit(*args):
                 metadata[key] = ts
             else:
                 metadata[key] = value
+
+            # Read the next line
+            line = r.readline()
 
     return grid, spec, metadata
 
