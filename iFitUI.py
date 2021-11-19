@@ -9,7 +9,7 @@ from datetime import datetime
 from functools import partial
 from logging.handlers import RotatingFileHandler
 from PyQt5.QtGui import QIcon, QPalette, QColor, QFont
-from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot, QThread
+from PyQt5.QtCore import Qt, pyqtSlot, QThread
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QComboBox, QTextEdit,
                              QLineEdit, QPushButton, QProgressBar, QFrame,
@@ -64,9 +64,6 @@ class MainWindow(QMainWindow):
         # Scroll Area Properties
         self._centralWidget.setWidgetResizable(True)
         self._centralWidget.setWidget(self.widget)
-
-        # Generate the threadpool for launching background processes
-        self.threadpool = QThreadPool()
 
         # Setup widget stylesheets
         QTabWidget().setStyleSheet('QTabWidget { font-size: 18pt; }')
