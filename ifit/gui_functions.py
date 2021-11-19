@@ -445,7 +445,8 @@ class AnalysisWorker(QObject):
                 buffer.update(row)
 
                 # Emit the progress
-                self.progress.emit(((loop+1)/nspec)*100)
+                if self.mode == 'post_analyse':
+                    self.progress.emit(((loop+1)/nspec)*100)
 
                 # Emit graph data
                 self.plotData.emit([fit_result, [x, y], buffer.df,
