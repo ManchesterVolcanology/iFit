@@ -21,12 +21,20 @@ iFit requires Python 3.6+ with `numpy` and `scipy` for basic operation. `matplot
 
 To get started with Anaconda create a new environment:
 
-```conda create -n myenv numpy scipy matplotlib tqdm pandas pyyaml pyserial```
+```
+conda create -n myenv numpy scipy matplotlib tqdm pandas pyyaml pyserial
+```
 
 where `myenv` is the name of the environment. The environment can then be activated with:
 
 ```
 conda activate myenv
+```
+
+There is another library that is not on the standard Anaconda channel for converting coordinates from degrees to UTM:
+
+```
+conda install -c conda-forge utm
 ```
 
 Note that currently (checked October 2021) the conda version of pyqtgraph is outdated (v0.10.0 with latest v0.12.3). iFit makes use of some recent updates, so it is best to use pip for the time being:
