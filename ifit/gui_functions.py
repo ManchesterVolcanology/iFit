@@ -6,18 +6,21 @@ bespoke widgets for table features in the front end.
 import os
 import sys
 import time
+import serial
 import logging
 import traceback
 import numpy as np
 import pandas as pd
 from datetime import datetime
 from functools import partial
+import serial.tools.list_ports
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QSpinBox, QCheckBox, QFileDialog, QPushButton,
-                             QTableWidgetItem, QMenu, QTableWidget,
-                             QPlainTextEdit, QHeaderView)
+                             QTableWidgetItem, QMenu, QTableWidget, QDialog,
+                             QPlainTextEdit, QHeaderView, QFormLayout, QFrame,
+                             QVBoxLayout, QHBoxLayout, QLabel)
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
@@ -98,10 +101,11 @@ class AcqSpecWorker(QObject):
     setDark = pyqtSignal(np.ndarray)
     setSpec = pyqtSignal(tuple)
 
-    def __init__(self, spectrometer, widgetData):
+    def __init__(self, spectrometer, gps, widgetData):
         """Initialise."""
         super(QObject, self).__init__()
         self.spectrometer = spectrometer
+        self.gps = gps
         self.widgetData = widgetData
         self.is_paused = False
         self.is_stopped = False
@@ -145,7 +149,8 @@ class AcqSpecWorker(QObject):
 
                 # Read the spectrum and add to the array
                 fname = f'{save_path}spectrum_{i:05d}.txt'
-                spectrum, info = self.spectrometer.get_spectrum(fname=fname)
+                spectrum, info = self.spectrometer.get_spectrum(fname=fname,
+                                                                gps=self.gps)
                 dark_arr[i] = spectrum[1]
 
                 # Display the spectrum
@@ -218,7 +223,8 @@ class AcqSpecWorker(QObject):
                         spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
 
                 # Measure the spectrum
-                spec, info = self.spectrometer.get_spectrum(fname=spec_fname)
+                spec, info = self.spectrometer.get_spectrum(fname=spec_fname,
+                                                            gps=self.gps)
 
                 # Add the spectrum number to the metadata
                 info['spectrum_number'] = nspec
@@ -321,7 +327,7 @@ class AnalysisWorker(QObject):
         buffer_cols = ['Number']
         [buffer_cols.extend([par, f'{par}_err'])
          for par in self.analyser.params]
-        buffer_cols += ['fit_quality']
+        buffer_cols += ['fit_quality', 'Lat', 'Lon']
 
         # Set write mode
         write_mode = 'w'
@@ -435,11 +441,12 @@ class AnalysisWorker(QObject):
                 row = [metadata["spectrum_number"]]
                 for par in fit_result.params.values():
                     row += [par.fit_val, par.fit_err]
-                row += [fit_result.nerr]
+                row += [fit_result.nerr, metadata['lat'], metadata['lon']]
                 buffer.update(row)
 
                 # Emit the progress
-                self.progress.emit(((loop+1)/nspec)*100)
+                if self.mode == 'post_analyse':
+                    self.progress.emit(((loop+1)/nspec)*100)
 
                 # Emit graph data
                 self.plotData.emit([fit_result, [x, y], buffer.df,
@@ -631,6 +638,41 @@ class Buffer:
             for key in self.df:
                 self.df[key] = np.roll(self.df[key], -1)
             self.df.iloc[self.fill-1] = data
+
+
+# ============================================================================
+# GPS Worker
+# ============================================================================
+
+class GPSWorker(QObject):
+    """Handle real-time GPS updates."""
+
+    # Define signals
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    position = pyqtSignal(list)
+
+    def __init__(self, gps):
+        """Initialise."""
+        super(QObject, self).__init__()
+        self.gps = gps
+        self.is_stopped = False
+
+    def run(self):
+        """Launch worker task."""
+        while not self.is_stopped:
+            ts = self.gps.timestamp
+            lat = self.gps.lat
+            lon = self.gps.lon
+            alt = self.gps.alt
+            self.position.emit([ts, lat, lon, alt])
+            time.sleep(0.5)
+
+        self.finished.emit()
+
+    def stop(self):
+        """Terminate the worker."""
+        self.is_stopped = True
 
 
 # =============================================================================
@@ -836,3 +878,159 @@ class ParamTable(QTableWidget):
         return data
 
         return data
+
+
+# =============================================================================
+# GPS Combo Box
+# =============================================================================
+
+class GPSComboBox(QComboBox):
+    def __init__(self, *args, **kwargs):
+        super(GPSComboBox, self).__init__()
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showMenu)
+
+    def showMenu(self, pos):
+        menu = QMenu()
+        update_action = menu.addAction("Update")
+        action = menu.exec_(self.mapToGlobal(pos))
+        if action == update_action:
+            self.update_com_list()
+
+    def update_com_list(self):
+        """Update available COM ports."""
+        ports = serial.tools.list_ports.comports()
+        self.clear()
+        self.addItems([port.device for port in ports])
+
+
+def browse(gui, widget, mode='single', filter=None):
+    """Open native file dialogue."""
+    # Check if specified file extensions
+    if filter is not None:
+        filter = filter + ';;All Files (*)'
+
+    # Pick a single file to read
+    if mode == 'single':
+        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '', filter)
+
+    elif mode == 'multi':
+        fname, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
+                                                filter)
+
+    elif mode == 'save':
+        fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
+
+    elif mode == 'folder':
+        fname = QFileDialog.getExistingDirectory(gui, 'Select Folder')
+
+    # Get current working directory
+    cwd = os.getcwd() + '/'
+    cwd = cwd.replace("\\", "/")
+
+    # Update the relavant widget for a single file
+    if type(fname) == str and fname != '':
+        if cwd in fname:
+            fname = fname[len(cwd):]
+        widget.setText(fname)
+
+    # And for multiple files
+    elif type(fname) == list and fname != []:
+        for i, f in enumerate(fname):
+            if cwd in f:
+                fname[i] = f[len(cwd):]
+        widget.setText('\n'.join(fname))
+
+
+class GPSWizard(QDialog):
+    """Opens a wizard to define a new station."""
+
+    def __init__(self, parent=None):
+        """Initialise the window."""
+        super(GPSWizard, self).__init__(parent)
+
+        self.parent = parent
+
+        # Set the window properties
+        self.setWindowTitle('Setup GPS')
+
+        self._createApp()
+
+    def _createApp(self):
+        # Set the layout
+        layout = QVBoxLayout()
+
+        # Setup entry widgets
+        self.widgets = {'COM Port': GPSComboBox(),
+                        'Baudrate': QLineEdit('4800'),
+                        'Stream to File': QCheckBox()}
+        form_layout = QFormLayout()
+        for key, item in self.widgets.items():
+            form_layout.addRow(key + ':', item)
+
+        # Add current COM ports and set file to true
+        self.widgets['COM Port'].update_com_list()
+        self.widgets['Stream to File'].setChecked(True)
+
+        layout.addLayout(form_layout)
+
+        # Add file name in its own layout
+        fn_layout = QHBoxLayout()
+        fname = f'{self.parent.widgets.get("rt_save_path")}/gps_output.txt'
+        self.widgets['Filename'] = QLineEdit(fname)
+        btn = QPushButton('Browse')
+        # btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.widgets['Filename'],
+                                    'save', None))
+        fn_layout.addWidget(QLabel('GPS\nFilename:'))
+        fn_layout.addWidget(self.widgets['Filename'])
+        fn_layout.addWidget(btn)
+        layout.addLayout(fn_layout)
+
+        # Add cancel and accept buttons
+        btn_layout = QHBoxLayout()
+        cancel_btn = QPushButton('Cancel')
+        cancel_btn.clicked.connect(self.cancel_action)
+        accept_btn = QPushButton('Accept')
+        accept_btn.clicked.connect(self.accept_action)
+        btn_layout.addWidget(accept_btn)
+        btn_layout.addWidget(cancel_btn)
+
+        layout.addLayout(btn_layout)
+
+        self.setLayout(layout)
+
+    def accept_action(self):
+        """Record the GPS connection data and exit."""
+        self.gps_kwargs = {'comport': self.widgets['COM Port'].currentText(),
+                           'baudrate': self.widgets['Baudrate'].text()}
+
+        if self.widgets['Stream to File'].isChecked():
+            self.gps_kwargs['filename'] = self.widgets['Filename'].text()
+        else:
+            self.gps_kwargs['filename'] = None
+        self.accept()
+
+    def cancel_action(self):
+        """Close the window without connecting to the GPS."""
+        self.close()
+
+
+class QHLine(QFrame):
+    """Horizontal line widget."""
+
+    def __init__(self):
+        """Initialise."""
+        super(QHLine, self).__init__()
+        self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
+
+
+class QVLine(QFrame):
+    """Vertical line widget."""
+
+    def __init__(self):
+        """Initialise."""
+        super(QVLine, self).__init__()
+        self.setFrameShape(QFrame.VLine)
+        self.setFrameShadow(QFrame.Sunken)

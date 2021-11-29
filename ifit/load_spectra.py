@@ -46,6 +46,7 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
     """
     # Create a dictionary of available functions
     func_dict = {'iFit': load_ifit,
+                 'iFit (old)': load_ifit_old,
                  'Master.Scope': load_master_scope,
                  'Spectrasuite': load_spectrasuite,
                  'mobileDOAS': load_mobile_doas,
@@ -59,9 +60,9 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
                      'timestamp': datetime(2000, 1, 1, 12, 0, 0),
                      'elecdk_correction': False,
                      'nonlin_correction': False,
-                     'lat': 0,
-                     'lon': 0,
-                     'alt': 0}
+                     'lat': np.nan,
+                     'lon': np.nan,
+                     'alt': np.nan}
 
     # Select the desired function
     try:
@@ -86,6 +87,7 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
         read_err = True, e
 
         if stop_on_err:
+            logger.error(f'Error reading file {fname}', exc_info=True)
             raise Exception
 
     metadata = {**base_metadata, **metadata}
@@ -274,7 +276,64 @@ def read_scan(fpath, scan_type):
 # Load Functions
 # =============================================================================
 
+
 def load_ifit(*args):
+    """Load iFit file."""
+    # Unpack arguments
+    fname = args[0]
+
+    # Load data into a numpy array
+    grid, spec = np.loadtxt(fname, unpack=True)
+
+    # Assert metadata data types
+    int_types = ['spectrum_number', 'integration_time', 'coadds']
+    float_types = ['lat', 'lon', 'alt']
+    bool_types = ['elecdk_correction', 'nonlin_correction']
+    time_types = ['timestamp']
+
+    # Extract metadata from the header
+    with open(fname, 'r') as r:
+
+        # Initialise the metadata dictionary
+        metadata = {}
+
+        # Read the first line, this isn't used
+        line = r.readline()
+
+        # Cycle through until we hit the data header
+        line = r.readline()
+        while 'Wavelength' not in line:
+
+            # Split the key from the value
+            key, value = line[2:].strip().split('; ')
+
+            # For each, record according to the perscribed datatype
+            if key in int_types and value != 'None':
+                metadata[key] = int(value)
+            elif key in float_types and value != 'None':
+                metadata[key] = float(value)
+            elif key in bool_types and value != 'None':
+                if value == 'True':
+                    value = True
+                elif value == 'False':
+                    value = False
+                metadata[key] = value
+            elif key in time_types and value != 'None':
+                try:
+                    ts = datetime.strptime(value, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError:
+                    ts = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+                metadata[key] = ts
+            else:
+                metadata[key] = value
+
+            # Read the next line
+            line = r.readline()
+
+    return grid, spec, metadata
+
+
+def load_ifit_old(*args):
     """Load iFit file."""
     # Unpack arguments
     fname = args[0]
