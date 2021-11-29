@@ -500,7 +500,7 @@ class MainWindow(QMainWindow):
         analysis_tabs.addTab(maptab, 'Map')
 
         analysis_layout = QGridLayout(tab1)
-        analysis_layout.addWidget(analysis_tabs, 0, 0)
+        analysis_layout.addWidget(analysis_tabs, 0, 0, 1, 8)
 
 # =============================================================================
 #       Set up the analysis graphs
@@ -565,50 +565,7 @@ class MainWindow(QMainWindow):
 
         # Add the graphs to the layout
         glayout = QGridLayout(graphtab)
-        glayout.addWidget(self.graphwin, 0, 0, 1, 8)
-
-# =============================================================================
-#      Graph settings
-# =============================================================================
-
-        # Create a checkbox to turn plotting on or off
-        self.widgets['graph_flag'] = QCheckBox('Show Graphs?')
-        self.widgets['graph_flag'].setChecked(True)
-        self.widgets['graph_flag'].setToolTip('Display graph plots (can slow '
-                                              + 'analysis)')
-        glayout.addWidget(self.widgets['graph_flag'], 1, 0)
-
-        # Create a checkbox to only display good fits
-        self.widgets['good_fit_flag'] = QCheckBox('Only Show\nGood Fits?')
-        self.widgets['good_fit_flag'].setToolTip('Only display results for '
-                                                 + 'fits that pass the '
-                                                 + 'quality checks')
-        glayout.addWidget(self.widgets['good_fit_flag'], 1, 1)
-
-        # Add combo box for the graph parameter
-        glayout.addWidget(QLabel('Target\nParameter:'), 1, 2)
-        self.widgets['graph_param'] = QComboBox()
-        self.widgets['graph_param'].addItems([''])
-        glayout.addWidget(self.widgets['graph_param'], 1, 3)
-
-        # Create a checkbox to plot the fit error
-        self.widgets['graph_err_flag'] = QCheckBox('Show error?')
-        self.widgets['graph_err_flag'].setToolTip('Plot fit errors for the '
-                                                  + 'tarjet parameter')
-        glayout.addWidget(self.widgets['graph_err_flag'], 1, 4)
-
-        # Create a checkbox to turn scrolling on or off
-        self.widgets['scroll_flag'] = QCheckBox('Scroll Graphs?')
-        self.widgets['scroll_flag'].setToolTip('Allow graphs to scroll\n'
-                                               + '(limits no. spectra '
-                                               + 'displayed)')
-        glayout.addWidget(self.widgets['scroll_flag'], 1, 5)
-
-        # Add spinbox for the graph scroll amount
-        glayout.addWidget(QLabel('No. Spectra\nTo Display:'), 1, 6)
-        self.widgets['scroll_amt'] = SpinBox(100, [1, 10000])
-        # self.widgets['scroll_amt'].setFixedSize(70, 20)
-        glayout.addWidget(self.widgets['scroll_amt'], 1, 7)
+        glayout.addWidget(self.graphwin, 0, 0)
 
 # =============================================================================
 #      Analysis results table
@@ -639,28 +596,20 @@ class MainWindow(QMainWindow):
         self.gps_alt = QLabel('-')
         mlayout.addWidget(QLabel('GPS Time:'), 0, 0)
         mlayout.addWidget(self.gps_timestamp, 0, 1)
-        mlayout.addWidget(QLabel('Altitude:'), 1, 0)
-        mlayout.addWidget(self.gps_alt, 1, 1)
         mlayout.addWidget(QLabel('Latitude:'), 0, 2)
         mlayout.addWidget(self.gps_lat, 0, 3)
-        mlayout.addWidget(QLabel('Longitude:'), 1, 2)
-        mlayout.addWidget(self.gps_lon, 1, 3)
+        mlayout.addWidget(QLabel('Longitude:'), 0, 4)
+        mlayout.addWidget(self.gps_lon, 0, 5)
+        mlayout.addWidget(QLabel('Altitude:'), 0, 6)
+        mlayout.addWidget(self.gps_alt, 0, 7)
 
-        # Add controls for scatter color limits
-        mlayout.addWidget(QLabel('Lower\nLimit:'), 0, 4)
-        self.widgets['map_lo_lim'] = QLineEdit('0.0')
-        self.widgets['map_lo_lim'].setFixedSize(70, 20)
-        self.widgets['map_lo_lim'].editingFinished.connect(self.update_map)
-        mlayout.addWidget(self.widgets['map_lo_lim'], 0, 5)
-        mlayout.addWidget(QLabel('Upper\nLimit:'), 1, 4)
-        self.widgets['map_hi_lim'] = QLineEdit('1.0e18')
-        self.widgets['map_hi_lim'].setFixedSize(70, 20)
-        self.widgets['map_hi_lim'].editingFinished.connect(self.update_map)
-        mlayout.addWidget(self.widgets['map_hi_lim'], 1, 5)
+        # Add checkbox to control if the colorlimit is fixed or automatic
+        self.widgets['auto_map_scale'] = QCheckBox('Auto Scale Map?')
+        mlayout.addWidget(self.widgets['auto_map_scale'], 0, 8)
 
         # Make the graphics window
         self.mapwin = pg.GraphicsLayoutWidget(show=True)
-        mlayout.addWidget(self.mapwin, 2, 0, 1, 6)
+        mlayout.addWidget(self.mapwin, 2, 0, 1, 9)
 
         # Generate the axes
         self.map_ax = self.mapwin.addPlot(row=0, col=0)
@@ -668,6 +617,15 @@ class MainWindow(QMainWindow):
         self.map_ax.setClipToView(True)
         self.map_ax.showGrid(x=True, y=True)
         self.map_ax.setAspectLocked(True)
+
+        # Generate the colorbar
+        self.cmap = pg.colormap.get('viridis')
+        im = pg.ImageItem()
+        self.cbar = pg.ColorBarItem(values=(0, 100), colorMap=self.cmap,
+                                    label='Fit Value')
+        self.cbar.setImageItem(im)
+        self.cbar.sigLevelsChangeFinished.connect(self.update_map)
+        self.mapwin.addItem(self.cbar, 0, 2)
 
         # Add the axis labels
         self.map_ax.setLabel('left', 'Latitude')
@@ -678,8 +636,48 @@ class MainWindow(QMainWindow):
         self.gps_scatter = pg.ScatterPlotItem()
         self.map_ax.addItem(self.gps_scatter)
 
-        # Generate the colormap to use
-        self.cmap = pg.colormap.get('magma')
+# =============================================================================
+#      Graph settings
+# =============================================================================
+
+        # Create a checkbox to turn plotting on or off
+        self.widgets['graph_flag'] = QCheckBox('Update Graphs?')
+        self.widgets['graph_flag'].setChecked(True)
+        self.widgets['graph_flag'].setToolTip('Display graph plots (can slow '
+                                              + 'analysis)')
+        analysis_layout.addWidget(self.widgets['graph_flag'], 1, 0)
+
+        # Create a checkbox to only display good fits
+        self.widgets['good_fit_flag'] = QCheckBox('Only Show\nGood Fits?')
+        self.widgets['good_fit_flag'].setToolTip('Only display results for '
+                                                 + 'fits that pass the '
+                                                 + 'quality checks')
+        analysis_layout.addWidget(self.widgets['good_fit_flag'], 1, 1)
+
+        # Add combo box for the graph parameter
+        analysis_layout.addWidget(QLabel('Target\nParameter:'), 1, 2)
+        self.widgets['graph_param'] = QComboBox()
+        self.widgets['graph_param'].addItems([''])
+        analysis_layout.addWidget(self.widgets['graph_param'], 1, 3)
+
+        # Create a checkbox to plot the fit error
+        self.widgets['graph_err_flag'] = QCheckBox('Show error?')
+        self.widgets['graph_err_flag'].setToolTip('Plot fit errors for the '
+                                                  + 'tarjet parameter')
+        analysis_layout.addWidget(self.widgets['graph_err_flag'], 1, 4)
+
+        # Create a checkbox to turn scrolling on or off
+        self.widgets['scroll_flag'] = QCheckBox('Scroll Graphs?')
+        self.widgets['scroll_flag'].setToolTip('Allow graphs to scroll\n'
+                                               + '(limits no. spectra '
+                                               + 'displayed)')
+        analysis_layout.addWidget(self.widgets['scroll_flag'], 1, 5)
+
+        # Add spinbox for the graph scroll amount
+        analysis_layout.addWidget(QLabel('No. Spectra\nTo Display:'), 1, 6)
+        self.widgets['scroll_amt'] = SpinBox(100, [1, 10000])
+        # self.widgets['scroll_amt'].setFixedSize(70, 20)
+        analysis_layout.addWidget(self.widgets['scroll_amt'], 1, 7)
 
 # =============================================================================
 #      Set up the scope plot
@@ -1400,21 +1398,6 @@ class MainWindow(QMainWindow):
                     ploty = ploty[-npts:]
                     erry = erry[-npts:]
 
-            # Check that there are data to plot
-            if len(plotx) != 0:
-
-                # Check for large number in the time series. This is due to
-                # a bug in pyqtgraph not displaying large numbers
-                max_val = np.nanmax(np.abs(ploty))
-                if ~np.isnan(max_val) and max_val > 1e6:
-                    order = int(np.ceil(np.log10(max_val))) - 1
-                    ploty = ploty / 10**order
-                    erry = erry / 10**order
-                    self.plot_axes[4].setLabel('left',
-                                               f'Fit value (1e{order})')
-                else:
-                    self.plot_axes[4].setLabel('left', 'Fit value')
-
             # Plot the data
             plot_data = {'spectrum': [self.fit_result.grid,
                                       self.fit_result.spec],
@@ -1434,40 +1417,51 @@ class MainWindow(QMainWindow):
             # Show error plot if selected
             if self.widgets.get('graph_err_flag'):
                 self.err_plot.setVisible(True)
-                self.err_plot.setData(x=plotx, y=ploty, top=erry,
-                                      bottom=erry)
+                self.err_plot.setData(x=plotx, y=ploty, top=erry, bottom=erry)
             else:
                 self.err_plot.setVisible(False)
 
     def update_map(self):
         """Update data map."""
-        # Get non-null values from the dataframe
-        try:
-            df = self.df.dropna(subset=['Lat', 'Lon'])
-        except AttributeError:
-            return
+        if self.widgets.get('graph_flag'):
+            # Get non-null values from the dataframe
+            try:
+                df = self.df.dropna(subset=['Lat', 'Lon'])
+            except AttributeError:
+                return
 
-        # Pull the plot values
-        lat = df['Lat'].to_numpy()
-        lon = df['Lon'].to_numpy()
-        values = df[self.key].to_numpy()
+            # Remove bad points if desired
+            if self.widgets.get('good_fit_flag'):
+                df = df[df['fit_quality'] == 1]
 
-        # Get the plot limits
-        try:
-            map_lo_lim = float(self.widgets.get('map_lo_lim'))
-            map_hi_lim = float(self.widgets.get('map_hi_lim'))
-        except ValueError:
-            map_lo_lim = min(values)
-            map_hi_lim = max(values)
+            # Scroll the graphs if desired
+            if self.widgets.get('scroll_flag'):
+                npts = self.widgets.get('scroll_amt')
+                df = df.tail(npts)
 
-        norm_values = (values - map_lo_lim) / (map_hi_lim - map_lo_lim)
+            # Pull the plot values
+            lat = df['Lat'].to_numpy()
+            lon = df['Lon'].to_numpy()
+            values = df[self.key].to_numpy()
 
-        # Convert to colors
-        pens = [pg.mkPen(color=self.cmap.map(val)) for val in norm_values]
-        brushes = [pg.mkBrush(color=self.cmap.map(val)) for val in norm_values]
+            # Get the colormap limits and normalise the data
+            map_lo_lim, map_hi_lim = self.cbar.levels()
+            norm_values = (values - map_lo_lim) / (map_hi_lim - map_lo_lim)
 
-        # Update the map data
-        self.gps_scatter.setData(x=lon, y=lat, pen=pens, brush=brushes)
+            # Convert to colors
+            pens = [pg.mkPen(color=self.cmap.map(val)) for val in norm_values]
+            brushes = [pg.mkBrush(color=self.cmap.map(val))
+                       for val in norm_values]
+
+            # Update the map data
+            self.gps_scatter.setData(x=lon, y=lat, pen=pens, brush=brushes)
+
+    def toggle_map_auto_scale(self):
+        """Toggle manual control over map colorbar."""
+        if self.widgets.get('auto_map_scale'):
+            self.cbar.sigLevelsChangeFinished.connect(self.update_map)
+        else:
+            self.cbar.sigLevelsChangeFinished.connect(None)
 
     def initialize_results_table(self, params):
         """Initialize table rows."""
