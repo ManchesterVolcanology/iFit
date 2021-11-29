@@ -21,7 +21,7 @@ iFit requires Python 3.6+ with `numpy` and `scipy` for basic operation. `matplot
 
 To get started with Anaconda create a new environment:
 
-```conda create -n myenv python numpy scipy matplotlib tqdm pandas pyyaml```
+```conda create -n myenv numpy scipy matplotlib tqdm pandas pyyaml pyserial```
 
 where `myenv` is the name of the environment. The environment can then be activated with:
 
