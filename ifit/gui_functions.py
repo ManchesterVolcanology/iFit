@@ -318,10 +318,8 @@ class AnalysisWorker(QObject):
         graph_p = [r[0] for r in self.widgetData['gas_params']]
         interp_meth = self.widgetData['interp_method']
 
-        if self.widgetData['preshift_flag']:
-            prefit_shift = self.widgetData['prefit_shift']
-        else:
-            prefit_shift = 0.0
+        # Pull in the prefit shift
+        prefit_shift = self.widgetData['prefit_shift']
 
         # Make a list of the fit parameters to form the buffer columns
         buffer_cols = ['Number']
