@@ -110,7 +110,8 @@ class GPS():
             self.acquired = True
 
         except ValueError as e:
-            logger.warn(f'Error parsing GPS string\n{e}')
+            logger.debug(f'Error parsing GPS string\n{e}')
+            pass
 
     def _parse_gprmc(self, data):
         """Parse NMEA GPRMC string."""
@@ -140,7 +141,8 @@ class GPS():
                 self.lon = lon
 
         except ValueError as e:
-            logger.warn(f'Error parsing GPS string\n{e}')
+            logger.debug(f'Error parsing GPS string\n{e}')
+            pass
 
     def get_position(self,  time_to_wait=60):
         """Report current time and position."""
