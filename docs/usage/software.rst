@@ -180,8 +180,6 @@ Spectrometer
   * - FWEM, k, a\ :sub:`w`, a\ :sub:`k`
     - The super-Gaussian parameters to use if ``Generate ILS`` is set to ``Manual``. These parameters can also be fitted if desired.
 
-.. note:: Currently no spectral file format requires ``wavelength calibration`` but this is kept for future use.
-
 Parameters
 ----------
 
