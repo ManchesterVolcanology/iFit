@@ -800,6 +800,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel('Pre-Fit\nShift (nm):'), nrow, ncol)
         self.widgets['prefit_shift'] = DSpinBox(0.0, [-1000, 1000], 0.1)
         self.widgets['prefit_shift'].setFixedSize(70, 20)
+        layout.addWidget(self.widgets['prefit_shift'], nrow, ncol+1)
         nrow += 1
 
         # Add spinboxs for the stray light window
