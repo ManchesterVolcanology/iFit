@@ -1516,6 +1516,7 @@ class MainWindow(QMainWindow):
         self.analysisThread.started.connect(self.analysisWorker.run)
         self.analysisWorker.progress.connect(self.update_progress)
         self.analysisWorker.error.connect(self.update_error)
+        self.analysisWorker.status.connect(self.update_status)
         self.analysisWorker.initializeTable.connect(
             self.initialize_results_table)
         self.analysisWorker.plotData.connect(self.get_plot_data)
@@ -1815,6 +1816,7 @@ class MainWindow(QMainWindow):
         self.specWorker.plotSpec.connect(self.plot_spectrum)
         self.specWorker.progress.connect(self.update_progress)
         self.specWorker.error.connect(self.update_error)
+        self.specWorker.status.connect(self.update_status)
         self.specWorker.finished.connect(self.acquisition_complete)
         self.specWorker.finished.connect(self.specThread.quit)
         self.specWorker.finished.connect(self.specWorker.deleteLater)

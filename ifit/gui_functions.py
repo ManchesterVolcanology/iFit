@@ -114,6 +114,9 @@ class AcqSpecWorker(QObject):
 
     def acquire_dark(self):
         """Acquire dark spectra."""
+        # Update the status
+        self.status.emit('Acquiring dark spectra')
+
         try:
             # Log start of acquisition
             logger.info(f'Reading {self.widgetData["ndarks"]} dark spectra')
@@ -173,12 +176,17 @@ class AcqSpecWorker(QObject):
             exctype, value = sys.exc_info()[:2]
             self.error.emit((exctype, value, traceback.format_exc()))
 
+        logger.info('Finished reading dark spectra')
+
         self.finished.emit()
 
 #   Acquire Measurement Spectra ===============================================
 
     def acquire_spec(self):
         """Acquire measurement spectra."""
+        # Update the status
+        self.status.emit('Acquiring spectra')
+
         try:
             # Set the save location for the spectra
             save_path = self.widgetData['rt_save_path'] + '/spectra/'
