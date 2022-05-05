@@ -17,15 +17,16 @@ import pyqtgraph as pg
 from functools import partial
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
-from PyQt5.QtGui import QIcon, QPalette, QColor
-from PyQt5.QtCore import Qt, QThreadPool, QObject, pyqtSignal, QThread
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
-                             QLabel, QTextEdit, QLineEdit, QPushButton, QFrame,
-                             QFileDialog, QScrollArea, QCheckBox, QSplitter,
-                             QComboBox, QDoubleSpinBox, QTableWidget,
-                             QTableWidgetItem, QTabWidget, QMessageBox)
+from PySide6.QtGui import QIcon, QPalette, QColor
+from PySide6.QtCore import Qt, QThreadPool, QObject, Signal, QThread
+from PySide6.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
+                               QLabel, QTextEdit, QLineEdit, QPushButton,
+                               QFileDialog, QScrollArea, QCheckBox, QSplitter,
+                               QComboBox, QDoubleSpinBox, QTableWidget, QFrame,
+                               QTableWidgetItem, QTabWidget, QMessageBox,
+                               QPlainTextEdit)
 
-from ifit.gui_functions import QTextEditLogger, DSpinBox, Widgets
+from ifit.gui_functions import DSpinBox, Widgets
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.load_spectra import average_spectra
@@ -43,6 +44,24 @@ COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
           '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
 logger = logging.getLogger(__name__)
+
+
+class Signaller(QObject):
+    """Signaller object for logging from QThreads."""
+    signal = Signal(str, logging.LogRecord)
+
+
+class QtHandler(logging.Handler):
+    """Handler object for handling logs from QThreads."""
+
+    def __init__(self, slotfunc, *args, **kwargs):
+        super(QtHandler, self).__init__(*args, **kwargs)
+        self.signaller = Signaller()
+        self.signaller.signal.connect(slotfunc)
+
+    def emit(self, record):
+        s = self.format(record)
+        self.signaller.signal.emit(s, record)
 
 
 # =============================================================================
@@ -287,11 +306,14 @@ class CalcFlux(QMainWindow):
         layout.addWidget(self.fluxTable, 1, 0, 1, 5)
 
         # Create a textbox to display the program messages
-        self.logBox = QTextEditLogger(self)
-        self.logBox.setFormatter(logging.Formatter('%(message)s'))
-        logging.getLogger().addHandler(self.logBox)
-        logging.getLogger().setLevel(logging.INFO)
-        layout.addWidget(self.logBox.widget, 2, 0, 1, 5)
+        self.logBox = QPlainTextEdit(self)
+        self.logBox.setReadOnly(True)
+        formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
+        self.handler = QtHandler(self.updateLog)
+        self.handler.setFormatter(formatter)
+        logger.addHandler(self.handler)
+        logger.setLevel(logging.INFO)
+        layout.addWidget(self.logBox, 2, 0, 1, 5)
 
 # =============================================================================
 #   Graphs
@@ -1489,11 +1511,14 @@ class LDFWindow(QMainWindow):
         layout = QGridLayout(self.outputFrame)
 
         # Create a textbox to display the program messages
-        self.logBox = QTextEditLogger(self)
-        self.logBox.setFormatter(logging.Formatter('%(message)s'))
-        logging.getLogger().addHandler(self.logBox)
-        logging.getLogger().setLevel(logging.INFO)
-        layout.addWidget(self.logBox.widget, 0, 0)
+        self.logBox = QPlainTextEdit(self)
+        self.logBox.setReadOnly(True)
+        formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
+        self.handler = QtHandler(self.updateLog)
+        self.handler.setFormatter(formatter)
+        logger.addHandler(self.handler)
+        logger.setLevel(logging.INFO)
+        layout.addWidget(self.logBox, 0, 0)
 
 # =============================================================================
 #   Graphs
@@ -1766,9 +1791,9 @@ class LDWorker(QObject):
     """
 
     # Define signals
-    finished = pyqtSignal()
-    data = pyqtSignal(np.ndarray)
-    error = pyqtSignal(tuple)
+    finished = Signal()
+    data = Signal(np.ndarray)
+    error = Signal(tuple)
 
     def __init__(self, spec_fnames, dark_fnames, widgetData, ld_kwargs):
         """Initialise."""
@@ -1949,7 +1974,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
-    main()
-    main()
     main()

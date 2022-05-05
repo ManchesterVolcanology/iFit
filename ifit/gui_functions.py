@@ -14,13 +14,13 @@ import pandas as pd
 from datetime import datetime
 from functools import partial
 import serial.tools.list_ports
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QObject, pyqtSignal
-from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
-                             QSpinBox, QCheckBox, QFileDialog, QPushButton,
-                             QTableWidgetItem, QMenu, QTableWidget, QDialog,
-                             QPlainTextEdit, QHeaderView, QFormLayout, QFrame,
-                             QVBoxLayout, QHBoxLayout, QLabel)
+from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
+                               QSpinBox, QCheckBox, QFileDialog, QPushButton,
+                               QTableWidgetItem, QMenu, QTableWidget, QDialog,
+                               QPlainTextEdit, QHeaderView, QFormLayout,
+                               QFrame, QVBoxLayout, QHBoxLayout, QLabel)
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
@@ -31,44 +31,34 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# Logging text box
+# Worker signals
 # =============================================================================
 
-class QTextEditLogger(logging.Handler, QObject):
-    """Record logs to the GUI."""
-
-    appendPlainText = pyqtSignal(str)
-
-    def __init__(self, parent):
-        """Initialise."""
-        super().__init__()
-        QObject.__init__(self)
-        self.widget = QPlainTextEdit(parent)
-        self.widget.setReadOnly(True)
-        self.widget.setFont(QFont('Courier', 10))
-        self.appendPlainText.connect(self.widget.appendPlainText)
-
-    def emit(self, record):
-        """Emit the log."""
-        msg = self.format(record)
-        self.appendPlainText.emit(msg)
-
+class WorkerSignals(QObject):
+    """."""
+    finished = Signal()
+    progress = Signal(int)
+    error = Signal(tuple)
+    plotSpec = Signal(np.ndarray)
+    plotData = Signal(list)
+    status = Signal(str)
+    setDark = Signal(np.ndarray)
+    setSpec = Signal(tuple)
+    initializeTable = Signal(object)
+    position = Signal(list)
 
 # =============================================================================
 # Scope acquisition worker
 # =============================================================================
 
+
 class AcqScopeWorker(QObject):
     """Handle continuous scope acquisition."""
 
-    # Define Signals
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    plotSpec = pyqtSignal(np.ndarray)
-
     def __init__(self, spectrometer):
         """Initialise."""
-        super(QObject, self).__init__()
+        super(AcqScopeWorker, self).__init__()
+        self.signals = WorkerSignals()
         self.spectrometer = spectrometer
         self.is_stopped = False
 
@@ -76,9 +66,9 @@ class AcqScopeWorker(QObject):
         """Launch worker task."""
         while not self.is_stopped:
             spectrum, info = self.spectrometer.get_spectrum()
-            self.plotSpec.emit(spectrum)
+            self.signals.plotSpec.emit(spectrum)
 
-        self.finished.emit()
+        self.signals.finished.emit()
 
     def stop(self):
         """Terminate the acquisition."""
@@ -92,18 +82,10 @@ class AcqScopeWorker(QObject):
 class AcqSpecWorker(QObject):
     """Handle targeted acquisition and saving of spectra."""
 
-    # Define Signals
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-    status = pyqtSignal(str)
-    error = pyqtSignal(tuple)
-    plotSpec = pyqtSignal(np.ndarray)
-    setDark = pyqtSignal(np.ndarray)
-    setSpec = pyqtSignal(tuple)
-
     def __init__(self, spectrometer, gps, widgetData):
         """Initialise."""
-        super(QObject, self).__init__()
+        super(AcqSpecWorker, self).__init__()
+        self.signals = WorkerSignals()
         self.spectrometer = spectrometer
         self.gps = gps
         self.widgetData = widgetData
@@ -115,7 +97,7 @@ class AcqSpecWorker(QObject):
     def acquire_dark(self):
         """Acquire dark spectra."""
         # Update the status
-        self.status.emit('Acquiring dark spectra')
+        self.signals.status.emit('Acquiring dark spectra')
 
         try:
             # Log start of acquisition
@@ -157,10 +139,11 @@ class AcqSpecWorker(QObject):
                 dark_arr[i] = spectrum[1]
 
                 # Display the spectrum
-                self.plotSpec.emit(spectrum)
+                self.signals.plotSpec.emit(spectrum)
 
                 # Update the progress bar
-                self.progress.emit(((i+1)/self.widgetData["ndarks"])*100)
+                self.signals.progress.emit(
+                    ((i+1)/self.widgetData["ndarks"])*100)
 
                 # Get if the worker is killed
                 if self.is_stopped:
@@ -169,23 +152,23 @@ class AcqSpecWorker(QObject):
 
             # Record the dark spectrum in the GUI
             dark_spec = np.nanmean(dark_arr, axis=0)
-            self.setDark.emit(dark_spec)
+            self.signals.setDark.emit(dark_spec)
 
         except Exception:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
-            self.error.emit((exctype, value, traceback.format_exc()))
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
 
         logger.info('Finished reading dark spectra')
 
-        self.finished.emit()
+        self.signals.finished.emit()
 
 #   Acquire Measurement Spectra ===============================================
 
     def acquire_spec(self):
         """Acquire measurement spectra."""
         # Update the status
-        self.status.emit('Acquiring spectra')
+        self.signals.status.emit('Acquiring spectra')
 
         try:
             # Set the save location for the spectra
@@ -238,15 +221,15 @@ class AcqSpecWorker(QObject):
                 info['spectrum_number'] = nspec
 
                 # Display the spectrum
-                self.plotSpec.emit(spec)
-                self.setSpec.emit((spec, info, spec_fname))
+                self.signals.plotSpec.emit(spec)
+                self.signals.setSpec.emit((spec, info, spec_fname))
 
         except Exception:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
-            self.error.emit((exctype, value, traceback.format_exc()))
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
 
-        self.finished.emit()
+        self.signals.finished.emit()
 
 #   Controls ==================================================================
 
@@ -273,17 +256,10 @@ class AcqSpecWorker(QObject):
 class AnalysisWorker(QObject):
     """Handle analysis of measured spectra."""
 
-    # Define Signals
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-    status = pyqtSignal(str)
-    error = pyqtSignal(tuple)
-    plotData = pyqtSignal(list)
-    initializeTable = pyqtSignal(object)
-
     def __init__(self, mode, widgetData, dark_spec):
         """Initialise."""
-        super(QObject, self).__init__()
+        super(AnalysisWorker, self).__init__()
+        self.signals = WorkerSignals()
         self.mode = mode
         self.widgetData = widgetData
         self.dark_spec = dark_spec
@@ -300,8 +276,8 @@ class AnalysisWorker(QObject):
         except Exception:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
-            self.error.emit((exctype, value, traceback.format_exc()))
-        self.finished.emit()
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+        self.signals.finished.emit()
 
     def _run(self):
         """Run analysis."""
@@ -309,13 +285,13 @@ class AnalysisWorker(QObject):
         loop = 0
 
         # Update the status
-        self.status.emit('Loading')
+        self.signals.status.emit('Loading')
 
         # Generate the anlyser
         self.analyser = self.generate_analyser()
 
         # Initialize results table
-        self.initializeTable.emit(self.analyser.params)
+        self.signals.initializeTable.emit(self.analyser.params)
 
         # Pull processing settings
         update_flag = self.widgetData['update_flag']
@@ -346,7 +322,7 @@ class AnalysisWorker(QObject):
             wl_calib_file = self.widgetData['wl_calib']
             buffer = Buffer(len(spec_fnames), buffer_cols)
             save_path = self.widgetData['save_path']
-            self.status.emit('Analysing')
+            self.signals.status.emit('Analysing')
 
         # Pull analysis parameters for real time analysis
         elif self.mode == 'rt_analyse':
@@ -359,7 +335,7 @@ class AnalysisWorker(QObject):
                         + f'{date_str}_iFit_output.csv'
             if os.path.isfile(save_path):
                 write_mode = 'a'
-            self.status.emit('Acquiring')
+            self.signals.status.emit('Acquiring')
 
         # Set status
         logger.info('Beginning analysis loop')
@@ -452,11 +428,11 @@ class AnalysisWorker(QObject):
 
                 # Emit the progress
                 if self.mode == 'post_analyse':
-                    self.progress.emit(((loop+1)/nspec)*100)
+                    self.signals.progress.emit(((loop+1)/nspec)*100)
 
                 # Emit graph data
-                self.plotData.emit([fit_result, [x, y], buffer.df,
-                                    metadata["spectrum_number"]])
+                self.signals.plotData.emit([fit_result, [x, y], buffer.df,
+                                            metadata["spectrum_number"]])
 
                 # Check if analysis is finished
                 if self.mode == 'post_analyse' and loop == nspec-1:
@@ -653,14 +629,10 @@ class Buffer:
 class GPSWorker(QObject):
     """Handle real-time GPS updates."""
 
-    # Define signals
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    position = pyqtSignal(list)
-
     def __init__(self, gps):
         """Initialise."""
-        super(QObject, self).__init__()
+        super(GPSWorker, self).__init__()
+        self.signals = WorkerSignals()
         self.gps = gps
         self.is_stopped = False
 
@@ -671,10 +643,10 @@ class GPSWorker(QObject):
             lat = self.gps.lat
             lon = self.gps.lon
             alt = self.gps.alt
-            self.position.emit([ts, lat, lon, alt])
+            self.signals.position.emit([ts, lat, lon, alt])
             time.sleep(0.5)
 
-        self.finished.emit()
+        self.signals.finished.emit()
 
     def stop(self):
         """Terminate the worker."""
