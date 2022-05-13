@@ -698,11 +698,11 @@ class Widgets(dict):
 class DSpinBox(QDoubleSpinBox):
     """Object for generating custom float spinboxes."""
 
-    def __init__(self, value, range=None, step=1.0):
+    def __init__(self, value, input_range=None, step=1.0):
         """Initialise."""
         super().__init__()
-        if range is not None:
-            self.setRange(*range)
+        if input_range is not None:
+            self.setRange(*input_range)
         self.setValue(value)
         self.setSingleStep(step)
 
@@ -710,10 +710,10 @@ class DSpinBox(QDoubleSpinBox):
 class SpinBox(QSpinBox):
     """Object for generating custom integer spinboxes."""
 
-    def __init__(self, value, range):
+    def __init__(self, value, input_range):
         """Initialise."""
         super().__init__()
-        self.setRange(*range)
+        self.setRange(*input_range)
         self.setValue(value)
 
 
