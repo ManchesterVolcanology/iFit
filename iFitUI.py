@@ -3,28 +3,30 @@ import os
 import sys
 import yaml
 import logging
+import qdarktheme
 import numpy as np
 import PySide6
 import pyqtgraph as pg
 from datetime import datetime
 from functools import partial
-from logging.handlers import RotatingFileHandler
-from PySide6.QtGui import QIcon, QPalette, QColor, QFont, QAction
-from PySide6.QtCore import Qt, QThreadPool, Slot, QThread
+from PySide6.QtGui import QIcon, QFont, QAction
+from PySide6.QtCore import Qt, QThread, Slot, Signal, QObject
 from PySide6.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                                QMessageBox, QLabel, QComboBox, QTextEdit,
                                QLineEdit, QPushButton, QProgressBar, QFrame,
                                QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
                                QTabWidget, QFileDialog, QScrollArea,
                                QToolBar, QTableWidget, QHeaderView,
-                               QTableWidgetItem)
+                               QTableWidgetItem, QPlainTextEdit)
 
 from ifit.gui_functions import (Widgets, SpinBox, DSpinBox, ParamTable,
-                                AnalysisWorker, QTextEditLogger,
-                                AcqScopeWorker, AcqSpecWorker)
+                                AnalysisWorker, GPSWorker,
+                                AcqScopeWorker, AcqSpecWorker, QHLine, QVLine,
+                                browse, GPSWizard)
 from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
 from ifit.spectrometers import Spectrometer
 from ifit.load_spectra import average_spectra
+from ifit.gps import GPS
 
 __version__ = '3.4'
 __author__ = 'Ben Esse'
@@ -33,19 +35,54 @@ __author__ = 'Ben Esse'
 logger = logging.getLogger()
 if not os.path.isdir('bin/'):
     os.makedirs('bin/')
-fh = RotatingFileHandler('bin/iFit.log', maxBytes=20000, backupCount=5)
-fh.setLevel(logging.INFO)
-fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
-fh.setFormatter(logging.Formatter(fmt))
-logger.addHandler(fh)
 
+
+# =============================================================================
+# =============================================================================
+# Setup logging
+# =============================================================================
+# =============================================================================
+
+class Signaller(QObject):
+    """Signaller object for logging from QThreads."""
+    signal = Signal(str, logging.LogRecord)
+
+
+class QtHandler(logging.Handler):
+    """Handler object for handling logs from QThreads."""
+
+    def __init__(self, slotfunc, *args, **kwargs):
+        super(QtHandler, self).__init__(*args, **kwargs)
+        self.signaller = Signaller()
+        self.signaller.signal.connect(slotfunc)
+
+    def emit(self, record):
+        s = self.format(record)
+        self.signaller.signal.emit(s, record)
+
+
+# =============================================================================
+# =============================================================================
+# Main GUI Window
+# =============================================================================
+# =============================================================================
 
 class MainWindow(QMainWindow):
     """View for the iFit GUI."""
 
-    def __init__(self):
+    # Set log level colors
+    LOGCOLORS = {
+        logging.DEBUG: 'darkgrey',
+        logging.INFO: 'darkgrey',
+        logging.WARNING: 'orange',
+        logging.ERROR: 'red',
+        logging.CRITICAL: 'purple',
+    }
+
+    def __init__(self, app, *args, **kwargs):
         """View initialiser."""
-        super().__init__()
+        super(MainWindow, self).__init__(*args, **kwargs)
+        self.app = app
 
         # Set the window properties
         self.setWindowTitle(f'iFit {__version__}')
@@ -63,9 +100,6 @@ class MainWindow(QMainWindow):
         # Scroll Area Properties
         self._centralWidget.setWidgetResizable(True)
         self._centralWidget.setWidget(self.widget)
-
-        # Generate the threadpool for launching background processes
-        self.threadpool = QThreadPool()
 
         # Setup widget stylesheets
         QTabWidget().setStyleSheet('QTabWidget { font-size: 18pt; }')
@@ -88,10 +122,11 @@ class MainWindow(QMainWindow):
             self.load_config(fname=self.config_fname)
 
         # Update GUI theme
+        if self.theme == 'Light':
+            self.theme = 'Dark'
         if self.theme == 'Dark':
-            self.changeThemeDark()
-        elif self.theme == 'Light':
-            self.changeThemeLight()
+            self.theme = 'Light'
+        self.changeTheme()
 
     def _createApp(self):
         """Build the main GUI."""
@@ -112,7 +147,7 @@ class MainWindow(QMainWindow):
 
         # Change theme action
         themeAct = QAction(QIcon('bin/icons/theme.png'), '&Change Theme', self)
-        themeAct.triggered.connect(self.change_theme)
+        themeAct.triggered.connect(self.changeTheme)
 
         # ILS GUI action
         ilsAct = QAction(QIcon('bin/icons/ils.png'), '&Measure ILS', self)
@@ -211,25 +246,45 @@ class MainWindow(QMainWindow):
         # Setup the layout
         layout = QGridLayout(tab1)
         layout.setAlignment(Qt.AlignTop)
+        nrow = 0
+
+        # Add an input for the save selection
+        layout.addWidget(QLabel('Output\nFolder:'), nrow, 0)
+        self.widgets['rt_save_path'] = QLineEdit('Results')
+        self.widgets['rt_save_path'].setToolTip('Folder to hold real time '
+                                                + 'results')
+        layout.addWidget(self.widgets['rt_save_path'], nrow, 1, 1, 3)
+        btn = QPushButton('Browse')
+        btn.setFixedSize(70, 25)
+        btn.clicked.connect(partial(browse, self, self.widgets['rt_save_path'],
+                                    'folder', None))
+        layout.addWidget(btn, nrow, 4)
+        nrow += 1
+
+        layout.addWidget(QHLine(), nrow, 0, 1, 5)
+        nrow += 1
 
         # Set a label for the spectrometer ID
-        self.connected_flag = False
-        layout.addWidget(QLabel('Spectrometer:'), 0, 0)
+        self.spectro_connected_flag = False
+        layout.addWidget(QLabel('Spectrometer:'), nrow, 0)
         self.spec_id = QLabel('Not connected')
         self.spec_id.setToolTip('Spectrometer Serial Number')
-        layout.addWidget(self.spec_id, 0, 1)
+        layout.addWidget(self.spec_id, nrow, 1)
 
         # Create a button to connect to a spectrometer
-        self.connect_btn = QPushButton('Connect')
-        self.connect_btn.setToolTip('Connect or disconnect the spectrometer')
-        self.connect_btn.clicked.connect(self.connect_spectrometer)
-        layout.addWidget(self.connect_btn, 0, 2)
+        self.spec_connect_btn = QPushButton('Connect')
+        self.spec_connect_btn.setToolTip(
+            'Connect or disconnect the spectrometer')
+        self.spec_connect_btn.clicked.connect(self.connect_spectrometer)
+        layout.addWidget(self.spec_connect_btn, nrow, 2)
+
+        nrow += 1
 
         # Create a control for the spectrometer integration time
-        layout.addWidget(QLabel('Integration\nTime (ms):'), 1, 0)
+        layout.addWidget(QLabel('Integration\nTime (ms):'), nrow, 0)
         self.widgets['int_time'] = SpinBox(100, [10, 1000000])
         self.widgets['int_time'].setToolTip('Spectrometer integration time')
-        layout.addWidget(self.widgets['int_time'], 1, 1)
+        layout.addWidget(self.widgets['int_time'], nrow, 1)
 
         # Create a button to update the integration time
         self.update_inttime_btn = QPushButton('Update')
@@ -237,27 +292,44 @@ class MainWindow(QMainWindow):
                                            + ' Time')
         self.update_inttime_btn.clicked.connect(self.update_int_time)
         self.update_inttime_btn.setEnabled(False)
-        layout.addWidget(self.update_inttime_btn, 1, 2)
+        layout.addWidget(self.update_inttime_btn, nrow, 2)
+
+        # Add stereo button for non-liniarity correction
+        self.widgets['nonlin_flag'] = QCheckBox('Correct\nNon-Linearity?')
+        self.widgets['nonlin_flag'].setToolTip('Turn on correction for non-'
+                                               + 'linear intensity response'
+                                               + ' correction')
+        layout.addWidget(self.widgets['nonlin_flag'], nrow, 3)
+
+        nrow += 1
 
         # Create a control for the spectrometer coadds
-        layout.addWidget(QLabel('Coadds:'), 2, 0)
+        layout.addWidget(QLabel('Coadds:'), nrow, 0)
         self.widgets['coadds'] = SpinBox(10, [1, 1000000])
         self.widgets['coadds'].setToolTip('No. spectra to average')
-        layout.addWidget(self.widgets['coadds'], 2, 1)
+        layout.addWidget(self.widgets['coadds'], nrow, 1)
 
         # Create a button to update the coadds
         self.update_coadds_btn = QPushButton('Update')
         self.update_coadds_btn.setToolTip('Update Spectrometer Coadds')
         self.update_coadds_btn.clicked.connect(self.update_coadds)
         self.update_coadds_btn.setEnabled(False)
-        layout.addWidget(self.update_coadds_btn, 2, 2)
+        layout.addWidget(self.update_coadds_btn, nrow, 2)
+
+        # Add stereo button for non-liniarity correction
+        self.widgets['eldark_flag'] = QCheckBox('Correct\nElectronic dark?')
+        self.widgets['eldark_flag'].setToolTip('Turn on electronic dark '
+                                               + 'correction')
+        layout.addWidget(self.widgets['eldark_flag'], nrow, 3)
+
+        nrow += 1
 
         # Create a control for the number of dark spectra
-        layout.addWidget(QLabel('No. Dark\nSpectra:'), 3, 0)
+        layout.addWidget(QLabel('No. Dark\nSpectra:'), nrow, 0)
         self.widgets['ndarks'] = SpinBox(10, [1, 1000000])
         self.widgets['ndarks'].setToolTip('Set number of dark spectra to '
                                           + 'measure')
-        layout.addWidget(self.widgets['ndarks'], 3, 1)
+        layout.addWidget(self.widgets['ndarks'], nrow, 1)
 
         # Create a button to acquire the dark spectra
         self.acquire_darks_btn = QPushButton('Acquire')
@@ -265,7 +337,7 @@ class MainWindow(QMainWindow):
         self.acquire_darks_btn.clicked.connect(partial(self.begin_acquisition,
                                                        'acquire_darks'))
         self.acquire_darks_btn.setEnabled(False)
-        layout.addWidget(self.acquire_darks_btn, 3, 2)
+        layout.addWidget(self.acquire_darks_btn, nrow, 2)
 
         # Create a button to toggle real-time analysis
         self.rt_fitting_flag = False
@@ -274,32 +346,26 @@ class MainWindow(QMainWindow):
         self.rt_flag_btn.clicked.connect(self.toggle_fitting)
         self.rt_flag_btn.setEnabled(False)
         self.rt_flag_btn.setStyleSheet("background-color: red")
-        layout.addWidget(self.rt_flag_btn, 3, 3)
+        layout.addWidget(self.rt_flag_btn, nrow, 3)
 
-        # Add stereo button for non-liniarity correction
-        self.widgets['nonlin_flag'] = QCheckBox('Correct\nNon-Linearity?')
-        self.widgets['nonlin_flag'].setToolTip('Turn on correction for non-'
-                                               + 'linear intensity response'
-                                               + ' correction')
-        layout.addWidget(self.widgets['nonlin_flag'], 1, 3)
+        nrow += 1
 
-        # Add stereo button for non-liniarity correction
-        self.widgets['eldark_flag'] = QCheckBox('Correct\nElectronic dark?')
-        self.widgets['eldark_flag'].setToolTip('Turn on electronic dark '
-                                               + 'correction')
-        layout.addWidget(self.widgets['eldark_flag'], 2, 3)
+        layout.addWidget(QHLine(), nrow, 0, 1, 5)
+        nrow += 1
 
-        # Add an input for the save selection
-        layout.addWidget(QLabel('Output\nFolder:'), 4, 0)
-        self.widgets['rt_save_path'] = QLineEdit()
-        self.widgets['rt_save_path'].setToolTip('Folder to hold real time '
-                                                + 'results')
-        layout.addWidget(self.widgets['rt_save_path'], 4, 1, 1, 3)
-        btn = QPushButton('Browse')
-        btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.widgets['rt_save_path'],
-                                    'folder', None))
-        layout.addWidget(btn, 4, 4)
+        # Add GPS connection settings
+        self.gps_connected_flag = False
+        self.gps = None
+        layout.addWidget(QLabel('GPS Status:'), nrow, 0)
+        self.gps_status = QLabel('Not connected')
+        layout.addWidget(self.gps_status, nrow, 1)
+        self.gps_connect_btn = QPushButton('Connect')
+        self.gps_connect_btn.clicked.connect(self.connect_gps)
+        layout.addWidget(self.gps_connect_btn, nrow, 2)
+        nrow += 1
+
+        layout.addWidget(QHLine(), nrow, 0, 1, 5)
+        nrow += 1
 
         # Add button to begin analysis
         self.rt_start_btn = QPushButton('Begin!')
@@ -308,7 +374,7 @@ class MainWindow(QMainWindow):
                                                   'acquire_cont'))
         self.rt_start_btn.setFixedSize(90, 25)
         self.rt_start_btn.setEnabled(False)
-        layout.addWidget(self.rt_start_btn, 5, 1)
+        layout.addWidget(self.rt_start_btn, nrow, 1)
 
         # Add button to pause analysis
         self.rt_pause_btn = QPushButton('Pause')
@@ -316,7 +382,7 @@ class MainWindow(QMainWindow):
         self.rt_pause_btn.clicked.connect(partial(self.pause))
         self.rt_pause_btn.setFixedSize(90, 25)
         self.rt_pause_btn.setEnabled(False)
-        layout.addWidget(self.rt_pause_btn, 5, 2)
+        layout.addWidget(self.rt_pause_btn, nrow, 2)
 
         # Add button to stop analysis
         self.rt_stop_btn = QPushButton('Stop')
@@ -324,7 +390,7 @@ class MainWindow(QMainWindow):
         self.rt_stop_btn.clicked.connect(partial(self.stop))
         self.rt_stop_btn.setFixedSize(90, 25)
         self.rt_stop_btn.setEnabled(False)
-        layout.addWidget(self.rt_stop_btn, 5, 3)
+        layout.addWidget(self.rt_stop_btn, nrow, 3)
 
 # =============================================================================
 #       Post-procesing controls
@@ -339,6 +405,7 @@ class MainWindow(QMainWindow):
         self.widgets['spec_type'] = QComboBox()
         self.widgets['spec_type'].setToolTip('Choose spectrum format')
         self.widgets['spec_type'].addItems(['iFit',
+                                            'iFit (old)',
                                             'Master.Scope',
                                             'Spectrasuite',
                                             'mobileDOAS',
@@ -430,15 +497,16 @@ class MainWindow(QMainWindow):
         self.last_err = QLabel('-')
         layout.addWidget(self.last_err, 2, 3)
 
-        # Create a textbox to display the program logs
-        self.logBox = QTextEditLogger(self)
-        fmt = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
-        self.logBox.setFormatter(fmt)
-        logger.addHandler(self.logBox)
+        # Create a textbox to display the program log
+        self.logBox = QPlainTextEdit(self)
+        self.logBox.setReadOnly(True)
+        formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
+        self.handler = QtHandler(self.updateLog)
+        self.handler.setFormatter(formatter)
+        logger.addHandler(self.handler)
         logger.setLevel(logging.INFO)
-        layout.addWidget(self.logBox.widget, 3, 0, 1, 6)
-        msg = 'Welcome to iFit! Written by Ben Esse'
-        self.logBox.widget.appendPlainText(msg)
+        layout.addWidget(self.logBox, 2, 0, 1, 5)
+        logger.info(f'Welcome to iFit v{__version__}! Written by Ben Esse')
 
 # =============================================================================
 #   Set up graphs and settings
@@ -464,10 +532,13 @@ class MainWindow(QMainWindow):
         analysis_tabs = QTabWidget()
         graphtab = QWidget()
         tabletab = QWidget()
+        maptab = QWidget()
         analysis_tabs.addTab(graphtab, 'Graphs')
         analysis_tabs.addTab(tabletab, 'Table')
+        analysis_tabs.addTab(maptab, 'Map')
+
         analysis_layout = QGridLayout(tab1)
-        analysis_layout.addWidget(analysis_tabs, 0, 0)
+        analysis_layout.addWidget(analysis_tabs, 0, 0, 1, 8)
 
 # =============================================================================
 #       Set up the analysis graphs
@@ -532,50 +603,7 @@ class MainWindow(QMainWindow):
 
         # Add the graphs to the layout
         glayout = QGridLayout(graphtab)
-        glayout.addWidget(self.graphwin, 0, 0, 1, 8)
-
-# =============================================================================
-#      Graph settings
-# =============================================================================
-
-        # Create a checkbox to turn plotting on or off
-        self.widgets['graph_flag'] = QCheckBox('Show Graphs?')
-        self.widgets['graph_flag'].setChecked(True)
-        self.widgets['graph_flag'].setToolTip('Display graph plots (can slow '
-                                              + 'analysis)')
-        glayout.addWidget(self.widgets['graph_flag'], 1, 0)
-
-        # Create a checkbox to only display good fits
-        self.widgets['good_fit_flag'] = QCheckBox('Only Show\nGood Fits?')
-        self.widgets['good_fit_flag'].setToolTip('Only display results for '
-                                                 + 'fits that pass the '
-                                                 + 'quality checks')
-        glayout.addWidget(self.widgets['good_fit_flag'], 1, 1)
-
-        # Add combo box for the graph parameter
-        glayout.addWidget(QLabel('Target\nParameter:'), 1, 2)
-        self.widgets['graph_param'] = QComboBox()
-        self.widgets['graph_param'].addItems([''])
-        glayout.addWidget(self.widgets['graph_param'], 1, 3)
-
-        # Create a checkbox to plot the fit error
-        self.widgets['graph_err_flag'] = QCheckBox('Show error?')
-        self.widgets['graph_err_flag'].setToolTip('Plot fit errors for the '
-                                                  + 'tarjet parameter')
-        glayout.addWidget(self.widgets['graph_err_flag'], 1, 4)
-
-        # Create a checkbox to turn scrolling on or off
-        self.widgets['scroll_flag'] = QCheckBox('Scroll Graphs?')
-        self.widgets['scroll_flag'].setToolTip('Allow graphs to scroll\n'
-                                               + '(limits no. spectra '
-                                               + 'displayed)')
-        glayout.addWidget(self.widgets['scroll_flag'], 1, 5)
-
-        # Add spinbox for the graph scroll amount
-        glayout.addWidget(QLabel('No. Spectra\nTo Display:'), 1, 6)
-        self.widgets['scroll_amt'] = SpinBox(100, [1, 10000])
-        # self.widgets['scroll_amt'].setFixedSize(70, 20)
-        glayout.addWidget(self.widgets['scroll_amt'], 1, 7)
+        glayout.addWidget(self.graphwin, 0, 0)
 
 # =============================================================================
 #      Analysis results table
@@ -591,6 +619,103 @@ class MainWindow(QMainWindow):
             QHeaderView.Stretch)
 
         tlayout.addWidget(self.results_table, 0, 0)
+
+# =============================================================================
+#      Analysis results map
+# =============================================================================
+
+        # Make the layout
+        mlayout = QGridLayout(maptab)
+
+        # Add markers for the current lat/lon/alt values
+        self.gps_timestamp = QLabel('-')
+        self.gps_lat = QLabel('-')
+        self.gps_lon = QLabel('-')
+        self.gps_alt = QLabel('-')
+        mlayout.addWidget(QLabel('GPS Time:'), 0, 0)
+        mlayout.addWidget(self.gps_timestamp, 0, 1)
+        mlayout.addWidget(QLabel('Latitude:'), 0, 2)
+        mlayout.addWidget(self.gps_lat, 0, 3)
+        mlayout.addWidget(QLabel('Longitude:'), 0, 4)
+        mlayout.addWidget(self.gps_lon, 0, 5)
+        mlayout.addWidget(QLabel('Altitude:'), 0, 6)
+        mlayout.addWidget(self.gps_alt, 0, 7)
+
+        # Add checkbox to control if the colorlimit is fixed or automatic
+        self.widgets['auto_map_scale'] = QCheckBox('Auto Scale Map?')
+        mlayout.addWidget(self.widgets['auto_map_scale'], 0, 8)
+
+        # Make the graphics window
+        self.mapwin = pg.GraphicsLayoutWidget(show=True)
+        mlayout.addWidget(self.mapwin, 2, 0, 1, 9)
+
+        # Generate the axes
+        self.map_ax = self.mapwin.addPlot(row=0, col=0)
+        self.map_ax.setDownsampling(mode='peak')
+        self.map_ax.setClipToView(True)
+        self.map_ax.showGrid(x=True, y=True)
+        self.map_ax.setAspectLocked(True)
+
+        # Generate the colorbar
+        self.cmap = pg.colormap.get('viridis', source='matplotlib')
+        im = pg.ImageItem()
+        self.cbar = pg.ColorBarItem(values=(0, 100), colorMap=self.cmap,
+                                    label='Fit Value')
+        self.cbar.setImageItem(im)
+        self.cbar.sigLevelsChangeFinished.connect(self.update_map)
+        self.mapwin.addItem(self.cbar, 0, 2)
+
+        # Add the axis labels
+        self.map_ax.setLabel('left', 'Latitude')
+        self.map_ax.setLabel('bottom', 'Longitude')
+
+        # Initialise the plots for the GPS data
+        self.gps_line = self.map_ax.plot(pen=p0)
+        self.gps_scatter = pg.ScatterPlotItem()
+        self.map_ax.addItem(self.gps_scatter)
+
+# =============================================================================
+#      Graph settings
+# =============================================================================
+
+        # Create a checkbox to turn plotting on or off
+        self.widgets['graph_flag'] = QCheckBox('Update Graphs?')
+        self.widgets['graph_flag'].setChecked(True)
+        self.widgets['graph_flag'].setToolTip('Display graph plots (can slow '
+                                              + 'analysis)')
+        analysis_layout.addWidget(self.widgets['graph_flag'], 1, 0)
+
+        # Create a checkbox to only display good fits
+        self.widgets['good_fit_flag'] = QCheckBox('Only Show\nGood Fits?')
+        self.widgets['good_fit_flag'].setToolTip('Only display results for '
+                                                 + 'fits that pass the '
+                                                 + 'quality checks')
+        analysis_layout.addWidget(self.widgets['good_fit_flag'], 1, 1)
+
+        # Add combo box for the graph parameter
+        analysis_layout.addWidget(QLabel('Target\nParameter:'), 1, 2)
+        self.widgets['graph_param'] = QComboBox()
+        self.widgets['graph_param'].addItems([''])
+        analysis_layout.addWidget(self.widgets['graph_param'], 1, 3)
+
+        # Create a checkbox to plot the fit error
+        self.widgets['graph_err_flag'] = QCheckBox('Show error?')
+        self.widgets['graph_err_flag'].setToolTip('Plot fit errors for the '
+                                                  + 'tarjet parameter')
+        analysis_layout.addWidget(self.widgets['graph_err_flag'], 1, 4)
+
+        # Create a checkbox to turn scrolling on or off
+        self.widgets['scroll_flag'] = QCheckBox('Scroll Graphs?')
+        self.widgets['scroll_flag'].setToolTip('Allow graphs to scroll\n'
+                                               + '(limits no. spectra '
+                                               + 'displayed)')
+        analysis_layout.addWidget(self.widgets['scroll_flag'], 1, 5)
+
+        # Add spinbox for the graph scroll amount
+        analysis_layout.addWidget(QLabel('No. Spectra\nTo Display:'), 1, 6)
+        self.widgets['scroll_amt'] = SpinBox(100, [1, 10000])
+        # self.widgets['scroll_amt'].setFixedSize(70, 20)
+        analysis_layout.addWidget(self.widgets['scroll_amt'], 1, 7)
 
 # =============================================================================
 #      Set up the scope plot
@@ -617,10 +742,10 @@ class MainWindow(QMainWindow):
         # Create tabs for settings
         slayout = QGridLayout(tab2)
 
-        stab1 = QWidget()
-        stab2 = QWidget()
-        stab3 = QWidget()
-        stab4 = QWidget()
+        stab1 = QScrollArea()
+        stab2 = QScrollArea()
+        stab3 = QScrollArea()
+        stab4 = QScrollArea()
 
         tabwidget = QTabWidget()
         tabwidget.addTab(stab1, 'Model')
@@ -700,13 +825,13 @@ class MainWindow(QMainWindow):
         self.widgets['dark_flag'].setToolTip('Remove averaged dark spectrum '
                                              + 'before fitting')
         layout.addWidget(self.widgets['dark_flag'], nrow, ncol, 1, 2)
-        # nrow += 1
+        nrow += 1
 
         # Add sterio button for flat correction
         self.widgets['flat_flag'] = QCheckBox('Correct Flat\nSpectrum?')
         self.widgets['flat_flag'].setToolTip('Remove flat-field spectrum '
                                              + 'before fitting')
-        layout.addWidget(self.widgets['flat_flag'], nrow, ncol+2, 1, 2)
+        layout.addWidget(self.widgets['flat_flag'], nrow, ncol, 1, 2)
         nrow += 1
 
         # Add option to apply pre-fit wavelength shift
@@ -714,10 +839,6 @@ class MainWindow(QMainWindow):
         self.widgets['prefit_shift'] = DSpinBox(0.0, [-1000, 1000], 0.1)
         self.widgets['prefit_shift'].setFixedSize(70, 20)
         layout.addWidget(self.widgets['prefit_shift'], nrow, ncol+1)
-        self.widgets['preshift_flag'] = QCheckBox('Apply?')
-        self.widgets['preshift_flag'].setToolTip('Apply pre-fit wavelength '
-                                                 + 'shift')
-        layout.addWidget(self.widgets['preshift_flag'], nrow, ncol+2)
         nrow += 1
 
         # Add spinboxs for the stray light window
@@ -1195,6 +1316,13 @@ class MainWindow(QMainWindow):
 #   Global Slots
 # =============================================================================
 
+    @Slot(str, logging.LogRecord)
+    def updateLog(self, status, record):
+        """Write log statements to the logBox widget."""
+        color = self.LOGCOLORS.get(record.levelno, 'black')
+        s = '<pre><font color="%s">%s</font></pre>' % (color, status)
+        self.logBox.appendHtml(s)
+
     def update_progress(self, prog):
         """Slot to update the progress bar."""
         self.progress.setValue(prog)
@@ -1274,6 +1402,7 @@ class MainWindow(QMainWindow):
 
         self.update_plots()
         self.update_results_table()
+        self.update_map()
 
     def update_plots(self):
         """Update the plots."""
@@ -1310,21 +1439,6 @@ class MainWindow(QMainWindow):
                     ploty = ploty[-npts:]
                     erry = erry[-npts:]
 
-            # Check that there are data to plot
-            if len(plotx) != 0:
-
-                # Check for large number in the time series. This is due to
-                # a bug in pyqtgraph not displaying large numbers
-                max_val = np.nanmax(np.abs(ploty))
-                if ~np.isnan(max_val) and max_val > 1e6:
-                    order = int(np.ceil(np.log10(max_val))) - 1
-                    ploty = ploty / 10**order
-                    erry = erry / 10**order
-                    self.plot_axes[4].setLabel('left',
-                                               f'Fit value (1e{order})')
-                else:
-                    self.plot_axes[4].setLabel('left', 'Fit value')
-
             # Plot the data
             plot_data = {'spectrum': [self.fit_result.grid,
                                       self.fit_result.spec],
@@ -1344,10 +1458,51 @@ class MainWindow(QMainWindow):
             # Show error plot if selected
             if self.widgets.get('graph_err_flag'):
                 self.err_plot.setVisible(True)
-                self.err_plot.setData(x=plotx, y=ploty, top=erry,
-                                      bottom=erry)
+                self.err_plot.setData(x=plotx, y=ploty, top=erry, bottom=erry)
             else:
                 self.err_plot.setVisible(False)
+
+    def update_map(self):
+        """Update data map."""
+        if self.widgets.get('graph_flag'):
+            # Get non-null values from the dataframe
+            try:
+                df = self.df.dropna(subset=['Lat', 'Lon'])
+            except AttributeError:
+                return
+
+            # Remove bad points if desired
+            if self.widgets.get('good_fit_flag'):
+                df = df[df['fit_quality'] == 1]
+
+            # Scroll the graphs if desired
+            if self.widgets.get('scroll_flag'):
+                npts = self.widgets.get('scroll_amt')
+                df = df.tail(npts)
+
+            # Pull the plot values
+            lat = df['Lat'].to_numpy()
+            lon = df['Lon'].to_numpy()
+            values = df[self.key].to_numpy()
+
+            # Get the colormap limits and normalise the data
+            map_lo_lim, map_hi_lim = self.cbar.levels()
+            norm_values = (values - map_lo_lim) / (map_hi_lim - map_lo_lim)
+
+            # Convert to colors
+            pens = [pg.mkPen(color=self.cmap.map(val)) for val in norm_values]
+            brushes = [pg.mkBrush(color=self.cmap.map(val))
+                       for val in norm_values]
+
+            # Update the map data
+            self.gps_scatter.setData(x=lon, y=lat, pen=pens, brush=brushes)
+
+    def toggle_map_auto_scale(self):
+        """Toggle manual control over map colorbar."""
+        if self.widgets.get('auto_map_scale'):
+            self.cbar.sigLevelsChangeFinished.connect(self.update_map)
+        else:
+            self.cbar.sigLevelsChangeFinished.connect(None)
 
     def initialize_results_table(self, params):
         """Initialize table rows."""
@@ -1404,15 +1559,18 @@ class MainWindow(QMainWindow):
                                              dark_spec)
         self.analysisWorker.moveToThread(self.analysisThread)
         self.analysisThread.started.connect(self.analysisWorker.run)
-        self.analysisWorker.progress.connect(self.update_progress)
-        self.analysisWorker.error.connect(self.update_error)
-        self.analysisWorker.initializeTable.connect(
+        self.analysisWorker.signals.progress.connect(self.update_progress)
+        self.analysisWorker.signals.error.connect(self.update_error)
+        self.analysisWorker.signals.status.connect(self.update_status)
+        self.analysisWorker.signals.initializeTable.connect(
             self.initialize_results_table)
-        self.analysisWorker.plotData.connect(self.get_plot_data)
-        self.analysisWorker.finished.connect(self.analysis_complete)
-        self.analysisWorker.finished.connect(self.analysisThread.quit)
-        self.analysisWorker.finished.connect(self.analysisWorker.deleteLater)
-        self.analysisThread.finished.connect(self.analysisThread.deleteLater)
+        self.analysisWorker.signals.plotData.connect(self.get_plot_data)
+        self.analysisWorker.signals.finished.connect(self.analysis_complete)
+        self.analysisWorker.signals.finished.connect(self.analysisThread.quit)
+        self.analysisWorker.signals.finished.connect(
+            self.analysisWorker.deleteLater)
+        self.analysisThread.finished.connect(
+            self.analysisThread.deleteLater)
         self.analysisThread.start()
 
         # Disable the start button and enable the pause/stop buttons
@@ -1426,7 +1584,7 @@ class MainWindow(QMainWindow):
 
     def connect_spectrometer(self):
         """Connect or dissconnect the spectrometer."""
-        if not self.connected_flag:
+        if not self.spectro_connected_flag:
 
             # Connect to the spectrometer
             w = self.widgets
@@ -1444,13 +1602,13 @@ class MainWindow(QMainWindow):
 
                 # Update the GUI
                 self.spec_id.setText(self.spectrometer.serial_number)
-                self.connect_btn.setText('Disconnect')
+                self.spec_connect_btn.setText('Disconnect')
 
                 # Create a holder for the dark spectra
                 self.dark_spectrum = np.zeros(self.spectrometer.pixels)
 
                 # Update GUI features
-                self.connected_flag = True
+                self.spectro_connected_flag = True
                 self.rt_flag_btn.setEnabled(True)
                 self.acquire_darks_btn.setEnabled(True)
                 self.update_inttime_btn.setEnabled(True)
@@ -1475,10 +1633,10 @@ class MainWindow(QMainWindow):
 
             # Update the GUI
             self.spec_id.setText('Not connected')
-            self.connect_btn.setText('Connect')
+            self.spec_connect_btn.setText('Connect')
 
             # Update GUI features
-            self.connected_flag = False
+            self.spectro_connected_flag = False
             self.rt_flag_btn.setEnabled(False)
             self.acquire_darks_btn.setEnabled(False)
             self.update_inttime_btn.setEnabled(False)
@@ -1511,6 +1669,78 @@ class MainWindow(QMainWindow):
             logger.info('Fitting turned on')
 
 # =============================================================================
+#   Connect to GPS
+# =============================================================================
+
+    def connect_gps(self):
+        """Input information for a GPS connection."""
+        if not self.gps_connected_flag:
+            dialog = GPSWizard(self)
+            if dialog.exec_():
+                self.gps = GPS(**dialog.gps_kwargs)
+                self.gps_status.setText('Connected')
+                self.gps_connect_btn.setText('Disconnect')
+                self.gps_connected_flag = True
+                logger.info('GPS connected')
+
+                # Start GPS aquisition
+                self.gpsThread = QThread()
+                self.gpsWorker = GPSWorker(self.gps)
+                self.gpsWorker.moveToThread(self.gpsThread)
+                self.gpsThread.started.connect(self.gpsWorker.run)
+                self.gpsWorker.signals.position.connect(self.update_position)
+                self.gpsWorker.signals.error.connect(self.update_error)
+                self.gpsWorker.signals.finished.connect(self.gpsThread.quit)
+                self.gpsWorker.signals.finished.connect(
+                    self.gpsWorker.deleteLater)
+                self.gpsThread.finished.connect(
+                    self.gpsThread.deleteLater)
+                self.gpsThread.start()
+
+        else:
+            self.gpsWorker.stop()
+            self.gpsThread.quit()
+            self.gpsThread.wait()
+            self.gps.close()
+            self.gps = None
+            self.gps_status.setText('Not connected')
+            self.gps_connect_btn.setText('Connect')
+            self.gps_connected_flag = False
+            logger.info('GPS disconnected')
+
+    def update_position(self, location):
+        """Update the current position on the GUI."""
+        # Unpack location data
+        ts, lat, lon, alt = location
+
+        # Determine the directions
+        if lat >= 0:
+            lat_dir = 'N'
+        else:
+            lat_dir = 'S'
+        if lon >= 0:
+            lon_dir = 'E'
+        else:
+            lon_dir = 'W'
+
+        # Update GUI labels
+        self.gps_timestamp.setText(f'{ts}')
+        self.gps_lat.setText(f'{abs(lat):.6f} {lat_dir}')
+        self.gps_lon.setText(f'{abs(lon):.6f} {lon_dir}')
+        self.gps_alt.setText(f'{alt:.1f} m')
+
+        # Update GUI graph
+        xdata, ydata = self.gps_line.getData()
+
+        if xdata is None or ydata is None:
+            self.gps_line.setData([lon], [lat])
+
+        elif lat != ydata[-1] and lon != xdata[-1]:
+            new_xdata = np.append(xdata, lon)
+            new_ydata = np.append(ydata, lat)
+            self.gps_line.setData(new_xdata, new_ydata)
+
+# =============================================================================
 #   Acquisition Loop Setup
 # =============================================================================
 
@@ -1520,7 +1750,7 @@ class MainWindow(QMainWindow):
         self.rt_start_btn.setEnabled(True)
         self.rt_pause_btn.setEnabled(False)
         self.rt_stop_btn.setEnabled(False)
-        self.connect_btn.setEnabled(True)
+        self.spec_connect_btn.setEnabled(True)
         self.acquire_darks_btn.setEnabled(True)
         self.rt_flag_btn.setEnabled(True)
         self.rt_pause_btn.setText('Pause')
@@ -1564,10 +1794,10 @@ class MainWindow(QMainWindow):
         self.scopeWorker = AcqScopeWorker(self.spectrometer)
         self.scopeWorker.moveToThread(self.scopeThread)
         self.scopeThread.started.connect(self.scopeWorker.run)
-        self.scopeWorker.plotSpec.connect(self.plot_spectrum)
-        self.scopeWorker.error.connect(self.update_error)
-        self.scopeWorker.finished.connect(self.scopeThread.quit)
-        self.scopeWorker.finished.connect(self.scopeWorker.deleteLater)
+        self.scopeWorker.signals.plotSpec.connect(self.plot_spectrum)
+        self.scopeWorker.signals.error.connect(self.update_error)
+        self.scopeWorker.signals.finished.connect(self.scopeThread.quit)
+        self.scopeWorker.signals.finished.connect(self.scopeWorker.deleteLater)
         self.scopeThread.finished.connect(self.scopeThread.deleteLater)
         self.scopeThread.start()
 
@@ -1616,27 +1846,29 @@ class MainWindow(QMainWindow):
 
         # Initialise the acquisition thread and worker
         self.specThread = QThread()
-        self.specWorker = AcqSpecWorker(self.spectrometer, widgetData)
+        self.specWorker = AcqSpecWorker(self.spectrometer, self.gps,
+                                        widgetData)
         self.specWorker.moveToThread(self.specThread)
 
         # Assign signals depending on mode
         if mode == 'acquire_darks':
             self.specThread.started.connect(self.specWorker.acquire_dark)
             self.progress.setRange(0, 100)
-            self.specWorker.setDark.connect(self.set_dark_spectrum)
+            self.specWorker.signals.setDark.connect(self.set_dark_spectrum)
 
         else:
             self.specThread.started.connect(self.specWorker.acquire_spec)
             self.progress.setRange(0, 0)
-            self.specWorker.setSpec.connect(self.set_meas_spectrum)
+            self.specWorker.signals.setSpec.connect(self.set_meas_spectrum)
 
         # Assign signals
-        self.specWorker.plotSpec.connect(self.plot_spectrum)
-        self.specWorker.progress.connect(self.update_progress)
-        self.specWorker.error.connect(self.update_error)
-        self.specWorker.finished.connect(self.acquisition_complete)
-        self.specWorker.finished.connect(self.specThread.quit)
-        self.specWorker.finished.connect(self.specWorker.deleteLater)
+        self.specWorker.signals.plotSpec.connect(self.plot_spectrum)
+        self.specWorker.signals.progress.connect(self.update_progress)
+        self.specWorker.signals.error.connect(self.update_error)
+        self.specWorker.signals.status.connect(self.update_status)
+        self.specWorker.signals.finished.connect(self.acquisition_complete)
+        self.specWorker.signals.finished.connect(self.specThread.quit)
+        self.specWorker.signals.finished.connect(self.specWorker.deleteLater)
         self.specThread.finished.connect(self.specThread.deleteLater)
         self.specThread.start()
 
@@ -1645,7 +1877,7 @@ class MainWindow(QMainWindow):
         self.rt_start_btn.setEnabled(False)
         self.rt_pause_btn.setEnabled(True)
         self.rt_stop_btn.setEnabled(True)
-        self.connect_btn.setEnabled(False)
+        self.spec_connect_btn.setEnabled(False)
         self.acquire_darks_btn.setEnabled(False)
         self.rt_flag_btn.setEnabled(False)
 
@@ -1657,149 +1889,36 @@ class MainWindow(QMainWindow):
 #   Gui Theme
 # =============================================================================
 
-    def change_theme(self):
+    def changeTheme(self):
         """Change the theme."""
         if self.theme == 'Light':
-            self.changeThemeDark()
+            # Set overall style
+            self.app.setStyleSheet(qdarktheme.load_stylesheet())
+            bg_color = 'k'
+            plotpen = pg.mkPen('darkgrey', width=1)
             self.theme = 'Dark'
-        elif self.theme == 'Dark':
-            self.changeThemeLight()
+        else:
+            # Set overall style
+            self.app.setStyleSheet(qdarktheme.load_stylesheet("light"))
+            bg_color = 'w'
+            plotpen = pg.mkPen('k', width=1)
             self.theme = 'Light'
 
-    @Slot()
-    def changeThemeDark(self):
-        """Change theme to dark."""
-        darkpalette = QPalette()
-        darkpalette.setColor(QPalette.Window, QColor(53, 53, 53))
-        darkpalette.setColor(QPalette.WindowText, Qt.white)
-        darkpalette.setColor(QPalette.Base, QColor(25, 25, 25))
-        darkpalette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        darkpalette.setColor(QPalette.ToolTipBase, Qt.black)
-        darkpalette.setColor(QPalette.ToolTipText, Qt.white)
-        darkpalette.setColor(QPalette.Text, Qt.white)
-        darkpalette.setColor(QPalette.Button, QColor(53, 53, 53))
-        darkpalette.setColor(QPalette.Active, QPalette.Button,
-                             QColor(53, 53, 53))
-        darkpalette.setColor(QPalette.ButtonText, Qt.white)
-        darkpalette.setColor(QPalette.BrightText, Qt.red)
-        darkpalette.setColor(QPalette.Link, QColor(42, 130, 218))
-        darkpalette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        darkpalette.setColor(QPalette.HighlightedText, Qt.black)
-        darkpalette.setColor(QPalette.Disabled, QPalette.ButtonText,
-                             Qt.darkGray)
-        QApplication.instance().setPalette(darkpalette)
+        for graphwin in [self.graphwin, self.scopewin, self.mapwin]:
+            graphwin.setBackground(bg_color)
 
-        # Update graphs
-        self.graphwin.setBackground('k')
-        self.scopewin.setBackground('k')
-        pen = pg.mkPen('w', width=1)
-
-        for ax in self.plot_axes:
-            ax.getAxis('left').setPen(pen)
-            ax.getAxis('right').setPen(pen)
-            ax.getAxis('top').setPen(pen)
-            ax.getAxis('bottom').setPen(pen)
-            ax.getAxis('left').setTextPen(pen)
-            ax.getAxis('bottom').setTextPen(pen)
-        self.scope_ax.getAxis('left').setPen(pen)
-        self.scope_ax.getAxis('right').setPen(pen)
-        self.scope_ax.getAxis('top').setPen(pen)
-        self.scope_ax.getAxis('bottom').setPen(pen)
-
-    @Slot()
-    def changeThemeLight(self):
-        """Change theme to light."""
-        QApplication.instance().setPalette(self.style().standardPalette())
-        self.graphwin.setBackground('w')
-        self.scopewin.setBackground('w')
-        pen = pg.mkPen('k', width=1)
-
-        for ax in self.plot_axes:
-            ax.getAxis('left').setPen(pen)
-            ax.getAxis('right').setPen(pen)
-            ax.getAxis('top').setPen(pen)
-            ax.getAxis('bottom').setPen(pen)
-            ax.getAxis('left').setTextPen(pen)
-            ax.getAxis('bottom').setTextPen(pen)
-        self.scope_ax.getAxis('left').setPen(pen)
-        self.scope_ax.getAxis('right').setPen(pen)
-        self.scope_ax.getAxis('top').setPen(pen)
-        self.scope_ax.getAxis('bottom').setPen(pen)
-
-
-def browse(gui, widget, mode='single', filter=None):
-    """Open native file dialogue."""
-    # Check if specified file extensions
-    if filter is not None:
-        filter = filter + ';;All Files (*)'
-
-    # Pick a single file to read
-    if mode == 'single':
-        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '', filter)
-
-    elif mode == 'multi':
-        fname, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
-                                                filter)
-
-    elif mode == 'save':
-        fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
-
-    elif mode == 'folder':
-        fname = QFileDialog.getExistingDirectory(gui, 'Select Folder')
-
-    # Get current working directory
-    cwd = os.getcwd() + '/'
-    cwd = cwd.replace("\\", "/")
-
-    # Update the relavant widget for a single file
-    if type(fname) == str and fname != '':
-        if cwd in fname:
-            fname = fname[len(cwd):]
-        widget.setText(fname)
-
-    # And for multiple files
-    elif type(fname) == list and fname != []:
-        for i, f in enumerate(fname):
-            if cwd in f:
-                fname[i] = f[len(cwd):]
-        widget.setText('\n'.join(fname))
-
-
-class QHLine(QFrame):
-    """Horizontal line widget."""
-
-    def __init__(self):
-        """Initialise."""
-        super(QHLine, self).__init__()
-        self.setFrameShape(QFrame.HLine)
-        self.setFrameShadow(QFrame.Sunken)
-
-
-class QVLine(QFrame):
-    """Vertical line widget."""
-
-    def __init__(self):
-        """Initialise."""
-        super(QVLine, self).__init__()
-        self.setFrameShape(QFrame.VLine)
-        self.setFrameShadow(QFrame.Sunken)
+        for ax in self.plot_axes + [self.scope_ax, self.map_ax]:
+            ax.getAxis('left').setPen(plotpen)
+            ax.getAxis('right').setPen(plotpen)
+            ax.getAxis('top').setPen(plotpen)
+            ax.getAxis('bottom').setPen(plotpen)
+            ax.getAxis('left').setTextPen(plotpen)
+            ax.getAxis('bottom').setTextPen(plotpen)
 
 
 # Cliet Code
-def main():
-    """Run main function."""
-    # Create an instance of QApplication
-    app = QApplication(sys.argv)
-
-    app.setStyle("Fusion")
-
-    # Show the GUI
-    view = MainWindow()
-    view.show()
-
-    # Execute the main loop
-    sys.exit(app.exec_())
-
-
 if __name__ == '__main__':
-    main()
+    app = QApplication(sys.argv)
+    window = MainWindow(app)
+    window.show()
+    sys.exit(app.exec())

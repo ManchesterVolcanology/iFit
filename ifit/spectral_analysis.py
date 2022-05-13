@@ -720,6 +720,8 @@ class FitResult():
             logger.warn('Fit failed!')
             self.fit = np.full(len(self.spec), np.nan)
             self.resid = np.full(len(self.spec), np.nan)
+            self.resid_max = np.nan
+            self.resid_std = np.nan
             for par in calc_od:
                 if par in self.params:
                     self.meas_od[par] = np.full(len(self.spec), np.nan)
