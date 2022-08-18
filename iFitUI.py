@@ -3,23 +3,24 @@ import os
 import sys
 import yaml
 import logging
+import qdarktheme
 import numpy as np
+import PySide6
 import pyqtgraph as pg
 from datetime import datetime
 from functools import partial
-from logging.handlers import RotatingFileHandler
-from PyQt5.QtGui import QIcon, QPalette, QColor, QFont
-from PyQt5.QtCore import Qt, pyqtSlot, QThread
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
-                             QMessageBox, QLabel, QComboBox, QTextEdit,
-                             QLineEdit, QPushButton, QProgressBar, QFrame,
-                             QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
-                             QTabWidget, QAction, QFileDialog, QScrollArea,
-                             QToolBar, QTableWidget, QHeaderView,
-                             QTableWidgetItem)
+from PySide6.QtGui import QIcon, QFont, QAction
+from PySide6.QtCore import Qt, QThread, Slot, Signal, QObject
+from PySide6.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
+                               QMessageBox, QLabel, QComboBox, QTextEdit,
+                               QLineEdit, QPushButton, QProgressBar, QFrame,
+                               QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
+                               QTabWidget, QFileDialog, QScrollArea,
+                               QToolBar, QTableWidget, QHeaderView,
+                               QTableWidgetItem, QPlainTextEdit)
 
 from ifit.gui_functions import (Widgets, SpinBox, DSpinBox, ParamTable,
-                                AnalysisWorker, QTextEditLogger, GPSWorker,
+                                AnalysisWorker, GPSWorker,
                                 AcqScopeWorker, AcqSpecWorker, QHLine, QVLine,
                                 browse, GPSWizard)
 from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
@@ -34,19 +35,54 @@ __author__ = 'Ben Esse'
 logger = logging.getLogger()
 if not os.path.isdir('bin/'):
     os.makedirs('bin/')
-fh = RotatingFileHandler('bin/iFit.log', maxBytes=20000, backupCount=5)
-fh.setLevel(logging.INFO)
-fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
-fh.setFormatter(logging.Formatter(fmt))
-logger.addHandler(fh)
 
+
+# =============================================================================
+# =============================================================================
+# Setup logging
+# =============================================================================
+# =============================================================================
+
+class Signaller(QObject):
+    """Signaller object for logging from QThreads."""
+    signal = Signal(str, logging.LogRecord)
+
+
+class QtHandler(logging.Handler):
+    """Handler object for handling logs from QThreads."""
+
+    def __init__(self, slotfunc, *args, **kwargs):
+        super(QtHandler, self).__init__(*args, **kwargs)
+        self.signaller = Signaller()
+        self.signaller.signal.connect(slotfunc)
+
+    def emit(self, record):
+        s = self.format(record)
+        self.signaller.signal.emit(s, record)
+
+
+# =============================================================================
+# =============================================================================
+# Main GUI Window
+# =============================================================================
+# =============================================================================
 
 class MainWindow(QMainWindow):
     """View for the iFit GUI."""
 
-    def __init__(self):
+    # Set log level colors
+    LOGCOLORS = {
+        logging.DEBUG: 'darkgrey',
+        logging.INFO: 'darkgrey',
+        logging.WARNING: 'orange',
+        logging.ERROR: 'red',
+        logging.CRITICAL: 'purple',
+    }
+
+    def __init__(self, app, *args, **kwargs):
         """View initialiser."""
-        super().__init__()
+        super(MainWindow, self).__init__(*args, **kwargs)
+        self.app = app
 
         # Set the window properties
         self.setWindowTitle(f'iFit {__version__}')
@@ -86,10 +122,11 @@ class MainWindow(QMainWindow):
             self.load_config(fname=self.config_fname)
 
         # Update GUI theme
+        if self.theme == 'Light':
+            self.theme = 'Dark'
         if self.theme == 'Dark':
-            self.changeThemeDark()
-        elif self.theme == 'Light':
-            self.changeThemeLight()
+            self.theme = 'Light'
+        self.changeTheme()
 
     def _createApp(self):
         """Build the main GUI."""
@@ -110,7 +147,7 @@ class MainWindow(QMainWindow):
 
         # Change theme action
         themeAct = QAction(QIcon('bin/icons/theme.png'), '&Change Theme', self)
-        themeAct.triggered.connect(self.change_theme)
+        themeAct.triggered.connect(self.changeTheme)
 
         # ILS GUI action
         ilsAct = QAction(QIcon('bin/icons/ils.png'), '&Measure ILS', self)
@@ -460,15 +497,16 @@ class MainWindow(QMainWindow):
         self.last_err = QLabel('-')
         layout.addWidget(self.last_err, 2, 3)
 
-        # Create a textbox to display the program logs
-        self.logBox = QTextEditLogger(self)
-        fmt = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
-        self.logBox.setFormatter(fmt)
-        logger.addHandler(self.logBox)
+        # Create a textbox to display the program log
+        self.logBox = QPlainTextEdit(self)
+        self.logBox.setReadOnly(True)
+        formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
+        self.handler = QtHandler(self.updateLog)
+        self.handler.setFormatter(formatter)
+        logger.addHandler(self.handler)
         logger.setLevel(logging.INFO)
-        layout.addWidget(self.logBox.widget, 3, 0, 1, 6)
-        msg = 'Welcome to iFit! Written by Ben Esse'
-        self.logBox.widget.appendPlainText(msg)
+        layout.addWidget(self.logBox, 2, 0, 1, 5)
+        logger.info(f'Welcome to iFit v{__version__}! Written by Ben Esse')
 
 # =============================================================================
 #   Set up graphs and settings
@@ -704,10 +742,10 @@ class MainWindow(QMainWindow):
         # Create tabs for settings
         slayout = QGridLayout(tab2)
 
-        stab1 = QWidget()
-        stab2 = QWidget()
-        stab3 = QWidget()
-        stab4 = QWidget()
+        stab1 = QScrollArea()
+        stab2 = QScrollArea()
+        stab3 = QScrollArea()
+        stab4 = QScrollArea()
 
         tabwidget = QTabWidget()
         tabwidget.addTab(stab1, 'Model')
@@ -787,13 +825,13 @@ class MainWindow(QMainWindow):
         self.widgets['dark_flag'].setToolTip('Remove averaged dark spectrum '
                                              + 'before fitting')
         layout.addWidget(self.widgets['dark_flag'], nrow, ncol, 1, 2)
-        # nrow += 1
+        nrow += 1
 
         # Add sterio button for flat correction
         self.widgets['flat_flag'] = QCheckBox('Correct Flat\nSpectrum?')
         self.widgets['flat_flag'].setToolTip('Remove flat-field spectrum '
                                              + 'before fitting')
-        layout.addWidget(self.widgets['flat_flag'], nrow, ncol+2, 1, 2)
+        layout.addWidget(self.widgets['flat_flag'], nrow, ncol, 1, 2)
         nrow += 1
 
         # Add option to apply pre-fit wavelength shift
@@ -1278,6 +1316,13 @@ class MainWindow(QMainWindow):
 #   Global Slots
 # =============================================================================
 
+    @Slot(str, logging.LogRecord)
+    def updateLog(self, status, record):
+        """Write log statements to the logBox widget."""
+        color = self.LOGCOLORS.get(record.levelno, 'black')
+        s = '<pre><font color="%s">%s</font></pre>' % (color, status)
+        self.logBox.appendHtml(s)
+
     def update_progress(self, prog):
         """Slot to update the progress bar."""
         self.progress.setValue(prog)
@@ -1514,16 +1559,18 @@ class MainWindow(QMainWindow):
                                              dark_spec)
         self.analysisWorker.moveToThread(self.analysisThread)
         self.analysisThread.started.connect(self.analysisWorker.run)
-        self.analysisWorker.progress.connect(self.update_progress)
-        self.analysisWorker.error.connect(self.update_error)
-        self.analysisWorker.status.connect(self.update_status)
-        self.analysisWorker.initializeTable.connect(
+        self.analysisWorker.signals.progress.connect(self.update_progress)
+        self.analysisWorker.signals.error.connect(self.update_error)
+        self.analysisWorker.signals.status.connect(self.update_status)
+        self.analysisWorker.signals.initializeTable.connect(
             self.initialize_results_table)
-        self.analysisWorker.plotData.connect(self.get_plot_data)
-        self.analysisWorker.finished.connect(self.analysis_complete)
-        self.analysisWorker.finished.connect(self.analysisThread.quit)
-        self.analysisWorker.finished.connect(self.analysisWorker.deleteLater)
-        self.analysisThread.finished.connect(self.analysisThread.deleteLater)
+        self.analysisWorker.signals.plotData.connect(self.get_plot_data)
+        self.analysisWorker.signals.finished.connect(self.analysis_complete)
+        self.analysisWorker.signals.finished.connect(self.analysisThread.quit)
+        self.analysisWorker.signals.finished.connect(
+            self.analysisWorker.deleteLater)
+        self.analysisThread.finished.connect(
+            self.analysisThread.deleteLater)
         self.analysisThread.start()
 
         # Disable the start button and enable the pause/stop buttons
@@ -1641,11 +1688,13 @@ class MainWindow(QMainWindow):
                 self.gpsWorker = GPSWorker(self.gps)
                 self.gpsWorker.moveToThread(self.gpsThread)
                 self.gpsThread.started.connect(self.gpsWorker.run)
-                self.gpsWorker.position.connect(self.update_position)
-                self.gpsWorker.error.connect(self.update_error)
-                self.gpsWorker.finished.connect(self.gpsThread.quit)
-                self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)
-                self.gpsThread.finished.connect(self.gpsThread.deleteLater)
+                self.gpsWorker.signals.position.connect(self.update_position)
+                self.gpsWorker.signals.error.connect(self.update_error)
+                self.gpsWorker.signals.finished.connect(self.gpsThread.quit)
+                self.gpsWorker.signals.finished.connect(
+                    self.gpsWorker.deleteLater)
+                self.gpsThread.finished.connect(
+                    self.gpsThread.deleteLater)
                 self.gpsThread.start()
 
         else:
@@ -1745,10 +1794,10 @@ class MainWindow(QMainWindow):
         self.scopeWorker = AcqScopeWorker(self.spectrometer)
         self.scopeWorker.moveToThread(self.scopeThread)
         self.scopeThread.started.connect(self.scopeWorker.run)
-        self.scopeWorker.plotSpec.connect(self.plot_spectrum)
-        self.scopeWorker.error.connect(self.update_error)
-        self.scopeWorker.finished.connect(self.scopeThread.quit)
-        self.scopeWorker.finished.connect(self.scopeWorker.deleteLater)
+        self.scopeWorker.signals.plotSpec.connect(self.plot_spectrum)
+        self.scopeWorker.signals.error.connect(self.update_error)
+        self.scopeWorker.signals.finished.connect(self.scopeThread.quit)
+        self.scopeWorker.signals.finished.connect(self.scopeWorker.deleteLater)
         self.scopeThread.finished.connect(self.scopeThread.deleteLater)
         self.scopeThread.start()
 
@@ -1805,21 +1854,21 @@ class MainWindow(QMainWindow):
         if mode == 'acquire_darks':
             self.specThread.started.connect(self.specWorker.acquire_dark)
             self.progress.setRange(0, 100)
-            self.specWorker.setDark.connect(self.set_dark_spectrum)
+            self.specWorker.signals.setDark.connect(self.set_dark_spectrum)
 
         else:
             self.specThread.started.connect(self.specWorker.acquire_spec)
             self.progress.setRange(0, 0)
-            self.specWorker.setSpec.connect(self.set_meas_spectrum)
+            self.specWorker.signals.setSpec.connect(self.set_meas_spectrum)
 
         # Assign signals
-        self.specWorker.plotSpec.connect(self.plot_spectrum)
-        self.specWorker.progress.connect(self.update_progress)
-        self.specWorker.error.connect(self.update_error)
-        self.specWorker.status.connect(self.update_status)
-        self.specWorker.finished.connect(self.acquisition_complete)
-        self.specWorker.finished.connect(self.specThread.quit)
-        self.specWorker.finished.connect(self.specWorker.deleteLater)
+        self.specWorker.signals.plotSpec.connect(self.plot_spectrum)
+        self.specWorker.signals.progress.connect(self.update_progress)
+        self.specWorker.signals.error.connect(self.update_error)
+        self.specWorker.signals.status.connect(self.update_status)
+        self.specWorker.signals.finished.connect(self.acquisition_complete)
+        self.specWorker.signals.finished.connect(self.specThread.quit)
+        self.specWorker.signals.finished.connect(self.specWorker.deleteLater)
         self.specThread.finished.connect(self.specThread.deleteLater)
         self.specThread.start()
 
@@ -1840,97 +1889,36 @@ class MainWindow(QMainWindow):
 #   Gui Theme
 # =============================================================================
 
-    def change_theme(self):
+    def changeTheme(self):
         """Change the theme."""
         if self.theme == 'Light':
-            self.changeThemeDark()
+            # Set overall style
+            self.app.setStyleSheet(qdarktheme.load_stylesheet())
+            bg_color = 'k'
+            plotpen = pg.mkPen('darkgrey', width=1)
             self.theme = 'Dark'
-        elif self.theme == 'Dark':
-            self.changeThemeLight()
+        else:
+            # Set overall style
+            self.app.setStyleSheet(qdarktheme.load_stylesheet("light"))
+            bg_color = 'w'
+            plotpen = pg.mkPen('k', width=1)
             self.theme = 'Light'
 
-    @pyqtSlot()
-    def changeThemeDark(self):
-        """Change theme to dark."""
-        darkpalette = QPalette()
-        darkpalette.setColor(QPalette.Window, QColor(53, 53, 53))
-        darkpalette.setColor(QPalette.WindowText, Qt.white)
-        darkpalette.setColor(QPalette.Base, QColor(25, 25, 25))
-        darkpalette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        darkpalette.setColor(QPalette.ToolTipBase, Qt.black)
-        darkpalette.setColor(QPalette.ToolTipText, Qt.white)
-        darkpalette.setColor(QPalette.Text, Qt.white)
-        darkpalette.setColor(QPalette.Button, QColor(53, 53, 53))
-        darkpalette.setColor(QPalette.Active, QPalette.Button,
-                             QColor(53, 53, 53))
-        darkpalette.setColor(QPalette.ButtonText, Qt.white)
-        darkpalette.setColor(QPalette.BrightText, Qt.red)
-        darkpalette.setColor(QPalette.Link, QColor(42, 130, 218))
-        darkpalette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        darkpalette.setColor(QPalette.HighlightedText, Qt.black)
-        darkpalette.setColor(QPalette.Disabled, QPalette.ButtonText,
-                             Qt.darkGray)
-        QApplication.instance().setPalette(darkpalette)
+        for graphwin in [self.graphwin, self.scopewin, self.mapwin]:
+            graphwin.setBackground(bg_color)
 
-        # Update graphs
-        self.graphwin.setBackground('k')
-        self.scopewin.setBackground('k')
-        self.mapwin.setBackground('k')
-        pen = pg.mkPen('w', width=1)
-
-        axes = self.plot_axes + [self.scope_ax, self.map_ax]
-
-        for ax in axes:
-            ax.getAxis('left').setPen(pen)
-            ax.getAxis('right').setPen(pen)
-            ax.getAxis('top').setPen(pen)
-            ax.getAxis('bottom').setPen(pen)
-            ax.getAxis('left').setTextPen(pen)
-            ax.getAxis('bottom').setTextPen(pen)
-        # self.scope_ax.getAxis('left').setPen(pen)
-        # self.scope_ax.getAxis('right').setPen(pen)
-        # self.scope_ax.getAxis('top').setPen(pen)
-        # self.scope_ax.getAxis('bottom').setPen(pen)
-
-    @pyqtSlot()
-    def changeThemeLight(self):
-        """Change theme to light."""
-        QApplication.instance().setPalette(self.style().standardPalette())
-        self.graphwin.setBackground('w')
-        self.scopewin.setBackground('w')
-        self.mapwin.setBackground('w')
-        pen = pg.mkPen('k', width=1)
-
-        axes = self.plot_axes + [self.scope_ax, self.map_ax]
-
-        for ax in axes:
-            ax.getAxis('left').setPen(pen)
-            ax.getAxis('right').setPen(pen)
-            ax.getAxis('top').setPen(pen)
-            ax.getAxis('bottom').setPen(pen)
-            ax.getAxis('left').setTextPen(pen)
-            ax.getAxis('bottom').setTextPen(pen)
-        # self.scope_ax.getAxis('left').setPen(pen)
-        # self.scope_ax.getAxis('right').setPen(pen)
-        # self.scope_ax.getAxis('top').setPen(pen)
-        # self.scope_ax.getAxis('bottom').setPen(pen)
+        for ax in self.plot_axes + [self.scope_ax, self.map_ax]:
+            ax.getAxis('left').setPen(plotpen)
+            ax.getAxis('right').setPen(plotpen)
+            ax.getAxis('top').setPen(plotpen)
+            ax.getAxis('bottom').setPen(plotpen)
+            ax.getAxis('left').setTextPen(plotpen)
+            ax.getAxis('bottom').setTextPen(plotpen)
 
 
 # Cliet Code
-def main():
-    """Run main function."""
-    # Create an instance of QApplication
-    app = QApplication(sys.argv)
-
-    app.setStyle("Fusion")
-
-    # Show the GUI
-    view = MainWindow()
-    view.show()
-
-    # Execute the main loop
-    sys.exit(app.exec_())
-
-
 if __name__ == '__main__':
-    main()
+    app = QApplication(sys.argv)
+    window = MainWindow(app)
+    window.show()
+    sys.exit(app.exec())
