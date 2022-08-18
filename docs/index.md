@@ -1,5 +1,7 @@
 # iFit
 
+[Theory](theory.md)
+
 * TOC
 {:toc}
 
