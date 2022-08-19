@@ -1,5 +1,3 @@
-[Home](index.md) | [Theory](theory.md) | [Software](software.md) | [Tools](tools.md)
-
 # iFit GUI Tools
 
 iFit comes with a number of useful tools to aid with analysis. These are:

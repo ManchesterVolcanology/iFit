@@ -1,5 +1,3 @@
-[Home](index.md) | [Theory](theory.md) | [Software](software.md) | [Tools](tools.md)
-
 # iFit
 
 ## Introduction

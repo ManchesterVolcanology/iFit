@@ -1,5 +1,3 @@
-[Home](index.md) | [Theory](theory.md) | [Software](software.md) | [Tools](tools.md)
-
 # iFit User Interface
 
 To avoid the need to write a script for every use a Graphical User Interface (GUI) was developed for iFit. This also helps to facilitate spectra acquisition and real-time analysis. This section will outline the setup and use of the GUI for both real-time and post analysis. This will apply for running the GUI with Python or from an executable file.
