@@ -921,11 +921,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['hi_int_limit'], nrow, ncol+1)
         nrow += 1
 
-        vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        layout.addItem(vspacer, nrow, 0, 1, -1)
+        # vspacer = QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        # layout.addItem(vspacer, nrow, 0, 1, -1)
 
-        hspacer = QSpacerItem(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        layout.addItem(hspacer, 0, 10, -1, 1)
+        # hspacer = QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        # layout.addItem(hspacer, 0, 10, -1, 1)
 
 # =============================================================================
 #       Spectrometer Settings
@@ -1030,11 +1030,11 @@ class MainWindow(QMainWindow):
         self.widgets['bad_pixels'].setFixedSize(300, 20)
         layout.addWidget(self.widgets['bad_pixels'], nrow, ncol+1, 1, 2)
 
-        vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        layout.addItem(vspacer, nrow, 0, 1, -1)
+        # vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
+        # layout.addItem(vspacer, nrow, 0, 1, -1)
 
-        hspacer = QSpacerItem(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        layout.addItem(hspacer, 0, 4, -1, 1)
+        # hspacer = QSpacerItem(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        # layout.addItem(hspacer, 0, 4, -1, 1)
 
 # =============================================================================
 #       Parameter Settings
@@ -1074,11 +1074,11 @@ class MainWindow(QMainWindow):
         tabwidget.addTab(ptab5, 'Light Dilution')
         layout.addWidget(tabwidget, 1, 0, 1, 6)
 
-        vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        layout.addItem(vspacer, nrow, 0, 1, -1)
+        # vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
+        # layout.addItem(vspacer, nrow, 0, 1, -1)
 
-        hspacer = QSpacerItem(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        layout.addItem(hspacer, 0, 5, -1, 1)
+        # hspacer = QSpacerItem(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        # layout.addItem(hspacer, 0, 5, -1, 1)
 
         # Create the absorber and polynomial tables
         self.gas_table = ParamTable(ptab1, 'param', 620, 400)
