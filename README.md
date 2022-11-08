@@ -58,7 +58,7 @@ pip install numpy scipy
 For full functionality, including the GUI, install the following:
 
 ```
-pip install numpy scipy matplotlib tqdm pandas pyyaml pyserial utm PySide6 pyqtgraph seabreeze
+pip install numpy scipy matplotlib tqdm pandas pyyaml pyserial utm PySide6 pyqtgraph seabreeze pyqtdarktheme
 ```
 
 Finally, to install the relevant drivers for the python-seabreeze library to control Ocean Insight (was Ocean Optics) spectrometers run the following:
