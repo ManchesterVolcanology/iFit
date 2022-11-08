@@ -32,7 +32,7 @@ If you are working on Windows and do not have git, checkout git for windows.
 From within the iFit directory (or another location you choose) create the virtual environment:
 
 ```
-python python -m venv venv
+python -m venv venv
 ```
 
 This will create a local directory holding the virtual environment. To activate it run:
