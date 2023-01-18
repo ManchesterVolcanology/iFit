@@ -14,12 +14,12 @@ import pandas as pd
 from datetime import datetime
 from functools import partial
 import serial.tools.list_ports
-from PySide6.QtCore import Qt, QObject, Signal
-from PySide6.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
-                               QSpinBox, QCheckBox, QFileDialog, QPushButton,
-                               QTableWidgetItem, QMenu, QTableWidget, QDialog,
-                               QHeaderView, QFormLayout, QFrame, QVBoxLayout,
-                               QHBoxLayout, QLabel)
+from PySide2.QtCore import Qt, QObject, Signal
+from PySide2.QtWidgets import (
+    QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox, QSpinBox, QCheckBox,
+    QFileDialog, QPushButton, QTableWidgetItem, QMenu, QTableWidget, QDialog,
+    QHeaderView, QFormLayout, QFrame, QVBoxLayout, QHBoxLayout, QLabel
+)
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser

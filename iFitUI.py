@@ -5,24 +5,23 @@ import yaml
 import logging
 import qdarktheme
 import numpy as np
-import PySide6
+import PySide2
 import pyqtgraph as pg
 from datetime import datetime
 from functools import partial
-from PySide6.QtGui import QIcon, QFont, QAction
-from PySide6.QtCore import Qt, QThread, Slot, Signal, QObject
-from PySide6.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
-                               QMessageBox, QLabel, QComboBox, QTextEdit,
-                               QLineEdit, QPushButton, QProgressBar, QFrame,
-                               QSplitter, QCheckBox, QSizePolicy, QSpacerItem,
-                               QTabWidget, QFileDialog, QScrollArea,
-                               QToolBar, QTableWidget, QHeaderView,
-                               QTableWidgetItem, QPlainTextEdit)
+from PySide2.QtGui import QIcon, QFont
+from PySide2.QtCore import Qt, QThread, Slot, Signal, QObject
+from PySide2.QtWidgets import (
+    QMainWindow, QWidget, QApplication, QGridLayout, QMessageBox, QLabel,
+    QComboBox, QTextEdit, QLineEdit, QPushButton, QProgressBar, QFrame,
+    QSplitter, QCheckBox, QTabWidget, QFileDialog, QScrollArea, QToolBar,
+    QTableWidget, QHeaderView, QTableWidgetItem, QPlainTextEdit, QAction
+)
 
-from ifit.gui_functions import (Widgets, SpinBox, DSpinBox, ParamTable,
-                                AnalysisWorker, GPSWorker,
-                                AcqScopeWorker, AcqSpecWorker, QHLine, QVLine,
-                                browse, GPSWizard)
+from ifit.gui_functions import (
+    Widgets, SpinBox, DSpinBox, ParamTable, AnalysisWorker, GPSWorker,
+    AcqScopeWorker, AcqSpecWorker, QHLine, QVLine, browse, GPSWizard
+)
 from ifit.gui_tools import ILSWindow, FLATWindow, CalcFlux, LDFWindow
 from ifit.spectrometers import Spectrometer
 from ifit.load_spectra import average_spectra
@@ -921,12 +920,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['hi_int_limit'], nrow, ncol+1)
         nrow += 1
 
-        # vspacer = QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        # layout.addItem(vspacer, nrow, 0, 1, -1)
-
-        # hspacer = QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        # layout.addItem(hspacer, 0, 10, -1, 1)
-
 # =============================================================================
 #       Spectrometer Settings
 # =============================================================================
@@ -1029,12 +1022,6 @@ class MainWindow(QMainWindow):
         self.widgets['bad_pixels'] = QLineEdit()
         self.widgets['bad_pixels'].setFixedSize(300, 20)
         layout.addWidget(self.widgets['bad_pixels'], nrow, ncol+1, 1, 2)
-
-        # vspacer = QSpacerItem(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        # layout.addItem(vspacer, nrow, 0, 1, -1)
-
-        # hspacer = QSpacerItem(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        # layout.addItem(hspacer, 0, 4, -1, 1)
 
 # =============================================================================
 #       Parameter Settings
@@ -1921,4 +1908,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow(app)
     window.show()
-    sys.exit(app.exec())
+    sys.exit(app.exec_())
