@@ -656,7 +656,7 @@ class MainWindow(QMainWindow):
         self.map_ax.setAspectLocked(True)
 
         # Generate the colorbar
-        self.cmap = pg.colormap.get('viridis', source='matplotlib')
+        self.cmap = pg.colormap.get('viridis')
         im = pg.ImageItem()
         self.cbar = pg.ColorBarItem(values=(0, 100), colorMap=self.cmap,
                                     label='Fit Value')
