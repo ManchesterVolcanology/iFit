@@ -18,7 +18,7 @@ from functools import partial
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
 from PySide2.QtGui import QIcon, QPalette, QColor
-from PySide2.QtCore import Qt, QThreadPool, QObject, Signal, QThread
+from PySide2.QtCore import Qt, QThreadPool, QObject, Signal, QThread, Slot
 from PySide2.QtWidgets import (
     QMainWindow, QWidget, QApplication, QGridLayout, QLabel, QTextEdit,
     QLineEdit, QPushButton, QFileDialog, QScrollArea, QCheckBox, QSplitter,
@@ -40,8 +40,10 @@ except ImportError:
     from haversine import haversine
 
 
-COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
-          '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+COLORS = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
+    '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+]
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,15 @@ class QtHandler(logging.Handler):
 
 class CalcFlux(QMainWindow):
     """Open a window for flux analysis."""
+
+    # Set log level colors
+    LOGCOLORS = {
+        logging.DEBUG: 'darkgrey',
+        logging.INFO: 'darkgrey',
+        logging.WARNING: 'orange',
+        logging.ERROR: 'red',
+        logging.CRITICAL: 'purple',
+    }
 
     def __init__(self, parent=None):
         """Initialise the window."""
@@ -151,8 +162,10 @@ class CalcFlux(QMainWindow):
         layout.addWidget(self.widgets['so2_path'], 0, 1)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.widgets['so2_path'],
-                                    'single', "Comma Separated (*.csv)"))
+        btn.clicked.connect(partial(
+            browse, self, self.widgets['so2_path'], 'single',
+            "Comma Separated (*.csv)"
+        ))
         layout.addWidget(btn, 0, 2)
 
         # Add checkbox to remove bad fits
@@ -166,8 +179,10 @@ class CalcFlux(QMainWindow):
         layout.addWidget(self.widgets['gps_path'], 1, 1)
         gps_btn = QPushButton('Browse')
         gps_btn.setFixedSize(70, 25)
-        gps_btn.clicked.connect(partial(browse, self, self.widgets['gps_path'],
-                                        'single', "GPS File (*.txt)"))
+        gps_btn.clicked.connect(partial(
+            browse, self, self.widgets['gps_path'], 'single',
+            "GPS File (*.txt)"
+        ))
         layout.addWidget(gps_btn, 1, 2)
 
         # Add checkbox to remove bad fits
@@ -200,8 +215,9 @@ class CalcFlux(QMainWindow):
         layout.addWidget(self.widgets['out_path'], 3, 1)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.widgets['out_path'],
-                                    'folder'))
+        btn.clicked.connect(partial(
+            browse, self, self.widgets['out_path'], 'folder'
+        ))
         layout.addWidget(btn, 3, 2)
 
 # =============================================================================
@@ -225,7 +241,8 @@ class CalcFlux(QMainWindow):
         self.widgets['volcano'].addItems(
             ['--select--'] + list(self.volcano_data.keys()))
         self.widgets['volcano'].currentIndexChanged.connect(
-            self.update_volcano_data)
+            self.update_volcano_data
+        )
         layout.addWidget(self.widgets['volcano'], 0, 1)
 
         # Create inputs for the volcano latitude
@@ -366,9 +383,10 @@ class CalcFlux(QMainWindow):
         # Add the baseline
         baseline = pg.InfiniteLine(0, angle=0, movable=True)
 
-        self.ax_elements = {'line': line, 'sline': sline, 'hi_err': l1,
-                            'lo_err': l2, 'region_select': region_select,
-                            'baseline': baseline}
+        self.ax_elements = {
+            'line': line, 'sline': sline, 'hi_err': l1, 'lo_err': l2,
+            'region_select': region_select, 'baseline': baseline
+        }
         for el in self.ax_elements.values():
             self.ax.addItem(el)
 
@@ -397,24 +415,30 @@ class CalcFlux(QMainWindow):
         trav_scat = pg.ScatterPlotItem()
         trav_scat.setZValue(-1)
         trav_line = pg.PlotCurveItem(pen=pg.mkPen(COLORS[2], width=2))
-        volcano = pg.ScatterPlotItem(symbol='o', size=10, name='Volcano',
-                                     brush=pg.mkBrush(color='r'))
+        volcano = pg.ScatterPlotItem(
+            symbol='o', size=10, name='Volcano', brush=pg.mkBrush(color='r')
+        )
         plume_start = pg.ScatterPlotItem(
             symbol='t1', pen=pg.mkPen(color='w'), size=10,
-            brush=pg.mkBrush(color=COLORS[2]), name='Plume Start')
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume Start'
+        )
         plume_stop = pg.ScatterPlotItem(
             symbol='t', pen=pg.mkPen(color='w'), size=10,
-            brush=pg.mkBrush(color=COLORS[2]), name='Plume Centre')
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume Centre'
+        )
         plume_cent = pg.ScatterPlotItem(
             symbol='o', pen=pg.mkPen(color='w'), size=10,
-            brush=pg.mkBrush(color=COLORS[2]), name='Plume End')
-        self.map_elements = {'full_trav_line': full_trav_line,
-                             'trav_line': trav_line,
-                             'trav_scat': trav_scat,
-                             'plume_start': plume_start,
-                             'plume_stop': plume_stop,
-                             'plume_cent': plume_cent,
-                             'volcano': volcano}
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume End'
+        )
+        self.map_elements = {
+            'full_trav_line': full_trav_line,
+            'trav_line': trav_line,
+            'trav_scat': trav_scat,
+            'plume_start': plume_start,
+            'plume_stop': plume_stop,
+            'plume_cent': plume_cent,
+            'volcano': volcano
+        }
         for el in self.map_elements.values():
             self.mapax.addItem(el)
 
@@ -423,7 +447,7 @@ class CalcFlux(QMainWindow):
         self.mapax.setLabel('bottom', 'Longitude')
 
         # Generate the colormap
-        self.cm = pg.colormap.get('magma', source='matplotlib')
+        self.cm = pg.colormap.get('magma')
 
         # Make pens for plotting
         self.p0 = pg.mkPen(color='#1f77b4', width=1.5)
@@ -456,11 +480,13 @@ class CalcFlux(QMainWindow):
             # Find the bounds of the selected area
             i0, i1 = self.ax_elements['region_select'].getRegion()
             if self.widgets.get('x_axis') == 'Time':
-                idx = np.where(np.logical_and(self.so2_time >= i0,
-                                              self.so2_time <= i1))
+                idx = np.where(np.logical_and(
+                    self.so2_time >= i0, self.so2_time <= i1
+                ))
             else:
-                idx = np.where(np.logical_and(self.so2_num >= i0,
-                                              self.so2_num <= i1))
+                idx = np.where(np.logical_and(
+                    self.so2_num >= i0, self.so2_num <= i1
+                ))
 
             # Extract the relevant gps data and interpolate onto the so2 grid
             so2_time = self.so2_time[idx]
@@ -503,9 +529,10 @@ class CalcFlux(QMainWindow):
         # Ask to save any outstanding fluxes
         if self.save_flag:
             options = QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
-            reply = QMessageBox.question(self, 'Message',
-                                         "Would you like to save the fluxes?",
-                                         options, QMessageBox.Cancel)
+            reply = QMessageBox.question(
+                self, 'Message', "Would you like to save the fluxes?",
+                options, QMessageBox.Cancel
+            )
 
             if reply == QMessageBox.Yes:
                 self.save_fluxes()
@@ -516,11 +543,13 @@ class CalcFlux(QMainWindow):
 
         # Read in the SO2 results
         logger.info('Importing gas data...')
-        so2_df = pd.read_csv(self.widgets.get('so2_path'),
-                             parse_dates=['Time'], comment='#')
+        so2_df = pd.read_csv(
+            self.widgets.get('so2_path'), parse_dates=['Time'], comment='#'
+        )
 
-        self.so2_time = np.array([t.hour + t.minute/60 + t.second/3600
-                                  for t in so2_df['Time']])
+        self.so2_time = np.array(
+            [t.hour + t.minute/60 + t.second/3600 for t in so2_df['Time']]
+        )
         self.so2_num = so2_df['Number'].to_numpy()
         self.so2_scd = so2_df['SO2'].to_numpy()
         self.so2_err = so2_df['SO2_err'].to_numpy()
@@ -537,15 +566,18 @@ class CalcFlux(QMainWindow):
 
             # Read in the GPS data
             logger.info('Importing GPS data...')
-            gps_df = pd.read_table(self.widgets.get('gps_path'), sep='\t',
-                                   parse_dates=['time'])
+            gps_df = pd.read_table(
+                self.widgets.get('gps_path'), sep='\t', parse_dates=['time']
+            )
             lat = gps_df['latitude'].to_numpy()
             lon = gps_df['longitude'].to_numpy()
 
             # Correct the GPS time for the time difference
             tdiff = float(self.widgets.get('tdiff'))
-            gps_time = np.array([t.hour + t.minute/60 + t.second/3600 + tdiff
-                                 for t in gps_df['time']])
+            gps_time = np.array([
+                t.hour + t.minute/60 + t.second/3600 + tdiff
+                for t in gps_df['time']
+            ])
 
             # Interpolate the GPS locations onto the spectra times
             self.lat = griddata(gps_time, lat, self.so2_time)
@@ -561,8 +593,10 @@ class CalcFlux(QMainWindow):
         if np.nanmax(self.so2_scd) > 1e6:
             self.order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
             ploty = ploty / 10**self.order
-            plot_err = [ploty - self.so2_err/10**self.order,
-                        ploty + self.so2_err/10**self.order]
+            plot_err = [
+                ploty - self.so2_err/10**self.order,
+                ploty + self.so2_err/10**self.order
+            ]
             self.ax.setLabel('left', f'SO2 SCD (1e{self.order})')
 
         if self.widgets.get('x_axis') == 'Time':
@@ -580,10 +614,13 @@ class CalcFlux(QMainWindow):
         # Update map
         norm = (ploty-np.nanmin(ploty)) / np.nanmax(ploty-np.nanmin(ploty))
         pens = [pg.mkPen(color=self.cm.map(val)) for val in norm]
-        brushes = [pg.mkBrush(color=self.cm.map(val))
-                   for val in norm]
+        brushes = [
+            pg.mkBrush(color=self.cm.map(val))
+            for val in norm
+        ]
         self.map_elements['trav_scat'].setData(
-            x=self.lon, y=self.lat, pen=pens, brush=brushes)
+            x=self.lon, y=self.lat, pen=pens, brush=brushes
+        )
         self.map_elements['full_trav_line'].setData(x=self.lon, y=self.lat)
 
         # Create a traverse counter and dictionary to hold the results
@@ -606,8 +643,10 @@ class CalcFlux(QMainWindow):
             if np.nanmax(self.so2_scd) > 1e6:
                 self.order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
                 ploty = ploty / 10**self.order
-                plot_err = [ploty - self.so2_err/10**self.order,
-                            ploty + self.so2_err/10**self.order]
+                plot_err = [
+                    ploty - self.so2_err/10**self.order,
+                    ploty + self.so2_err/10**self.order
+                ]
                 self.ax.setLabel('left', f'Fit value (1e{self.order})')
 
             if self.widgets.get('x_axis') == 'Time':
@@ -658,11 +697,13 @@ class CalcFlux(QMainWindow):
         # Find the bounds of the selected area
         i0, i1 = self.ax_elements['region_select'].getRegion()
         if self.widgets.get('x_axis') == 'Time':
-            idx = np.where(np.logical_and(self.so2_time >= i0,
-                                          self.so2_time <= i1))
+            idx = np.where(
+                np.logical_and(self.so2_time >= i0, self.so2_time <= i1)
+            )
         else:
-            idx = np.where(np.logical_and(self.so2_num >= i0,
-                                          self.so2_num <= i1))
+            idx = np.where(
+                np.logical_and(self.so2_num >= i0, self.so2_num <= i1)
+            )
 
         # Extract the travese from the SO2 data
         so2_time = self.so2_time[idx]
@@ -688,8 +729,10 @@ class CalcFlux(QMainWindow):
         logger.info(f'Azimuth from vent: {np.degrees(plume_bearing):.02f} deg')
 
         # Calculate the distance and bearing of each measurement vector
-        vect = [haversine([lat[i-1], lon[i-1]], [lat[i], lon[i]])
-                for i in range(1, len(lat))]
+        vect = [
+            haversine([lat[i-1], lon[i-1]], [lat[i], lon[i]])
+            for i in range(1, len(lat))
+        ]
 
         # Unpack the distance and bearing from the vectors
         trav_dist, trav_bearing = np.asarray(vect).T
@@ -703,8 +746,9 @@ class CalcFlux(QMainWindow):
         so2_molec_per_m2 = so2_scd * 1.0e4
 
         # Multiply by the distance moved and sum
-        so2_molec_per_m = np.nansum(np.multiply(so2_molec_per_m2[1:],
-                                                corr_dist))
+        so2_molec_per_m = np.nansum(
+            np.multiply(so2_molec_per_m2[1:], corr_dist)
+        )
 
         # Multiply by the wind speed
         so2_molec_per_s = so2_molec_per_m * wind_speed
@@ -735,10 +779,12 @@ class CalcFlux(QMainWindow):
 
         # Add the flux result to the table
         self.fluxTable.setRowCount(self.fluxTable.rowCount()+1)
-        self.fluxTable.setItem(self.trav_no, 0,
-                               QTableWidgetItem(f'{flux:.02f}'))
-        self.fluxTable.setItem(self.trav_no, 1,
-                               QTableWidgetItem(f'{flux_err:.02f}'))
+        self.fluxTable.setItem(
+            self.trav_no, 0, QTableWidgetItem(f'{flux:.02f}')
+        )
+        self.fluxTable.setItem(
+            self.trav_no, 1, QTableWidgetItem(f'{flux_err:.02f}')
+        )
 
         # Plot the traverse graphs
         self.map_elements['trav_line'].setData(lon, lat)
@@ -748,17 +794,20 @@ class CalcFlux(QMainWindow):
         self.map_elements['volcano'].setData([vlon], [vlat])
 
         # Collate the results
-        output_data = np.column_stack([so2_time[1:], so2_scd[1:], so2_err[1:],
-                                       lat[1:], lon[1:], trav_dist,
-                                       trav_bearing, corr_factor])
-        self.flux_data[f'trav{self.trav_no}'] = {'flux': flux,
-                                                 'flux_err': flux_err,
-                                                 'flux_units': flux_units,
-                                                 'wind_speed': wind_speed,
-                                                 'vlat': vlat,
-                                                 'vlon': vlon,
-                                                 'peak_loc': peak_loc,
-                                                 'output_data': output_data}
+        output_data = np.column_stack([
+            so2_time[1:], so2_scd[1:], so2_err[1:], lat[1:], lon[1:],
+            trav_dist, trav_bearing, corr_factor
+        ])
+        self.flux_data[f'trav{self.trav_no}'] = {
+            'flux': flux,
+            'flux_err': flux_err,
+            'flux_units': flux_units,
+            'wind_speed': wind_speed,
+            'vlat': vlat,
+            'vlon': vlon,
+            'peak_loc': peak_loc,
+            'output_data': output_data
+        }
 
         # Increment the counter
         self.trav_no += 1
@@ -786,15 +835,17 @@ class CalcFlux(QMainWindow):
 
             # Write the detailed output
             with open(out_path + 'flux_results.csv', 'w') as w:
-                w.write(f'Traverse Number,{i+1}\n'
-                        + f'Flux ({data["flux_units"]}),{data["flux"]}\n'
-                        + f'Error ({data["flux_units"]}),{data["flux_err"]}\n'
-                        + f'Wind Speed (m/s), {data["wind_speed"]}\n'
-                        + f'Volcano Lat/Lon,{data["vlat"]},{data["vlon"]}\n'
-                        + f'Plume Center,{data["peak_loc"][0]},'
-                        + f'{data["peak_loc"][1]}\n'
-                        + 'Time (Decimal hours),SO2 SCD,SO2 Err,Lat,Lon,'
-                        + 'Distance,Bearing,Correction Factor\n')
+                w.write(
+                    f'Traverse Number,{i+1}\n'
+                    f'Flux ({data["flux_units"]}),{data["flux"]}\n'
+                    f'Error ({data["flux_units"]}),{data["flux_err"]}\n'
+                    f'Wind Speed (m/s), {data["wind_speed"]}\n'
+                    f'Volcano Lat/Lon,{data["vlat"]},{data["vlon"]}\n'
+                    f'Plume Center,{data["peak_loc"][0]},'
+                    f'{data["peak_loc"][1]}\n'
+                    'Time (Decimal hours),SO2 SCD,SO2 Err,Lat,Lon,'
+                    'Distance,Bearing,Correction Factor\n'
+                )
 
                 for i, line in enumerate(data["output_data"]):
                     w.write(str(line[0]))
@@ -815,8 +866,10 @@ class CalcFlux(QMainWindow):
                 w.write(f'{fluxes[i]}, {errors[i]}\n')
             w.write(f'Av Flux = {np.average(fluxes):.02f} {flux_units}\n')
             w.write(f'Stdev = {np.std(fluxes):.02f} {flux_units}\n')
-            w.write(f'Weighted Mean Flux = {w_mean_flux:.02f}'
-                    + f' (+/- {w_mean_error:.02f}) {flux_units}')
+            w.write(
+                f'Weighted Mean Flux = {w_mean_flux:.02f}'
+                f' (+/- {w_mean_error:.02f}) {flux_units}'
+            )
 
         logger.info('Fluxes saved')
         self.save_flag = False
@@ -825,9 +878,10 @@ class CalcFlux(QMainWindow):
         """Handle GUI closure."""
         if self.save_flag:
             options = QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
-            reply = QMessageBox.question(self, 'Message',
-                                         "Would you like to save the fluxes?",
-                                         options, QMessageBox.Cancel)
+            reply = QMessageBox.question(
+                self, 'Message', "Would you like to save the fluxes?",
+                options, QMessageBox.Cancel
+            )
 
             if reply == QMessageBox.Yes:
                 self.save_fluxes()
@@ -865,6 +919,13 @@ class CalcFlux(QMainWindow):
         # Write the config
         with open('bin/.calc_flux_config.yml', 'w') as outfile:
             yaml.dump(config, outfile)
+
+    @Slot(str, logging.LogRecord)
+    def updateLog(self, status, record):
+        """Write log statements to the logBox widget."""
+        color = self.LOGCOLORS.get(record.levelno, 'black')
+        s = '<pre><font color="%s">%s</font></pre>' % (color, status)
+        self.logBox.appendHtml(s)
 
 
 # =============================================================================
@@ -905,11 +966,13 @@ class ILSWindow(QMainWindow):
         layout.addWidget(QLabel('Format:'), 0, 0)
         self.spec_type = QComboBox()
         self.spec_type.setToolTip('Choose spectrum format')
-        self.spec_type.addItems(['iFit',
-                                 'Master.Scope',
-                                 'Spectrasuite',
-                                 'mobileDOAS',
-                                 'Basic'])
+        self.spec_type.addItems([
+            'iFit',
+            'Master.Scope',
+            'Spectrasuite',
+            'mobileDOAS',
+            'Basic'
+        ])
         self.spec_type.setFixedSize(100, 20)
         layout.addWidget(self.spec_type, 0, 1)
 
@@ -939,8 +1002,9 @@ class ILSWindow(QMainWindow):
         layout.addWidget(self.save_path, 3, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.save_path,
-                                    'save'))
+        btn.clicked.connect(
+            partial(browse, self, self.save_path, 'save')
+        )
         layout.addWidget(btn, 3, 4)
 
         btn = QPushButton('Import')
@@ -960,7 +1024,6 @@ class ILSWindow(QMainWindow):
 
         graphwin = pg.GraphicsLayoutWidget(show=True)
         pg.setConfigOptions(antialias=True)
-        # pg.setConfigOptions(useOpenGL=True)
 
         w = QWidget()
         glayout = QGridLayout(w)
@@ -991,8 +1054,9 @@ class ILSWindow(QMainWindow):
         if files == '':
             dark = 0
         else:
-            x, dark = average_spectra(files.split('\n'),
-                                      self.spec_type.currentText())
+            x, dark = average_spectra(
+                files.split('\n'), self.spec_type.currentText()
+            )
             # for i, fname in enumerate(files.split('\n')):
             #     x, y = np.loadtxt(fname, unpack=True)
             #     if i == 0:
@@ -1015,8 +1079,9 @@ class ILSWindow(QMainWindow):
 
         # Add to the graph
         self.ax0.clear()
-        self.l0 = self.ax0.plot(self.x, self.spec,
-                                pen=pg.mkPen(color='#1f77b4', width=1.0))
+        self.l0 = self.ax0.plot(
+            self.x, self.spec, pen=pg.mkPen(color='#1f77b4', width=1.0)
+        )
 
         # Add the region selector
         self.lr = pg.LinearRegionItem([x[0], x[-1]])
@@ -1043,14 +1108,16 @@ class ILSWindow(QMainWindow):
 
         # Fit super gaussian
         p0 = [0.34, 2, 0.0, 0.0, 0.0, 1.0, 0.0]
-        self.popt, pcov = curve_fit(super_gaussian, grid, line, p0=p0)
+        self.popt, _ = curve_fit(super_gaussian, grid, line, p0=p0)
         ngrid = np.arange(grid[0], grid[-1]+0.01, 0.01)
         fit = super_gaussian(ngrid, *self.popt)
 
         # Plot
         self.ax1.clear()
-        self.ax1.plot(grid, line, pen=None, symbol='+', symbolPen=None,
-                      symbolSize=10, symbolBrush='#1f77b4')
+        self.ax1.plot(
+            grid, line, pen=None, symbol='+', symbolPen=None, symbolSize=10,
+            symbolBrush='#1f77b4'
+        )
         self.ax1.plot(ngrid, fit, pen=pg.mkPen(color='#ff7f0e', width=1.0))
 
     def save_fit(self):
@@ -1059,8 +1126,10 @@ class ILSWindow(QMainWindow):
 
         fwem = 2*w
 
-        np.savetxt(self.save_path.text(), [fwem, k, a_w, a_k],
-                   header='ILS parameters (FWEM, k, a_w, a_k)')
+        np.savetxt(
+            self.save_path.text(), [fwem, k, a_w, a_k],
+            header='ILS parameters (FWEM, k, a_w, a_k)'
+        )
 
 
 # =============================================================================
@@ -1123,8 +1192,9 @@ class FLATWindow(QMainWindow):
         layout.addWidget(self.save_path, 2, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.save_path,
-                                    'save'))
+        btn.clicked.connect(
+            partial(browse, self, self.save_path, 'save')
+        )
         layout.addWidget(btn, 2, 4)
 
         btn = QPushButton('Import')
@@ -1201,8 +1271,9 @@ class FLATWindow(QMainWindow):
         self.ax0.clear()
         self.ax1.clear()
         self.ax2.clear()
-        self.l0 = self.ax0.plot(self.x, self.y,
-                                pen=pg.mkPen(color='#1f77b4', width=1.0))
+        self.l0 = self.ax0.plot(
+            self.x, self.y, pen=pg.mkPen(color='#1f77b4', width=1.0)
+        )
 
         # Add the region selector
         self.lr = pg.LinearRegionItem([x[0], x[-1]])
@@ -1345,15 +1416,18 @@ class LDFWindow(QMainWindow):
         # Create an option menu for the spectra format
         layout.addWidget(QLabel('Format:'), 0, 0)
         self.spec_type = QComboBox()
-        self.spec_type.addItems(['iFit',
-                                 'Master.Scope',
-                                 'Spectrasuite',
-                                 'mobileDOAS',
-                                 'Basic'])
+        self.spec_type.addItems([
+            'iFit',
+            'Master.Scope',
+            'Spectrasuite',
+            'mobileDOAS',
+            'Basic'
+        ])
         self.spec_type.setFixedSize(100, 20)
         layout.addWidget(self.spec_type, 0, 1)
-        index = self.spec_type.findText(self.widgetData['spec_type'],
-                                        Qt.MatchFixedString)
+        index = self.spec_type.findText(
+            self.widgetData['spec_type'], Qt.MatchFixedString
+        )
         if index >= 0:
             self.spec_type.setCurrentIndex(index)
 
@@ -1482,8 +1556,12 @@ class LDFWindow(QMainWindow):
         layout.addWidget(self.ifit_1_path, 2, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.ifit_1_path,
-                                    'single', "Comma separated (*.csv)"))
+        btn.clicked.connect(
+            partial(
+                browse, self, self.ifit_1_path, 'single',
+                "Comma separated (*.csv)"
+            )
+        )
         layout.addWidget(btn, 2, 4)
 
         layout.addWidget(QLabel('iFit Output:\n(W2):'), 3, 0)
@@ -1492,8 +1570,12 @@ class LDFWindow(QMainWindow):
         layout.addWidget(self.ifit_2_path, 3, 1, 1, 3)
         btn = QPushButton('Browse')
         btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.ifit_2_path,
-                                    'single', "Comma separated (*.csv)"))
+        btn.clicked.connect(
+            partial(
+                browse, self, self.ifit_2_path, 'single',
+                "Comma separated (*.csv)"
+            )
+        )
         layout.addWidget(btn, 3, 4)
 
         btn = QPushButton('Load')
@@ -1566,14 +1648,19 @@ class LDFWindow(QMainWindow):
         self.widgetData['spec_type'] = self.spec_type.currentText()
 
         # Pull the waveband, SO2 and LDF grid info from the GUI
-        ld_kwargs = {'wb1': [self.wb1_lo.value(), self.wb1_hi.value()],
-                     'wb2': [self.wb2_lo.value(), self.wb2_hi.value()],
-                     'so2_lims': [float(self.so2_grid_lo.text()),
-                                  float(self.so2_grid_hi.text())],
-                     'so2_step': float(self.so2_grid_step.text()),
-                     'ldf_lims': [float(self.ldf_grid_lo.text()),
-                                  float(self.ldf_grid_hi.text())],
-                     'ldf_step': float(self.ldf_grid_step.text())}
+        ld_kwargs = {
+            'wb1': [self.wb1_lo.value(), self.wb1_hi.value()],
+            'wb2': [self.wb2_lo.value(), self.wb2_hi.value()],
+            'so2_lims': [
+                float(self.so2_grid_lo.text()),
+                float(self.so2_grid_hi.text())
+            ],
+            'so2_step': float(self.so2_grid_step.text()),
+            'ldf_lims': [
+                float(self.ldf_grid_lo.text()),
+                float(self.ldf_grid_hi.text())
+            ],
+            'ldf_step': float(self.ldf_grid_step.text())}
 
         # Load the spectra to fit
         spec_fnames = self.spec_fnames.toPlainText().split('\n')
@@ -1581,8 +1668,9 @@ class LDFWindow(QMainWindow):
 
         # Initialise the analysis worker
         self.ldThread = QThread()
-        self.ldWorker = LDWorker(spec_fnames, dark_fnames, self.widgetData,
-                                 ld_kwargs)
+        self.ldWorker = LDWorker(
+            spec_fnames, dark_fnames, self.widgetData, ld_kwargs
+        )
         self.ldWorker.moveToThread(self.ldThread)
         self.ldThread.started.connect(self.ldWorker.run)
         self.ldWorker.finished.connect(self.analysis_complete)
@@ -1656,17 +1744,20 @@ class LDFWindow(QMainWindow):
             else:
                 self.order = 0
                 self.ax.setLabel(
-                    'left', 'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>)')
+                    'left', 'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>)'
+                )
                 self.ax.setLabel(
-                    'bottom', 'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>)')
+                    'bottom', 'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>)'
+                )
 
         plotx = df1['SO2'] / 10**self.order
         ploty = df2['SO2'] / 10**self.order
 
         # Plot on the graph
         p0 = pg.mkPen(color='#1f77b4', width=0.5)
-        line = self.ax.plot(plotx, ploty, pen=None, symbolPen=p0,
-                            symbol='o', brush=None)
+        line = self.ax.plot(
+            plotx, ploty, pen=None, symbolPen=p0, symbol='o', brush=None
+        )
         line.setAlpha(0.75, False)
 
         logger.info('iFit data loaded!')
@@ -1683,8 +1774,10 @@ class LDFWindow(QMainWindow):
         # Check for large number in the time series. This is due to
         # a bug in pyqtgraph not displaying large numbers
         if self.order is None:
-            max_val = np.max([np.nanmax(np.abs(ld_results[:, 2])),
-                              np.nanmax(np.abs(ld_results[:, 4]))])
+            max_val = np.max([
+                np.nanmax(np.abs(ld_results[:, 2])),
+                np.nanmax(np.abs(ld_results[:, 4]))
+            ])
 
             # Calculate the required order and update the axes labels
             if ~np.isnan(max_val) and max_val > 1e6:
@@ -1702,9 +1795,11 @@ class LDFWindow(QMainWindow):
             else:
                 self.order = 0
                 self.ax.setLabel(
-                    'left', 'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>)')
+                    'left', 'SO<sub>2</sub> W2 (molec cm<sup>-2</sup>)'
+                )
                 self.ax.setLabel(
-                    'bottom', 'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>)')
+                    'bottom', 'SO<sub>2</sub> W1 (molec cm<sup>-2</sup>)'
+                )
 
         # Get the curve data for each LDF value
         legend = self.ax.addLegend()
@@ -1721,8 +1816,10 @@ class LDFWindow(QMainWindow):
                 so2_scd_2 = so2_scd_2 / 10**self.order
 
             # Plot!
-            line = self.ax.plot(so2_scd_1, so2_scd_2,
-                                pen=pg.mkPen(color=COLORS[i % 10], width=2.0))
+            line = self.ax.plot(
+                so2_scd_1, so2_scd_2,
+                pen=pg.mkPen(color=COLORS[i % 10], width=2.0)
+            )
             legend.addItem(line, name=f'LDF={ldf:.02f}')
 
 
@@ -1738,14 +1835,16 @@ def browse(gui, widget, mode='single', filter=False):
         filter = filter + ';;All Files (*)'
 
     if mode == 'single':
-        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '',
-                                               filter)
+        fname, _ = QFileDialog.getOpenFileName(
+            gui, 'Select File', '', filter
+        )
         if fname != '':
             widget.setText(fname)
 
     elif mode == 'multi':
-        fnames, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
-                                                 filter)
+        fnames, _ = QFileDialog.getOpenFileNames(
+            gui, 'Select Files', '', filter
+        )
         if fnames != []:
             widget.setText('\n'.join(fnames))
 
@@ -1822,14 +1921,18 @@ class LDWorker(QObject):
     def _run(self):
         """Launch LD analysis from the GUI."""
         # Read in the spectra
-        spectrum = average_spectra(self.spec_fnames,
-                                   self.widgetData['spec_type'],
-                                   self.widgetData['wl_calib'])
+        spectrum = average_spectra(
+            self.spec_fnames,
+            self.widgetData['spec_type'],
+            self.widgetData['wl_calib']
+        )
 
         if self.widgetData['dark_flag']:
-            x, dark = average_spectra(self.dark_fnames,
-                                      self.widgetData['spec_type'],
-                                      self.widgetData['wl_calib'])
+            x, dark = average_spectra(
+                self.dark_fnames,
+                self.widgetData['spec_type'],
+                self.widgetData['wl_calib']
+            )
         else:
             dark = 0
 
@@ -1840,8 +1943,9 @@ class LDWorker(QObject):
 
         # Generate the light dilution curves
         logger.info('Beginning light dilution calculations')
-        ld_results = generate_ld_curves(self.analyser, spectrum,
-                                        **self.ld_kwargs)
+        ld_results = generate_ld_curves(
+            self.analyser, spectrum, **self.ld_kwargs
+        )
 
         self.data.emit(ld_results)
 
@@ -1853,8 +1957,13 @@ class LDWorker(QObject):
 
         # Pull the parameters from the parameter table
         for line in self.widgetData['gas_params']:
-            self.params.add(name=line[0], value=line[1], vary=line[2],
-                            xpath=line[4], plume_gas=line[3])
+            self.params.add(
+                name=line[0],
+                value=line[1],
+                vary=line[2],
+                xpath=line[4],
+                plume_gas=line[3]
+            )
         for i, line in enumerate(self.widgetData['bgpoly_params']):
             self.params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
         for i, line in enumerate(self.widgetData['offset_params']):
@@ -1864,49 +1973,67 @@ class LDWorker(QObject):
 
         # Check if ILS is in the fit
         if self.widgetData['ils_mode'] == 'Manual':
-            self.params.add('fwem', value=float(self.widgetData['fwem']),
-                            vary=self.widgetData['fwem_fit'])
-            self.params.add('k', value=float(self.widgetData['k']),
-                            vary=self.widgetData['k_fit'])
-            self.params.add('a_w', value=float(self.widgetData['a_w']),
-                            vary=self.widgetData['a_w_fit'])
-            self.params.add('a_k', value=float(self.widgetData['a_k']),
-                            vary=self.widgetData['a_k_fit'])
+            self.params.add(
+                'fwem', value=float(self.widgetData['fwem']),
+                vary=self.widgetData['fwem_fit']
+            )
+            self.params.add(
+                'k', value=float(self.widgetData['k']),
+                vary=self.widgetData['k_fit']
+            )
+            self.params.add(
+                'a_w', value=float(self.widgetData['a_w']),
+                vary=self.widgetData['a_w_fit']
+            )
+            self.params.add(
+                'a_k', value=float(self.widgetData['a_k']),
+                vary=self.widgetData['a_k_fit']
+            )
 
         # Add the light dilution factor
         if self.widgetData['ldf_fit'] or self.widgetData['ldf'] != 0.0:
-            self.params.add('LDF', value=float(self.widgetData['ldf']),
-                            vary=self.widgetData['ldf_fit'])
+            self.params.add(
+                'LDF', value=float(self.widgetData['ldf']),
+                vary=self.widgetData['ldf_fit']
+            )
 
         # Report fitting parameters
-        logger.info(self.params.pretty_print(cols=['name', 'value', 'vary',
-                                                   'xpath']))
+        logger.info(
+            self.params.pretty_print(cols=['name', 'value', 'vary', 'xpath'])
+        )
 
         # Get the bad pixels
         if self.widgetData['bad_pixels'] != '':
-            bad_pixels = [int(i) for i
-                          in self.widgetData['bad_pixels'].split(',')]
+            bad_pixels = [
+                int(i) for i in self.widgetData['bad_pixels'].split(',')
+            ]
         else:
             bad_pixels = []
 
         # Generate the analyser
-        analyser = Analyser(params=self.params,
-                            fit_window=[self.widgetData['fit_lo'],
-                                        self.widgetData['fit_hi']],
-                            frs_path=self.widgetData['frs_path'],
-                            model_padding=self.widgetData['model_padding'],
-                            model_spacing=self.widgetData['model_spacing'],
-                            flat_flag=self.widgetData['flat_flag'],
-                            flat_path=self.widgetData['flat_path'],
-                            stray_flag=self.widgetData['stray_flag'],
-                            stray_window=[self.widgetData['stray_lo'],
-                                          self.widgetData['stray_hi']],
-                            dark_flag=self.widgetData['dark_flag'],
-                            ils_type=self.widgetData['ils_mode'],
-                            ils_path=self.widgetData['ils_path'],
-                            despike_flag=self.widgetData['despike_flag'],
-                            spike_limit=self.widgetData['spike_limit'],
-                            bad_pixels=bad_pixels)
+        analyser = Analyser(
+            params=self.params,
+            fit_window=[
+                self.widgetData['fit_lo'],
+                self.widgetData['fit_hi']
+            ],
+            frs_path=self.widgetData['frs_path'],
+            model_padding=self.widgetData['model_padding'],
+            model_spacing=self.widgetData['model_spacing'],
+            flat_flag=self.widgetData['flat_flag'],
+            flat_path=self.widgetData['flat_path'],
+            stray_flag=self.widgetData['stray_flag'],
+            stray_window=[
+                self.widgetData['stray_lo'],
+                self.widgetData['stray_hi']
+            ],
+            dark_flag=self.widgetData['dark_flag'],
+            ils_type=self.widgetData['ils_mode'],
+            ils_path=self.widgetData['ils_path'],
+            despike_flag=self.widgetData['despike_flag'],
+            spike_limit=self.widgetData['spike_limit'],
+            bad_pixels=bad_pixels
+        )
 
         return analyser
 
