@@ -1,6 +1,7 @@
 """Contains functions for reading and fitting spectra."""
 import os
 import logging
+import warnings
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -11,6 +12,11 @@ from scipy.signal import savgol_filter
 
 
 logger = logging.getLogger(__name__)
+
+warnings.filterwarnings(
+    "ignore",
+    message="Covariance of the parameters could not be estimated"
+)
 
 
 # =============================================================================
@@ -347,6 +353,7 @@ class Analyser(object):
             fit_quality = 0
 
             # Set the ouput parameter values
+            n = 0
             for par in self.params.values():
                 if par.vary:
                     par.set(fit_val=np.nan, fit_err=np.nan)
@@ -380,11 +387,12 @@ class Analyser(object):
         )
 
         # If the fit was good then update the initial parameters
-        if self.update_params_flag and fit_result.nerr == 1:
-            self.p0 = popt
-        else:
-            logger.info('Resetting initial guess parameters')
-            self.p0 = self.params.fittedvalueslist()
+        if self.update_params_flag:
+            if fit_result.fit_quality == 1:
+                self.p0 = popt
+            else:
+                logger.info('Resetting initial guess parameters')
+                self.p0 = self.params.fittedvalueslist()
 
         return fit_result
 
@@ -836,7 +844,10 @@ class Ingester(object):
         with open(fname, 'r') as r:
             lines = r.readlines()
             serial_number = lines[1].strip().split(': ')[-1]
-            integration_time = int(lines[2].strip().split(': ')[-1][:-4])
+            try:
+                integration_time = int(lines[2].strip().split(': ')[-1][:-4])
+            except ValueError:
+                integration_time = int(lines[2].strip().split(': ')[-1])
             coadds = int(lines[3].strip().split(': ')[-1])
             time_string = lines[4].strip().split(': ')[-1]
             timestamp = pd.Timestamp(time_string)
