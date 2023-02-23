@@ -58,13 +58,18 @@ class Parameters(OrderedDict):
             The higher bound of the allowed variation of the Parameter. Default
             is +inf
         """
-        self.__setitem__(name, Parameter(name=name,
-                                         value=value,
-                                         vary=vary,
-                                         xpath=xpath,
-                                         plume_gas=plume_gas,
-                                         lo_bound=lo_bound,
-                                         hi_bound=hi_bound))
+        self.__setitem__(
+            name,
+            Parameter(
+                name=name,
+                value=value,
+                vary=vary,
+                xpath=xpath,
+                plume_gas=plume_gas,
+                lo_bound=lo_bound,
+                hi_bound=hi_bound
+            )
+        )
 
     def add_many(self, param_list):
         """Add multiple Parameters to the Parameters object.
@@ -95,8 +100,9 @@ class Parameters(OrderedDict):
 
     def popt_dict(self):
         """Return a dictionary of the optimised parameters."""
-        return OrderedDict((p.name, p.fit_val)
-                           for p in self.values() if p.vary)
+        return OrderedDict(
+            (p.name, p.fit_val) for p in self.values() if p.vary
+        )
 
     def valueslist(self):
         """Return a list of all parameter values."""
@@ -112,8 +118,10 @@ class Parameters(OrderedDict):
 
     def bounds(self):
         """Return a list of the low and high bounds."""
-        return [[(p.lo_bound) for p in self.values() if p.vary],
-                [(p.hi_bound) for p in self.values() if p.vary]]
+        return [
+            [(p.lo_bound) for p in self.values() if p.vary],
+            [(p.hi_bound) for p in self.values() if p.vary]
+        ]
 
     def make_copy(self):
         """Return a deep copy of the Parameters object."""
@@ -139,9 +147,10 @@ class Parameters(OrderedDict):
             The formatted message to print
         """
         # Set default column choices
-        def_cols = {'all':   ['name', 'value', 'vary', 'fit_val', 'fit_err',
-                              'xpath'],
-                    'basic': ['name', 'value', 'vary', 'xpath']}
+        def_cols = {
+            'all':   ['name', 'value', 'vary', 'fit_val', 'fit_err', 'xpath'],
+            'basic': ['name', 'value', 'vary', 'xpath']
+        }
 
         # Make list of columns
         if cols == 'all' or cols == 'basic':
@@ -155,8 +164,9 @@ class Parameters(OrderedDict):
 
         if 'value' in cols:
             i = cols.index('value')
-            colwidth[i] = max([len(f'{p.value:.{precision}g}')
-                               for p in self.values()]) + 2
+            colwidth[i] = max(
+                [len(f'{p.value:.{precision}g}') for p in self.values()]
+            ) + 2
 
         if 'vary' in cols:
             i = cols.index('vary')
@@ -164,18 +174,21 @@ class Parameters(OrderedDict):
 
         if 'xpath' in cols:
             i = cols.index('xpath')
-            colwidth[i] = max([len(p.xpath) for p in self.values()
-                               if p.xpath is not None]) + 2
+            colwidth[i] = max(
+                [len(p.xpath) for p in self.values() if p.xpath is not None]
+            ) + 2
 
         if 'fit_val' in cols:
             i = cols.index('fit_val')
-            colwidth[i] = max([len(f'{p.fit_val:.{precision}g}')
-                               for p in self.values()]) + 2
+            colwidth[i] = max(
+                [len(f'{p.fit_val:.{precision}g}') for p in self.values()]
+            ) + 2
 
         if 'fit_err' in cols:
             i = cols.index('fit_err')
-            colwidth[i] = max([len(f'{p.fit_err:.{precision}g}')
-                               for p in self.values()]) + 2
+            colwidth[i] = max(
+                [len(f'{p.fit_err:.{precision}g}') for p in self.values()]
+            ) + 2
 
         for n, w in enumerate(colwidth):
             if w < mincolwidth:
@@ -190,14 +203,15 @@ class Parameters(OrderedDict):
         msg = f'\n{"MODEL PARAMETERS":^{len(title)}}\n{title}\n' + \
               f'{"-"*len(title)}\n'
 
-        for name, p in self.items():
-            d = {'name': f'{p.name}',
-                 'value': f'{p.value:.{precision}g}',
-                 'xpath': f'{p.xpath}',
-                 'fit_val': f'{p.fit_val:.{precision}g}',
-                 'fit_err': f'{p.fit_err:.{precision}g}',
-                 'vary': f'{p.vary}'
-                 }
+        for _, p in self.items():
+            d = {
+                'name': f'{p.name}',
+                'value': f'{p.value:.{precision}g}',
+                'xpath': f'{p.xpath}',
+                'fit_val': f'{p.fit_val:.{precision}g}',
+                'fit_err': f'{p.fit_err:.{precision}g}',
+                'vary': f'{p.vary}'
+            }
 
             for col in cols:
                 msg += f'|{d[col]:^{colwidth[cols.index(col)]}}'
