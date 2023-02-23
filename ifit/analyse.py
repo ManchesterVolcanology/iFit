@@ -64,12 +64,11 @@ class Analyser(object):
         # Try importing flat spectrum
         if flat_flag:
 
-            logger.info('Importing flat spectrum')
+            logger.info('Importing flat spectrum...')
 
             try:
                 # Import the flat spectrum
                 self.flat = np.loadtxt(flat_path, unpack=True)
-                logger.info('Flat spectrum imported')
 
             except OSError:
                 # If no flat spectrum then report and turn off the flat flag
@@ -138,13 +137,9 @@ class Analyser(object):
         self.init_frs = griddata(sol_x, sol_y, self.model_grid, method='cubic')
         self.frs = self.init_frs.copy()
 
-        logger.info('Solar reference spectrum imported')
-
         # ---------------------------------------------------------------------
         # Import Gas spectra
         # ---------------------------------------------------------------------
-
-        logger.info('Importing gas cross-sections...')
 
         # Create an empty dictionary to hold the gas cross-sections
         self.init_xsecs = {}
@@ -164,7 +159,7 @@ class Analyser(object):
                     x, xsec, self.model_grid, method='cubic'
                 )
 
-                logger.info(f'{name} cross-section imported')
+        logger.info('Analyser setup complete')
 
         # Create a copy of the cross-sections
         self.xsecs = self.init_xsecs.copy()
@@ -607,7 +602,7 @@ class Analyser(object):
 
         # Construct the plume and diluting light spectra, scaling by the ldf
         dilut_F = np.multiply(sky_F, ldf)
-        plume_F = np.multiply(plm_F, 1-ldf)
+        plume_F = np.multiply(plm_F, 1) #-ldf)
 
         # Build the baseline offset polynomial
         offset = np.polyval(offset_coefs, self.model_grid)
