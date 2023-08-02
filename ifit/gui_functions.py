@@ -121,9 +121,10 @@ class AcqSpecWorker(QObject):
                 os.makedirs(save_path)
 
             # Create an empty array to hold the dark spectra
-            dark_arr = np.full([self.widgetData["ndarks"],
-                                self.spectrometer.pixels],
-                               np.nan)
+            dark_arr = np.full(
+                [self.widgetData["ndarks"], self.spectrometer.pixels],
+                np.nan
+            )
 
             for i in range(self.widgetData["ndarks"]):
 
@@ -133,8 +134,9 @@ class AcqSpecWorker(QObject):
 
                 # Read the spectrum and add to the array
                 fname = f'{save_path}spectrum_{i:05d}.txt'
-                spectrum, info = self.spectrometer.get_spectrum(fname=fname,
-                                                                gps=self.gps)
+                spectrum, _ = self.spectrometer.get_spectrum(
+                    fname=fname, gps=self.gps
+                )
                 dark_arr[i] = spectrum[1]
 
                 # Display the spectrum
@@ -142,7 +144,8 @@ class AcqSpecWorker(QObject):
 
                 # Update the progress bar
                 self.signals.progress.emit(
-                    ((i+1)/self.widgetData["ndarks"])*100)
+                    ((i+1)/self.widgetData["ndarks"])*100
+                )
 
                 # Get if the worker is killed
                 if self.is_stopped:
@@ -200,12 +203,14 @@ class AcqSpecWorker(QObject):
                     # If max spectrum number is readed (99999) then start a new
                     # folder
                     else:
-                        logger.warning('Maximum spectrum number reached, '
-                                       + 'creatinga new folder...')
+                        logger.warning(
+                            'Maximum spectrum number reached, '
+                            'creatinga new folder...'
+                        )
                         count = 1
                         while os.path.isdir(save_path):
                             save_path = f'{self.widgetData["rt_save_path"]}' \
-                                        + f'/spectra{count}/'
+                                        f'/spectra{count}/'
                             count += 1
 
                         # Restart the counter
@@ -213,8 +218,9 @@ class AcqSpecWorker(QObject):
                         spec_fname = f'{save_path}spectrum_{nspec:05d}.txt'
 
                 # Measure the spectrum
-                spec, info = self.spectrometer.get_spectrum(fname=spec_fname,
-                                                            gps=self.gps)
+                spec, info = self.spectrometer.get_spectrum(
+                    fname=spec_fname, gps=self.gps
+                )
 
                 # Add the spectrum number to the metadata
                 info['spectrum_number'] = nspec
@@ -296,8 +302,10 @@ class AnalysisWorker(QObject):
         update_flag = self.widgetData['update_flag']
         resid_limit = self.widgetData['resid_limit']
         resid_type = self.widgetData['resid_type']
-        int_limit = [self.widgetData['lo_int_limit'],
-                     self.widgetData['hi_int_limit']]
+        int_limit = [
+            self.widgetData['lo_int_limit'],
+            self.widgetData['hi_int_limit']
+        ]
         graph_p = [r[0] for r in self.widgetData['gas_params']]
         interp_meth = self.widgetData['interp_method']
 
@@ -331,7 +339,7 @@ class AnalysisWorker(QObject):
             buffer = Buffer(2000, buffer_cols)
             date_str = datetime.strftime(datetime.now(), "%Y-%m-%d_%H%M%S")
             save_path = f'{self.widgetData["rt_save_path"]}/' \
-                        + f'{date_str}_iFit_output.csv'
+                        f'{date_str}_iFit_output.csv'
             if os.path.isfile(save_path):
                 write_mode = 'a'
             self.signals.status.emit('Acquiring')
@@ -356,15 +364,19 @@ class AnalysisWorker(QObject):
                         + f'# Stray corr.,{self.widgetData["stray_flag"]}\n')
 
                 # Make a list of column names
-                pre_cols = [['outp_lat', 'Lat'],
-                            ['outp_lon', 'Lon'],
-                            ['outp_alt', 'Alt']]
-                post_cols = [['outp_intlo', 'int_lo'],
-                             ['outp_inthi', 'int_hi'],
-                             ['outp_intav', 'int_av'],
-                             ['outp_resmax', 'max_resid'],
-                             ['outp_resstd', 'std_resid'],
-                             ['outp_fitqual', 'fit_quality']]
+                pre_cols = [
+                    ['outp_lat', 'Lat'],
+                    ['outp_lon', 'Lon'],
+                    ['outp_alt', 'Alt']
+                ]
+                post_cols = [
+                    ['outp_intlo', 'int_lo'],
+                    ['outp_inthi', 'int_hi'],
+                    ['outp_intav', 'int_av'],
+                    ['outp_resmax', 'max_resid'],
+                    ['outp_resstd', 'std_resid'],
+                    ['outp_fitqual', 'fit_quality']
+                ]
 
                 # Add pre columns
                 cols = ['File', 'Number', 'Time']
@@ -376,8 +388,10 @@ class AnalysisWorker(QObject):
                     cols += [par, f'{par}_err']
 
                 # Add post columns
-                [cols.append(name) for [key, name] in post_cols
-                 if self.widgetData[key]]
+                [
+                    cols.append(name) for [key, name] in post_cols
+                    if self.widgetData[key]
+                ]
 
                 # Write the header
                 w.write(cols[0])
@@ -395,8 +409,9 @@ class AnalysisWorker(QObject):
                 if self.mode == 'post_analyse':
                     # Read in the spectrum
                     fname = spec_fnames[loop]
-                    x, y, metadata, read_err = read_spectrum(fname, spec_type,
-                                                             wl_calib_file)
+                    x, y, metadata, _ = read_spectrum(
+                        fname, spec_type, wl_calib_file
+                    )
                 # Pull the spectrum for real time analysis
                 elif self.mode == 'rt_analyse':
                     while self.spectrum is None:
@@ -413,7 +428,8 @@ class AnalysisWorker(QObject):
                     int_limit=int_limit,
                     calc_od=graph_p,
                     interp_method=interp_meth,
-                    prefit_shift=prefit_shift)
+                    prefit_shift=prefit_shift
+                )
 
                 # Write the fit results to file
                 self._write_fit_results(w, fname, metadata, fit_result)
@@ -430,8 +446,9 @@ class AnalysisWorker(QObject):
                     self.signals.progress.emit(((loop+1)/nspec)*100)
 
                 # Emit graph data
-                self.signals.plotData.emit([fit_result, [x, y], buffer.df,
-                                            metadata["spectrum_number"]])
+                self.signals.plotData.emit([
+                    fit_result, [x, y], buffer.df, metadata["spectrum_number"]
+                ])
 
                 # Check if analysis is finished
                 if self.mode == 'post_analyse' and loop == nspec-1:
@@ -451,8 +468,10 @@ class AnalysisWorker(QObject):
 
         # Pull the parameters from the parameter table
         for line in self.widgetData['gas_params']:
-            self.params.add(name=line[0], value=line[1], vary=line[2],
-                            xpath=line[4], plume_gas=line[3])
+            self.params.add(
+                name=line[0], value=line[1], vary=line[2], xpath=line[4],
+                plume_gas=line[3]
+            )
         for i, line in enumerate(self.widgetData['bgpoly_params']):
             self.params.add(name=f'bg_poly{i}', value=line[0], vary=line[1])
         for i, line in enumerate(self.widgetData['offset_params']):
@@ -462,49 +481,64 @@ class AnalysisWorker(QObject):
 
         # Check if ILS is in the fit
         if self.widgetData['ils_mode'] == 'Manual':
-            self.params.add('fwem', value=float(self.widgetData['fwem']),
-                            vary=self.widgetData['fwem_fit'])
-            self.params.add('k', value=float(self.widgetData['k']),
-                            vary=self.widgetData['k_fit'])
-            self.params.add('a_w', value=float(self.widgetData['a_w']),
-                            vary=self.widgetData['a_w_fit'])
-            self.params.add('a_k', value=float(self.widgetData['a_k']),
-                            vary=self.widgetData['a_k_fit'])
+            self.params.add(
+                'fwem', value=float(self.widgetData['fwem']),
+                vary=self.widgetData['fwem_fit']
+            )
+            self.params.add(
+                'k', value=float(self.widgetData['k']),
+                vary=self.widgetData['k_fit']
+            )
+            self.params.add(
+                'a_w', value=float(self.widgetData['a_w']),
+                vary=self.widgetData['a_w_fit']
+            )
+            self.params.add(
+                'a_k', value=float(self.widgetData['a_k']),
+                vary=self.widgetData['a_k_fit']
+            )
 
         # Add the light dilution factor
         if self.widgetData['ldf_fit'] or self.widgetData['ldf'] != 0.0:
-            self.params.add('LDF', value=float(self.widgetData['ldf']),
-                            vary=self.widgetData['ldf_fit'])
+            self.params.add(
+                'LDF', value=float(self.widgetData['ldf']),
+                vary=self.widgetData['ldf_fit']
+            )
 
         # Report fitting parameters
-        logger.info(self.params.pretty_print(cols=['name', 'value', 'vary',
-                                                   'xpath']))
+        logger.info(
+            self.params.pretty_print(cols=['name', 'value', 'vary', 'xpath'])
+        )
 
         # Get the bad pixels
         if self.widgetData['bad_pixels'] != '':
-            bad_pixels = [int(i) for i
-                          in self.widgetData['bad_pixels'].split(',')]
+            bad_pixels = [
+                int(i) for i in self.widgetData['bad_pixels'].split(',')
+            ]
         else:
             bad_pixels = []
 
         # Generate the analyser
-        analyser = Analyser(params=self.params,
-                            fit_window=[self.widgetData['fit_lo'],
-                                        self.widgetData['fit_hi']],
-                            frs_path=self.widgetData['frs_path'],
-                            model_padding=self.widgetData['model_padding'],
-                            model_spacing=self.widgetData['model_spacing'],
-                            flat_flag=self.widgetData['flat_flag'],
-                            flat_path=self.widgetData['flat_path'],
-                            stray_flag=self.widgetData['stray_flag'],
-                            stray_window=[self.widgetData['stray_lo'],
-                                          self.widgetData['stray_hi']],
-                            dark_flag=self.widgetData['dark_flag'],
-                            ils_type=self.widgetData['ils_mode'],
-                            ils_path=self.widgetData['ils_path'],
-                            despike_flag=self.widgetData['despike_flag'],
-                            spike_limit=self.widgetData['spike_limit'],
-                            bad_pixels=bad_pixels)
+        analyser = Analyser(
+            params=self.params,
+            fit_window=[self.widgetData['fit_lo'], self.widgetData['fit_hi']],
+            frs_path=self.widgetData['frs_path'],
+            model_padding=self.widgetData['model_padding'],
+            model_spacing=self.widgetData['model_spacing'],
+            flat_flag=self.widgetData['flat_flag'],
+            flat_path=self.widgetData['flat_path'],
+            stray_flag=self.widgetData['stray_flag'],
+            stray_window=[
+                self.widgetData['stray_lo'],
+                self.widgetData['stray_hi']
+            ],
+            dark_flag=self.widgetData['dark_flag'],
+            ils_type=self.widgetData['ils_mode'],
+            ils_path=self.widgetData['ils_path'],
+            despike_flag=self.widgetData['despike_flag'],
+            spike_limit=self.widgetData['spike_limit'],
+            bad_pixels=bad_pixels
+        )
 
         # Add the dark spectrum
         if self.dark_spec is not None:
@@ -519,8 +553,10 @@ class AnalysisWorker(QObject):
 
     def _write_fit_results(self, writer, spec_fname, metadata, fit_result):
         # Write spectrum info to file
-        writer.write(f'{spec_fname},{metadata["spectrum_number"]},'
-                     + f'{metadata["timestamp"]}')
+        writer.write(
+            f'{spec_fname},{metadata["spectrum_number"]},'
+            f'{metadata["timestamp"]}'
+        )
 
         if self.widgetData['outp_lat']:
             writer.write(f',{metadata["lat"]}')
@@ -741,7 +777,6 @@ class ParamTable(QTableWidget):
 
         header = self.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
-        # header.setSectionResizeMode(0, QHeaderView.Stretch)
 
     def _param_table(self):
         """Create a parameter table."""
@@ -749,8 +784,9 @@ class ParamTable(QTableWidget):
         self.setFixedHeight(self._height)
         self.setColumnCount(6)
         self.setRowCount(0)
-        self.setHorizontalHeaderLabels(['Name', 'Value', 'Vary?', 'Plume Gas?',
-                                        'Xsec Path', ''])
+        self.setHorizontalHeaderLabels(
+            ['Name', 'Value', 'Vary?', 'Plume Gas?', 'Xsec Path', '']
+        )
 
     def _poly_table(self):
         """Create a polynomial table."""
@@ -835,19 +871,23 @@ class ParamTable(QTableWidget):
             # Read the data from a param table
             if self._type == 'param' and nrows > 0:
                 for i in range(nrows):
-                    row = [self.item(i, 0).text(),
-                           float(self.item(i, 1).text()),
-                           self.cellWidget(i, 2).isChecked(),
-                           self.cellWidget(i, 3).isChecked(),
-                           self.item(i, 4).text()]
+                    row = [
+                        self.item(i, 0).text(),
+                        float(self.item(i, 1).text()),
+                        self.cellWidget(i, 2).isChecked(),
+                        self.cellWidget(i, 3).isChecked(),
+                        self.item(i, 4).text()
+                    ]
                     data.append(row)
 
             # Read the data from a poly table
             elif self._type == 'poly' and nrows > 0:
                 for i in range(nrows):
 
-                    row = [float(self.item(i, 0).text()),
-                           self.cellWidget(i, 1).isChecked()]
+                    row = [
+                        float(self.item(i, 0).text()),
+                        self.cellWidget(i, 1).isChecked()
+                    ]
                     data.append(row)
         except AttributeError:
             pass
@@ -879,22 +919,21 @@ class GPSComboBox(QComboBox):
         self.addItems([port.device for port in ports])
 
 
-def browse(gui, widget, mode='single', filter=None):
+def browse(gui, widget, mode='single', fmt=None):
     """Open native file dialogue."""
     # Check if specified file extensions
-    if filter is not None:
-        filter = filter + ';;All Files (*)'
+    if fmt is not None:
+        fmt = fmt + ';;All Files (*)'
 
     # Pick a single file to read
     if mode == 'single':
-        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '', filter)
+        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '', fmt)
 
     elif mode == 'multi':
-        fname, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
-                                                filter)
+        fname, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '', fmt)
 
     elif mode == 'save':
-        fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
+        fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', fmt)
 
     elif mode == 'folder':
         fname = QFileDialog.getExistingDirectory(gui, 'Select Folder')
@@ -936,9 +975,11 @@ class GPSWizard(QDialog):
         layout = QVBoxLayout()
 
         # Setup entry widgets
-        self.widgets = {'COM Port': GPSComboBox(),
-                        'Baudrate': QLineEdit('4800'),
-                        'Stream to File': QCheckBox()}
+        self.widgets = {
+            'COM Port': GPSComboBox(),
+            'Baudrate': QLineEdit('4800'),
+            'Stream to File': QCheckBox()
+        }
         form_layout = QFormLayout()
         for key, item in self.widgets.items():
             form_layout.addRow(key + ':', item)
@@ -955,8 +996,9 @@ class GPSWizard(QDialog):
         self.widgets['Filename'] = QLineEdit(fname)
         btn = QPushButton('Browse')
         # btn.setFixedSize(70, 25)
-        btn.clicked.connect(partial(browse, self, self.widgets['Filename'],
-                                    'save', None))
+        btn.clicked.connect(
+            partial(browse, self, self.widgets['Filename'], 'save', None)
+        )
         fn_layout.addWidget(QLabel('GPS\nFilename:'))
         fn_layout.addWidget(self.widgets['Filename'])
         fn_layout.addWidget(btn)
@@ -977,8 +1019,10 @@ class GPSWizard(QDialog):
 
     def accept_action(self):
         """Record the GPS connection data and exit."""
-        self.gps_kwargs = {'comport': self.widgets['COM Port'].currentText(),
-                           'baudrate': self.widgets['Baudrate'].text()}
+        self.gps_kwargs = {
+            'comport': self.widgets['COM Port'].currentText(),
+            'baudrate': self.widgets['Baudrate'].text()
+        }
 
         if self.widgets['Stream to File'].isChecked():
             self.gps_kwargs['filename'] = self.widgets['Filename'].text()

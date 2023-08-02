@@ -21,9 +21,10 @@ class GPS():
         """Initialize."""
         if comport is None:
             comport = serial.tools.list_ports.comports()[0].device
-        self.serial_port = serial.Serial(comport, baudrate=baudrate,
-                                         parity=parity, stopbits=stopbits,
-                                         bytesize=bytesize)
+        self.serial_port = serial.Serial(
+            comport, baudrate=baudrate, parity=parity, stopbits=stopbits,
+            bytesize=bytesize
+        )
 
         self.filename = filename
         self.timestamp = None
@@ -48,8 +49,10 @@ class GPS():
                         with open(self.filename, 'a') as w:
                             w.write(decoded_bytes.strip() + '\n')
                     except FileNotFoundError:
-                        logger.warning(f'Unable to find file {self.filename}'
-                                       + ' Disabling GPS file stream.')
+                        logger.warning(
+                            f'Unable to find file {self.filename}'
+                            ' Disabling GPS file stream.'
+                        )
                         self.filename = None
 
                 # Exctract location information
@@ -149,12 +152,16 @@ class GPS():
         t0 = datetime.now()
         while (datetime.now() - t0).total_seconds() < time_to_wait:
 
-            flags = [~np.isnan(self.lat), ~np.isnan(self.lon),
-                     self.timestamp is not None, self.datestamp is not None]
+            flags = [
+                ~np.isnan(self.lat), ~np.isnan(self.lon),
+                self.timestamp is not None, self.datestamp is not None
+            ]
 
             if np.array(flags).all():
-                return [datetime.combine(self.datestamp, self.timestamp),
-                        self.lat, self.lon, self.alt]
+                return [
+                    datetime.combine(self.datestamp, self.timestamp),
+                    self.lat, self.lon, self.alt
+                ]
 
         logger.warning(f'No GPS fix acquired after {time_to_wait} seconds')
 
