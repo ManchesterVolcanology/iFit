@@ -1,0 +1,252 @@
+a_k: '0.0'
+a_k_fit: true
+a_w: '0.0'
+a_w_fit: true
+auto_map_scale: false
+bad_pixels: ''
+bgpoly_params:
+- - 0.0
+  - true
+- - 0.0
+  - true
+- - 0.0
+  - true
+- - 1.0
+  - true
+coadds: 10
+dark_flag: true
+dark_fnames: Example/dark.txt
+despike_flag: false
+eldark_flag: false
+fit_hi: 320.0
+fit_lo: 310.0
+flat_flag: false
+flat_path: ''
+frs_path: Ref/sao2010.txt
+fwem: '0.6'
+fwem_fit: true
+gas_params:
+- - SO2
+  - 1.0e+16
+  - true
+  - true
+  - Ref/SO2_295K.txt
+- - O3
+  - 1000000000.0
+  - true
+  - false
+  - Ref/O3_Voigt_223K.txt
+- - Ring
+  - 0.1
+  - true
+  - false
+  - Ref/Ring.txt
+good_fit_flag: false
+graph_err_flag: true
+graph_flag: true
+graph_param: SO2
+hi_int_limit: 70000
+ils_mode: Manual
+ils_path: ''
+int_time: 100
+interp_method: cubic
+k: '2.0'
+k_fit: true
+ldf: 0.0
+ldf_fit: false
+lo_int_limit: 0
+model_padding: 1.0
+model_spacing: 0.01
+ndarks: 10
+nonlin_flag: false
+offset_params: []
+outp_alt: false
+outp_fitqual: false
+outp_intav: false
+outp_inthi: false
+outp_intlo: false
+outp_lat: false
+outp_lon: false
+outp_resmax: true
+outp_resstd: false
+prefit_shift: 0.0
+resid_limit: 10.0
+resid_type: Percentage
+rt_save_path: Results
+save_path: results.csv
+scroll_amt: 100
+scroll_flag: false
+shift_params:
+- - 0.0
+  - true
+- - 0.1
+  - true
+spec_fnames: 'Example/spectrum_00320.txt
+
+  Example/spectrum_00321.txt
+
+  Example/spectrum_00322.txt
+
+  Example/spectrum_00323.txt
+
+  Example/spectrum_00324.txt
+
+  Example/spectrum_00325.txt
+
+  Example/spectrum_00326.txt
+
+  Example/spectrum_00327.txt
+
+  Example/spectrum_00328.txt
+
+  Example/spectrum_00329.txt
+
+  Example/spectrum_00330.txt
+
+  Example/spectrum_00331.txt
+
+  Example/spectrum_00332.txt
+
+  Example/spectrum_00333.txt
+
+  Example/spectrum_00334.txt
+
+  Example/spectrum_00335.txt
+
+  Example/spectrum_00336.txt
+
+  Example/spectrum_00337.txt
+
+  Example/spectrum_00338.txt
+
+  Example/spectrum_00339.txt
+
+  Example/spectrum_00340.txt
+
+  Example/spectrum_00341.txt
+
+  Example/spectrum_00342.txt
+
+  Example/spectrum_00343.txt
+
+  Example/spectrum_00344.txt
+
+  Example/spectrum_00345.txt
+
+  Example/spectrum_00346.txt
+
+  Example/spectrum_00347.txt
+
+  Example/spectrum_00348.txt
+
+  Example/spectrum_00349.txt
+
+  Example/spectrum_00350.txt
+
+  Example/spectrum_00351.txt
+
+  Example/spectrum_00352.txt
+
+  Example/spectrum_00353.txt
+
+  Example/spectrum_00354.txt
+
+  Example/spectrum_00355.txt
+
+  Example/spectrum_00356.txt
+
+  Example/spectrum_00357.txt
+
+  Example/spectrum_00358.txt
+
+  Example/spectrum_00359.txt
+
+  Example/spectrum_00360.txt
+
+  Example/spectrum_00361.txt
+
+  Example/spectrum_00362.txt
+
+  Example/spectrum_00363.txt
+
+  Example/spectrum_00364.txt
+
+  Example/spectrum_00365.txt
+
+  Example/spectrum_00366.txt
+
+  Example/spectrum_00367.txt
+
+  Example/spectrum_00368.txt
+
+  Example/spectrum_00369.txt
+
+  Example/spectrum_00370.txt
+
+  Example/spectrum_00371.txt
+
+  Example/spectrum_00372.txt
+
+  Example/spectrum_00373.txt
+
+  Example/spectrum_00374.txt
+
+  Example/spectrum_00375.txt
+
+  Example/spectrum_00376.txt
+
+  Example/spectrum_00377.txt
+
+  Example/spectrum_00378.txt
+
+  Example/spectrum_00379.txt
+
+  Example/spectrum_00380.txt
+
+  Example/spectrum_00381.txt
+
+  Example/spectrum_00382.txt
+
+  Example/spectrum_00383.txt
+
+  Example/spectrum_00384.txt
+
+  Example/spectrum_00385.txt
+
+  Example/spectrum_00386.txt
+
+  Example/spectrum_00387.txt
+
+  Example/spectrum_00388.txt
+
+  Example/spectrum_00389.txt
+
+  Example/spectrum_00390.txt
+
+  Example/spectrum_00391.txt
+
+  Example/spectrum_00392.txt
+
+  Example/spectrum_00393.txt
+
+  Example/spectrum_00394.txt
+
+  Example/spectrum_00395.txt
+
+  Example/spectrum_00396.txt
+
+  Example/spectrum_00397.txt
+
+  Example/spectrum_00398.txt
+
+  Example/spectrum_00399.txt
+
+  Example/spectrum_00400.txt'
+spec_type: iFit (old)
+spike_limit: 1000
+stray_flag: true
+stray_hi: 290.0
+stray_lo: 280.0
+theme: Dark
+update_flag: true
+wl_calib: ''
