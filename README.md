@@ -20,7 +20,7 @@ If you are working on Windows and do not have git, checkout git for windows.
 
 Install Anaconda or Miniconda from https://anaconda.org/.
 
-Once installed, use conda to create the environment for iFit. Not here we will use iFit as the environment name, but feel free to name it whatever you like.
+Once installed, use conda to create the environment for iFit. Note here we will use iFit as the environment name, but feel free to name it whatever you like.
 
 ```
 conda create -n iFit
