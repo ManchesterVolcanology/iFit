@@ -600,7 +600,7 @@ class Analyser(object):
 
         # Build the complete model
         sky_F = np.multiply(frs, sky_exponent)
-        plm_F = np.multiply(frs, plm_exponent)
+        plume_F = np.multiply(frs, plm_exponent)
 
         # Add effects of light dilution
         if 'LDF' in p and p['LDF'] != 0:
@@ -617,7 +617,6 @@ class Analyser(object):
 
         # Construct the plume and diluting light spectra, scaling by the ldf
         dilut_F = np.multiply(sky_F, ldf)
-        plume_F = np.multiply(plm_F, 1) #-ldf)
 
         # Build the baseline offset polynomial
         offset = np.polyval(offset_coefs, self.model_grid)
