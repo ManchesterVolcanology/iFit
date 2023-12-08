@@ -47,6 +47,8 @@ class Analyser(object):
         self.params = params.make_copy()
         self.p0 = self.params.fittedvalueslist()
 
+        self.dark_spectrum = 0
+
         # ---------------------------------------------------------------------
         # Model Grid
         # ---------------------------------------------------------------------
@@ -392,6 +394,19 @@ class Analyser(object):
         return fit_result
 
 # =============================================================================
+#   Set dark spectrum
+# =============================================================================
+
+    def set_dark_spectrum(self, spectrum):
+
+        # If spectrum is a path, then ingest the file
+        if isinstance(spectrum, str):
+            spectrum = self.ingester.ingest(spectrum)
+
+        # Assign
+        self.dark_spectrum = spectrum
+
+# =============================================================================
 #   Spectrum Pre-processing
 # =============================================================================
 
@@ -424,7 +439,7 @@ class Analyser(object):
         # Remove the dark spectrum from the measured spectrum
         if self.dark_flag:
             try:
-                y = np.subtract(y, self.dark_spec)
+                y = np.subtract(y, self.dark_spectrum)
             except ValueError:
                 logger.exception(
                     'Error in dark correction. Is dark spectrum the same shape'
