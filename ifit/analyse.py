@@ -38,10 +38,10 @@ class Analyser(object):
             spike_limit=None, bad_pixels=None, update_params_flag=False,
             residual_limit=None, residual_type='Percentage',
             intensity_limit=None, pre_process_flag=True, interp_method='cubic',
-            prefit_shift=0.0
+            prefit_shift=0.0, spectrum_format=None, wavelength_calibration=None
         ):
         """Initialise the analyser."""
-        self.ingester = Ingester()
+        self.ingester = Ingester(spectrum_format, wavelength_calibration)
 
         # Set the initial estimate for the fit parameters
         self.params = params.make_copy()
