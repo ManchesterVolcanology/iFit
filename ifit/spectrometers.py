@@ -120,8 +120,10 @@ class Spectrometer():
 
         # Measure spectra from the spectrometer
         for n in range(self.coadds):
-            y_arr[n] = self.spectro.intensities(self.correct_dark_counts,
-                                                self.correct_nonlinearity)
+            y_arr[n] = self.spectro.intensities(
+                self.correct_dark_counts,
+                self.correct_nonlinearity
+            )
 
         # Average the coadded spectra
         y = np.average(y_arr, axis=0)
@@ -138,16 +140,18 @@ class Spectrometer():
             lat, lon, alt = None, None, None
 
         # Form a dictionary of spectrum info
-        info = {'serial_number': self.serial_number,
-                'integration_time': self.integration_time,
-                'coadds': self.coadds,
-                'timestamp': timestamp,
-                'dark_correction': self.correct_dark_counts,
-                'nonlin_correction': self.correct_nonlinearity,
-                'lat': lat,
-                'lon': lon,
-                'alt': alt,
-                'fname': fname}
+        info = {
+            'serial_number': self.serial_number,
+            'integration_time': self.integration_time,
+            'coadds': self.coadds,
+            'timestamp': timestamp,
+            'dark_correction': self.correct_dark_counts,
+            'nonlin_correction': self.correct_nonlinearity,
+            'lat': lat,
+            'lon': lon,
+            'alt': alt,
+            'fname': fname
+        }
 
         if fname is not None:
             # Form the file header
