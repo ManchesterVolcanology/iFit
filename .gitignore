@@ -1,6 +1,7 @@
 # iFit specific files
 Results
 Spectrometer
+Data
 *.yml
 .config
 .dark
