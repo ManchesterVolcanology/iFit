@@ -30,8 +30,7 @@ conda activate iFit
 This create and activates the environment. Now install the required libraries:
 
 ```
-conda install numpy scipy tqdm pandas pyyaml pyserial
-conda install -c conda-forge utm pyside2 pyqtgraph seabreeze
+conda install -c conda-forge numpy scipy tqdm pandas pyyaml pyserial utm pyside2 pyqtgraph seabreeze
 pip install pyqtdarktheme
 ```
 
