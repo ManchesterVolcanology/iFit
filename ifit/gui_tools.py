@@ -424,11 +424,11 @@ class CalcFlux(QMainWindow):
         )
         plume_stop = pg.ScatterPlotItem(
             symbol='t', pen=pg.mkPen(color='w'), size=10,
-            brush=pg.mkBrush(color=COLORS[2]), name='Plume Centre'
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume End'
         )
         plume_cent = pg.ScatterPlotItem(
             symbol='o', pen=pg.mkPen(color='w'), size=10,
-            brush=pg.mkBrush(color=COLORS[2]), name='Plume End'
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume Centre'
         )
         self.map_elements = {
             'full_trav_line': full_trav_line,
