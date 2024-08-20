@@ -36,7 +36,7 @@ fpath = 'Example/'
 save_path = 'iFit_output.csv'
 
 # Set the spectra type
-spec_type = 'iFit'
+spec_type = 'iFit (old)'
 
 # Set the dark, reference and measurement sectra numbers
 dark_fnames = glob.glob(f'{fpath}dark*')
@@ -153,7 +153,7 @@ for i, fname in enumerate(tqdm(meas_fnames)):
                                 calc_od=['SO2'])
 
     # Add to the results dataframe
-    row = [i, spec_info['time']]
+    row = [i, spec_info['timestamp']]
     for par in fit.params.values():
         row += [par.fit_val, par.fit_err]
     row += [fit.nerr, fit.int_lo, fit.int_hi,
