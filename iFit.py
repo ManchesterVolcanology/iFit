@@ -85,9 +85,14 @@ params.add('a_w',  value=0.0, vary=True)
 params.add('a_k',  value=0.0, vary=True)
 
 # Generate the analyser
-analyser = Analyser(params,
-                    fit_window=[310, 320],
-                    frs_path='Ref/sao2010.txt')
+analyser = Analyser(
+  params,
+  fit_window=[310, 320],
+  stray_flag=True,
+  stray_window=[280, 290],
+  dark_flag=True,
+  frs_path='Ref/sao2010.txt'
+)
 
 print(params.pretty_print(cols='all'))
 
