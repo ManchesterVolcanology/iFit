@@ -87,6 +87,7 @@ def make_ils(interval, FWEM, k=2, a_w=0, a_k=0):
     # Make the line shape
     ils = super_gaussian(grid, w, k, a_w, a_k)
 
+    # Normalise
     ils = np.divide(ils, sum(ils))
 
     return ils

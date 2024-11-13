@@ -785,12 +785,12 @@ class FitResult():
         # Make the ILS
         if analyser.generate_ils:
 
-            ils_params = []
-            for name in ['fwem', 'k', 'a_w', 'a_k']:
-                if params[name].vary:
-                    ils_params.append(params[name].fit_val)
-                else:
-                    ils_params.append(params[name].value)
+            ils_params = [
+                params[name].fit_val
+                if params[name].vary
+                else params[name].value
+                for name in ['fwem', 'k', 'a_w', 'a_k']
+            ]
 
             # Unpack ILS params
             ils = make_ils(analyser.model_spacing, *ils_params)
