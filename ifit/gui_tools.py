@@ -1328,6 +1328,15 @@ class FLATWindow(QMainWindow):
 class LDFWindow(QMainWindow):
     """Open a window for light dilution analysis."""
 
+    # Set log level colors
+    LOGCOLORS = {
+        logging.DEBUG: 'darkgrey',
+        logging.INFO: 'darkgrey',
+        logging.WARNING: 'orange',
+        logging.ERROR: 'red',
+        logging.CRITICAL: 'purple',
+    }
+
     def __init__(self, widgetData, parent=None):
         """Initialise the window."""
         super(LDFWindow, self).__init__(parent)
@@ -1418,6 +1427,7 @@ class LDFWindow(QMainWindow):
         self.spec_type = QComboBox()
         self.spec_type.addItems([
             'iFit',
+            'iFit (old)',
             'Master.Scope',
             'Spectrasuite',
             'mobileDOAS',
@@ -1822,6 +1832,13 @@ class LDFWindow(QMainWindow):
             )
             legend.addItem(line, name=f'LDF={ldf:.02f}')
 
+    @Slot(str, logging.LogRecord)
+    def updateLog(self, status, record):
+        """Write log statements to the logBox widget."""
+        color = self.LOGCOLORS.get(record.levelno, 'black')
+        s = '<pre><font color="%s">%s</font></pre>' % (color, status)
+        self.logBox.appendHtml(s)
+
 
 # =============================================================================
 # Useful functions
@@ -1896,7 +1913,7 @@ class LDWorker(QObject):
 
     def __init__(self, spec_fnames, dark_fnames, widgetData, ld_kwargs):
         """Initialise."""
-        super(QObject, self).__init__()
+        super(LDWorker, self).__init__()
 
         # Create stopped and paused flags
         self.is_paused = False
