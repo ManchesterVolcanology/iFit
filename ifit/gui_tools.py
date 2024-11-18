@@ -568,7 +568,7 @@ class CalcFlux(QMainWindow):
             logger.info('Importing GPS data...')
             gps_df = pd.read_table(
                 self.widgets.get('gps_path'), sep='\t', parse_dates=['time']
-            )
+            ).dropna()
             lat = gps_df['latitude'].to_numpy()
             lon = gps_df['longitude'].to_numpy()
 
