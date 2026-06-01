@@ -291,19 +291,19 @@ class CalcFlux(QMainWindow):
 
         # Add a button to calculate the flux
         calc_btn = QPushButton('Calculate Flux')
-        calc_btn.setFixedSize(90, 25)
+        # calc_btn.setFixedSize(90, 25)
         calc_btn.clicked.connect(self.calc_flux)
         layout.addWidget(calc_btn, 0, 0)
 
         # Add a button to remove the last flux
         rem_btn = QPushButton('Remove Last')
-        rem_btn.setFixedSize(90, 25)
+        # rem_btn.setFixedSize(90, 25)
         rem_btn.clicked.connect(self.del_trav)
         layout.addWidget(rem_btn, 0, 1)
 
         # Add a button to save the fluxes
         sav_btn = QPushButton('Save Fluxes')
-        sav_btn.setFixedSize(90, 25)
+        # sav_btn.setFixedSize(90, 25)
         sav_btn.clicked.connect(self.save_fluxes)
         layout.addWidget(sav_btn, 0, 2)
 
@@ -457,7 +457,6 @@ class CalcFlux(QMainWindow):
 
         # Add the graphs to the layout
         g2layout.addWidget(graphwin, 0, 0, 0, 0)
-
 # =============================================================================
 #   Update Volcano Data
 # =============================================================================
@@ -468,8 +467,8 @@ class CalcFlux(QMainWindow):
 
         if volc != '--select--':
             data = self.volcano_data[volc]
-            self.vlat.setText(str(data[0]))
-            self.vlon.setText(str(data[1]))
+            self.vlat.setText(str(data['latitude']))
+            self.vlon.setText(str(data['longitude']))
 
 # =============================================================================
 #   Slot functions
@@ -833,10 +832,13 @@ class CalcFlux(QMainWindow):
         if not os.path.isdir(out_path):
             os.makedirs(out_path)
 
+        with open(out_path + 'flux_results.csv', 'w') as w:
+            w.write('iFit Flux Output File\n\n')
+
         for i, [key, data] in enumerate(self.flux_data.items()):
 
             # Write the detailed output
-            with open(out_path + 'flux_results.csv', 'w') as w:
+            with open(out_path + 'flux_results.csv', 'a') as w:
                 w.write(
                     f'Traverse Number,{i+1}\n'
                     f'Flux ({data["flux_units"]}),{data["flux"]}\n'
