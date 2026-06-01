@@ -905,6 +905,16 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['resid_limit'], nrow, ncol+1)
         nrow += 1
 
+        # Add spinbox for the saturation limit
+        layout.addWidget(QLabel('Saturation Limit:'), nrow, ncol)
+        self.widgets['sat_limit'] = SpinBox(65000, [0, 100000])
+        self.widgets['sat_limit'].setToolTip(
+            'Saturation limit'
+        )
+        self.widgets['sat_limit'].setFixedSize(70, 20)
+        layout.addWidget(self.widgets['sat_limit'], nrow, ncol+1)
+        nrow += 1
+
         # Add spinboxs for the intensity limits
         layout.addWidget(QLabel('Intensity Limits:'), nrow, ncol, 2, 1)
         self.widgets['lo_int_limit'] = SpinBox(0, [0, 100000])

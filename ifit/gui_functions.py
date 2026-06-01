@@ -296,6 +296,7 @@ class AnalysisWorker(QObject):
         update_flag = self.widgetData['update_flag']
         resid_limit = self.widgetData['resid_limit']
         resid_type = self.widgetData['resid_type']
+        sat_limit = self.widgetData['sat_limit']
         int_limit = [self.widgetData['lo_int_limit'],
                      self.widgetData['hi_int_limit']]
         graph_p = [r[0] for r in self.widgetData['gas_params']]
@@ -410,10 +411,12 @@ class AnalysisWorker(QObject):
                     update_params=update_flag,
                     resid_limit=resid_limit,
                     resid_type=resid_type,
+                    sat_limit=sat_limit,
                     int_limit=int_limit,
                     calc_od=graph_p,
                     interp_method=interp_meth,
-                    prefit_shift=prefit_shift)
+                    prefit_shift=prefit_shift
+                )
 
                 # Write the fit results to file
                 self._write_fit_results(w, fname, metadata, fit_result)

@@ -339,9 +339,9 @@ class Analyser():
 # =============================================================================
 
     def fit_spectrum(self, spectrum, update_params=False, resid_limit=None,
-                     resid_type='Percentage', int_limit=None, calc_od=[],
-                     pre_process=True, prefit_shift=0.0, interp_method='cubic',
-                     fit_window=None):
+                     resid_type='Percentage', int_limit=None, sat_limit=100,
+                     calc_od=[], pre_process=True, prefit_shift=0.0,
+                     interp_method='cubic', fit_window=None):
         """Fit the supplied spectrum.
 
         Parameters
@@ -415,6 +415,7 @@ class Analyser():
             self.fit_window = fit_window
 
         # Check is spectrum requires preprocessing
+        full_spectrum = spectrum
         if pre_process:
             spectrum = self.pre_process(spectrum, prefit_shift)
 
@@ -441,9 +442,9 @@ class Analyser():
             nerr = 0
 
         # Put the results into a FitResult object
-        fit_result = FitResult(self, spectrum, popt, perr, nerr,
+        fit_result = FitResult(self, spectrum, full_spectrum, popt, perr, nerr,
                                self.fwd_model, self.params, resid_type,
-                               resid_limit, int_limit, calc_od)
+                               resid_limit, int_limit, sat_limit, calc_od)
 
         # If the fit was good then update the initial parameters
         if update_params and fit_result.nerr == 1:
@@ -644,8 +645,9 @@ class FitResult():
         The fit residual
     """
 
-    def __init__(self, analyser, spectrum, popt, perr, nerr, fwd_model,
-                 params, resid_type, resid_limit, int_limit, calc_od):
+    def __init__(self, analyser, spectrum, full_spectrum, popt, perr, nerr,
+                 fwd_model, params, resid_type, resid_limit, int_limit,
+                 sat_limit, calc_od):
         """Initialize."""
         # Make a copy of the parameters
         self.params = params.make_copy()
@@ -697,6 +699,11 @@ class FitResult():
                 logger.info('High residual detected')
                 self.nerr = 2
 
+            # Check for saturation
+            if max(full_spectrum[1]) > sat_limit:
+                logger.info('Saturation detected')
+                self.nerr = 2
+
             # Check for spectrum light levels
             if int_limit is not None:
 
@@ -713,7 +720,12 @@ class FitResult():
             # Calculate optical depth spectra
             for par in calc_od:
                 if par in self.params:
-                    self.calc_od(par, analyser)
+                    meas_od, synth_od = self.calc_od(par, analyser)
+
+                    # Check for nans in OD
+                    if np.isnan(meas_od).any() or np.isnan(synth_od).any():
+                        logger.info('Bad optical depth detected')
+                        self.nerr = 2
 
         # If not then return nans
         else:
