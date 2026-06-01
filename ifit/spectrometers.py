@@ -126,16 +126,17 @@ class Spectrometer():
         # Average the coadded spectra
         y = np.average(y_arr, axis=0)
 
-        # Get the spectrum timestamp
-        timestamp = datetime.now()
-
-        # Get the spectrum position, if available
+        # Get the spectrum position and time from GPS, if available
         if gps is not None:
             lat = gps.lat
             lon = gps.lon
             alt = gps.alt
+            timestamp = datetime.combine(gps.datestamp, gps.timestamp)
+
+        # Otherwise set position to NaN and use system time
         else:
             lat, lon, alt = None, None, None
+            timestamp = datetime.now()
 
         # Form a dictionary of spectrum info
         info = {'serial_number': self.serial_number,

@@ -36,7 +36,7 @@ fpath = 'Example/'
 save_path = 'iFit_output.csv'
 
 # Set the spectra type
-spec_type = 'iFit'
+spec_type = 'iFit (old)'
 
 # Set the dark, reference and measurement sectra numbers
 dark_fnames = glob.glob(f'{fpath}dark*')
@@ -85,9 +85,14 @@ params.add('a_w',  value=0.0, vary=True)
 params.add('a_k',  value=0.0, vary=True)
 
 # Generate the analyser
-analyser = Analyser(params,
-                    fit_window=[310, 320],
-                    frs_path='Ref/sao2010.txt')
+analyser = Analyser(
+  params,
+  fit_window=[310, 320],
+  stray_flag=True,
+  stray_window=[280, 290],
+  dark_flag=True,
+  frs_path='Ref/sao2010.txt'
+)
 
 print(params.pretty_print(cols='all'))
 
@@ -153,7 +158,7 @@ for i, fname in enumerate(tqdm(meas_fnames)):
                                 calc_od=['SO2'])
 
     # Add to the results dataframe
-    row = [i, spec_info['time']]
+    row = [i, spec_info['timestamp']]
     for par in fit.params.values():
         row += [par.fit_val, par.fit_err]
     row += [fit.nerr, fit.int_lo, fit.int_hi,

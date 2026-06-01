@@ -424,11 +424,11 @@ class CalcFlux(QMainWindow):
         )
         plume_stop = pg.ScatterPlotItem(
             symbol='t', pen=pg.mkPen(color='w'), size=10,
-            brush=pg.mkBrush(color=COLORS[2]), name='Plume Centre'
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume End'
         )
         plume_cent = pg.ScatterPlotItem(
             symbol='o', pen=pg.mkPen(color='w'), size=10,
-            brush=pg.mkBrush(color=COLORS[2]), name='Plume End'
+            brush=pg.mkBrush(color=COLORS[2]), name='Plume Centre'
         )
         self.map_elements = {
             'full_trav_line': full_trav_line,
@@ -567,8 +567,10 @@ class CalcFlux(QMainWindow):
             # Read in the GPS data
             logger.info('Importing GPS data...')
             gps_df = pd.read_table(
-                self.widgets.get('gps_path'), sep='\t', parse_dates=['time']
+                self.widgets.get('gps_path'), sep='\t', parse_dates=['time'],
+                date_format='ISO8601'
             )
+
             lat = gps_df['latitude'].to_numpy()
             lon = gps_df['longitude'].to_numpy()
 
@@ -1328,6 +1330,15 @@ class FLATWindow(QMainWindow):
 class LDFWindow(QMainWindow):
     """Open a window for light dilution analysis."""
 
+    # Set log level colors
+    LOGCOLORS = {
+        logging.DEBUG: 'darkgrey',
+        logging.INFO: 'darkgrey',
+        logging.WARNING: 'orange',
+        logging.ERROR: 'red',
+        logging.CRITICAL: 'purple',
+    }
+
     def __init__(self, widgetData, parent=None):
         """Initialise the window."""
         super(LDFWindow, self).__init__(parent)
@@ -1418,6 +1429,7 @@ class LDFWindow(QMainWindow):
         self.spec_type = QComboBox()
         self.spec_type.addItems([
             'iFit',
+            'iFit (old)',
             'Master.Scope',
             'Spectrasuite',
             'mobileDOAS',
@@ -1822,6 +1834,13 @@ class LDFWindow(QMainWindow):
             )
             legend.addItem(line, name=f'LDF={ldf:.02f}')
 
+    @Slot(str, logging.LogRecord)
+    def updateLog(self, status, record):
+        """Write log statements to the logBox widget."""
+        color = self.LOGCOLORS.get(record.levelno, 'black')
+        s = '<pre><font color="%s">%s</font></pre>' % (color, status)
+        self.logBox.appendHtml(s)
+
 
 # =============================================================================
 # Useful functions
@@ -1896,7 +1915,7 @@ class LDWorker(QObject):
 
     def __init__(self, spec_fnames, dark_fnames, widgetData, ld_kwargs):
         """Initialise."""
-        super(QObject, self).__init__()
+        super(LDWorker, self).__init__()
 
         # Create stopped and paused flags
         self.is_paused = False
