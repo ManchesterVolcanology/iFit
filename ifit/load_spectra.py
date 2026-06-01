@@ -45,12 +45,15 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
         error occurs.
     """
     # Create a dictionary of available functions
-    func_dict = {'iFit': load_ifit,
-                 'iFit (old)': load_ifit_old,
-                 'Master.Scope': load_master_scope,
-                 'Spectrasuite': load_spectrasuite,
-                 'mobileDOAS': load_mobile_doas,
-                 'Basic': load_basic}
+    func_dict = {
+        'iFit': load_ifit,
+        'iFit (old)': load_ifit_old,
+        'Master.Scope': load_master_scope,
+        'Spectrasuite': load_spectrasuite,
+        'mobileDOAS': load_mobile_doas,
+        'Basic': load_basic,
+        'PyCam': load_pycam
+    }
 
     # Generate the baseline metadata dictionary
     base_metadata = {'spectrum_number': -1,
@@ -521,7 +524,36 @@ def load_basic(*args):
     # Get the date
     timestamp = datetime.strptime(read_date, '%Y-%m-%d %H:%M:%S')
 
-    metadata = {'spectrum_number': spec_no,
-                'timestamp': timestamp}
+    metadata = {
+        'spectrum_number': spec_no,
+        'timestamp': timestamp
+    }
+
+    return grid, spec, metadata
+
+
+def load_pycam(*args):
+    """Load PiCam/PyCam npy files."""
+
+    # Load data into a numpy array
+    fname = args[0]
+    data = np.load(fname)
+
+    grid = data[0]
+    spec = data[1]
+
+    # Unpack info from filename
+    _, tail = os.path.split(fname[:-4])
+    timedstamp, integration_time, coadds, spec_label = tail.split('_')
+
+    # Get the timestamp
+    timestamp = datetime.strptime(timedstamp, '%Y-%m-%dT%H%M%S')
+
+    metadata = {
+        'timestamp': timestamp,
+        'integration_time': int(integration_time[:-2]),
+        'coadds': int(coadds[:-5]),
+        'label': spec_label
+    }
 
     return grid, spec, metadata

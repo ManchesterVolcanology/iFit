@@ -403,12 +403,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel('Format:'), 0, 0)
         self.widgets['spec_type'] = QComboBox()
         self.widgets['spec_type'].setToolTip('Choose spectrum format')
-        self.widgets['spec_type'].addItems(['iFit',
-                                            'iFit (old)',
-                                            'Master.Scope',
-                                            'Spectrasuite',
-                                            'mobileDOAS',
-                                            'Basic'])
+        self.widgets['spec_type'].addItems([
+            'iFit',
+            'iFit (old)',
+            'Master.Scope',
+            'Spectrasuite',
+            'mobileDOAS',
+            'Basic',
+            'PyCam'
+        ])
         self.widgets['spec_type'].setFixedSize(100, 20)
         layout.addWidget(self.widgets['spec_type'], 0, 1)
 
