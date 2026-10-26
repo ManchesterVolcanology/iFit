@@ -14,8 +14,8 @@ import pandas as pd
 from datetime import datetime
 from functools import partial
 import serial.tools.list_ports
-from PySide2.QtCore import Qt, QObject, Signal
-from PySide2.QtWidgets import (
+from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtWidgets import (
     QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox, QSpinBox, QCheckBox,
     QFileDialog, QPushButton, QTableWidgetItem, QMenu, QTableWidget, QDialog,
     QHeaderView, QFormLayout, QFrame, QVBoxLayout, QHBoxLayout, QLabel
@@ -797,7 +797,7 @@ class ParamTable(QTableWidget):
         menu = QMenu(self)
         addAction = menu.addAction('Add')
         remAction = menu.addAction('Remove')
-        action = menu.exec_(self.mapToGlobal(event.pos()))
+        action = menu.exec(self.mapToGlobal(event.pos()))
         if action == addAction:
             self.add_row()
         if action == remAction:
@@ -871,7 +871,7 @@ class GPSComboBox(QComboBox):
     def showMenu(self, pos):
         menu = QMenu()
         update_action = menu.addAction("Update")
-        action = menu.exec_(self.mapToGlobal(pos))
+        action = menu.exec(self.mapToGlobal(pos))
         if action == update_action:
             self.update_com_list()
 

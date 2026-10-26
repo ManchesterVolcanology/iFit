@@ -5,17 +5,17 @@ import yaml
 import logging
 import qdarktheme
 import numpy as np
-import PySide2
+import PySide6
 import pyqtgraph as pg
 from datetime import datetime
 from functools import partial
-from PySide2.QtGui import QIcon, QFont
-from PySide2.QtCore import Qt, QThread, Slot, Signal, QObject
-from PySide2.QtWidgets import (
+from PySide6.QtGui import QIcon, QFont, QAction
+from PySide6.QtCore import Qt, QThread, Slot, Signal, QObject
+from PySide6.QtWidgets import (
     QMainWindow, QWidget, QApplication, QGridLayout, QMessageBox, QLabel,
     QComboBox, QTextEdit, QLineEdit, QPushButton, QProgressBar, QFrame,
     QSplitter, QCheckBox, QTabWidget, QFileDialog, QScrollArea, QToolBar,
-    QTableWidget, QHeaderView, QTableWidgetItem, QPlainTextEdit, QAction
+    QTableWidget, QHeaderView, QTableWidgetItem, QPlainTextEdit
 )
 
 from ifit.gui_functions import (
@@ -1676,7 +1676,7 @@ class MainWindow(QMainWindow):
         """Input information for a GPS connection."""
         if not self.gps_connected_flag:
             dialog = GPSWizard(self)
-            if dialog.exec_():
+            if dialog.exec():
                 self.gps = GPS(**dialog.gps_kwargs)
                 self.gps_status.setText('Connected')
                 self.gps_connect_btn.setText('Disconnect')
@@ -1921,4 +1921,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow(app)
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

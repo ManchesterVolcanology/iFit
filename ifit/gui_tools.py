@@ -17,9 +17,9 @@ import pyqtgraph as pg
 from functools import partial
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
-from PySide2.QtGui import QIcon, QPalette, QColor
-from PySide2.QtCore import Qt, QThreadPool, QObject, Signal, QThread, Slot
-from PySide2.QtWidgets import (
+from PySide6.QtGui import QIcon, QPalette, QColor
+from PySide6.QtCore import Qt, QThreadPool, QObject, Signal, QThread, Slot
+from PySide6.QtWidgets import (
     QMainWindow, QWidget, QApplication, QGridLayout, QLabel, QTextEdit,
     QLineEdit, QPushButton, QFileDialog, QScrollArea, QCheckBox, QSplitter,
     QComboBox, QDoubleSpinBox, QTableWidget, QFrame, QTableWidgetItem,
@@ -2118,7 +2118,7 @@ def main():
     view.show()
 
     # Execute the main loop
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':
