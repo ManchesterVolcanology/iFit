@@ -85,7 +85,7 @@ def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
 
         # Something wrong with reading
         logger.warning(f'Error reading file {fname}:\n{e}')
-        grid, spec = np.row_stack([[], []])
+        grid, spec = np.vstack([[], []])
         metadata = {}
         read_err = True, e
 

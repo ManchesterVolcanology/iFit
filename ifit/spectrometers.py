@@ -173,7 +173,7 @@ class Spectrometer():
             self.spec_no += 1
 
         # Return the measured spectrum
-        return [np.row_stack([x, y]), info]
+        return [np.vstack([x, y]), info]
 
     def close(self):
         """Close the connection to the spectrometer."""

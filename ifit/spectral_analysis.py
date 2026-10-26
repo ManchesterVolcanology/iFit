@@ -332,7 +332,7 @@ class Analyser():
                 logger.exception('Error in flat correction. Is flat spectrum'
                                  + ' the same shape as the measurement?')
 
-        return np.row_stack([grid, spec])
+        return np.vstack([grid, spec])
 
 # =============================================================================
 #   fit_spectrum
