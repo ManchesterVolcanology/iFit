@@ -27,7 +27,7 @@ from ifit.spectrometers import Spectrometer
 from ifit.load_spectra import average_spectra
 from ifit.gps import GPS
 
-__version__ = '3.4'
+__version__ = '3.4.2'
 __author__ = 'Ben Esse'
 
 # Set up logging
