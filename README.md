@@ -2,79 +2,35 @@
 
 iFit is a program designed to retrieve SO2 column densities from scattered UV sunlight spectra, with the focus of measuring the SO2 flux from volcanoes. It also allows control of Ocean Optics USB series spectrometers, with simultaneous fitting.
 
-iFit's documentation can be found here: https://ifit.readthedocs.io/en/latest/
-
 ## Install
 
 ### Python Script
 
-iFit requires Python 3.6+ with `numpy` and `scipy` for basic operation. `matplotlib` and `pandas` are also useful for plotting and handelling data, but not strictly required. To use the GUI also requires `PySide2`, `pyqtgraph`, `pyyaml` and `pandas`, as well as [`python-seabreeze`](https://github.com/ap--/python-seabreeze) for acquiring spectra with Ocean Insight spectrometers.
+iFit requires Python 3.6+ with `numpy` and `scipy` for basic operation. `matplotlib` and `pandas` are also useful for plotting and handelling data, but not strictly required. To use the GUI also requires `PySide6`, `pyqtgraph`, `pyqtdarktheme`, `pyyaml`, `utm` and `pandas`, as well as [`python-seabreeze`](https://github.com/ap--/python-seabreeze) for acquiring spectra with Ocean Insight spectrometers, and `pyserial` for communicating with a USB GPS unit.
 
 Most libraries are available in Anaconda, which offers easy package management.  But first, to get the iFit code, clone the repository to your computer from the command line using
 
-``git clone https://github.com/benjaminesse/iFit.git``
+```
+git clone https://github.com/ManchesterVolcanology/iFit.git
+```
 
 If you are working on Windows and do not have git, checkout git for windows.
 
 ### Anaconda Install
 
-Install Anaconda or Miniconda from https://anaconda.org/.
+It is suggested to install Python and the various dependancies using Anaconda or Miniconda from https://anaconda.org/.
 
-Once installed, use conda to create the environment for iFit. Note here we will use iFit as the environment name, but feel free to name it whatever you like.
-
-```
-conda create -n iFit
-conda activate iFit
-```
-
-This create and activates the environment. Now install the required libraries:
+Once installed, create the environment for the iFit GUI from the terminal:
 
 ```
-conda install -c conda-forge numpy scipy tqdm pandas pyyaml pyserial utm pyside2 pyqtgraph seabreeze
-pip install pyqtdarktheme
+conda create -n ifit -c conda-forge numpy scipy pandas pyyaml pyserial utm pyside6 pyqtgraph seabreeze qt_theme::pyqtdarktheme
 ```
 
-Note that pyqtdarktheme is not available on conda so must be installed using pip.
-
-### Standard Python install
-
-iFit can also be installed using the standard Python distribution. Firstly download the latest Python release from https://www.python.org/.
-
-From within the iFit directory (or another location you choose) create the virtual environment:
-
-```
-python -m venv venv
-```
-
-This will create a local directory holding the virtual environment. To activate it run:
-
-```
-venv\Scripts\activate
-```
-
-on windows or
-
-```
-source venv/bin/activate
-```
-
-on Unix or MacOS. To test the install type `python` and hit enter. This should open an interactive command prompt for python. To exit this type `exit()` and hit enter.
-
-Next we need to install the libraries required for iFit. For basic functionality you only need:
-
-```
-pip install numpy scipy
-```
-
-For full functionality, including the GUI, install the following:
-
-```
-pip install numpy scipy matplotlib tqdm pandas pyyaml pyserial utm PySide2 pyqtgraph seabreeze pyqtdarktheme
-```
+Note here we are using `ifit` as the environment name, but this can be changed to whatever you like. The current version of iFit is tested with certain versions of Python libraries, so you can also use the provided `environemnt.yml` to avoid any potential compatability issues with future versions of Python or the libraries used.
 
 ### Python Seabreeze
 
-To install the relevant drivers for the python-seabreeze library to control Ocean Insight (was Ocean Optics) spectrometers run the following:
+To install the relevant drivers for the python-seabreeze library to control Ocean Optics spectrometers run the following:
 
 ```
 seabreeze_os_setup
@@ -84,7 +40,7 @@ Note that you may have to run this in a new terminal with root/administrator pri
 
 ### Running the iFIt GUI
 
-iFit should now be ready to run. To open the GUI, run:
+iFit should now be ready to run. To open the GUI, run the following within the iFit directory:
 
 ```
 python iFitUI.py
@@ -96,7 +52,7 @@ Executables have been compiled for Windows (32- and 64-bit versions) and are ava
 
 ### Building the executable
 
-The iFit executable is build with pyinstaller. If you want to build it yourself use the following command:
+The iFit executable is built with pyinstaller. If you want to build it yourself use the following command:
 
 ``pyinstaller -F -n iFitUI_win64 -w -i bin\icons\main.ico iFitUI.py``
 
